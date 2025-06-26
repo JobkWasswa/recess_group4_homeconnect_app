@@ -1,5 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:homeconnect/config/routes.dart'; // Ensure this is imported for navigation
+import 'package:firebase_auth/firebase_auth.dart'; // NEW: to get current user
+
+// Helper – convert something like “john_doe99@example.com” → “John Doe99”
+String nameFromEmail(String email) {
+  final localPart = email.split('@').first; // before "@"
+  final words = localPart.split(RegExp(r'[._]')); // split on "." or "_"
+  return words
+      .where((w) => w.isNotEmpty)
+      .map((w) => '${w[0].toUpperCase()}${w.substring(1)}')
+      .join(' ');
+}
 
 class HomeownerDashboardScreen extends StatelessWidget {
   const HomeownerDashboardScreen({Key? key}) : super(key: key);
@@ -20,21 +31,17 @@ class HomeownerDashboardScreen extends StatelessWidget {
           ),
         ),
         child: SafeArea(
-          // **CRUCIAL FIX:** Wrap the main Column in a SingleChildScrollView
-          // This allows the entire content of the screen to scroll if it overflows.
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHeader(context),
                 _buildSearchAndFilter(),
-                _buildCategorySection(context), // Pass context
-                _buildPopularServicesSection(context), // Pass context
-                _buildRecommendedProfessionalsSection(context), // Pass context
-                _buildBookingStatusSection(context), // Pass context
-                const SizedBox(
-                  height: 20,
-                ), // Add some bottom padding for the FAB and BottomAppBar
+                _buildCategorySection(context),
+                _buildPopularServicesSection(context),
+                _buildRecommendedProfessionalsSection(context),
+                _buildBookingStatusSection(context),
+                const SizedBox(height: 20),
               ],
             ),
           ),
@@ -54,6 +61,13 @@ class HomeownerDashboardScreen extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context) {
+    // NEW: derive friendly name from current user's email
+    final user = FirebaseAuth.instance.currentUser;
+    final displayName =
+        user != null && user.email != null
+            ? nameFromEmail(user.email!)
+            : 'User';
+
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -80,9 +94,9 @@ class HomeownerDashboardScreen extends StatelessWidget {
                       'Welcome back,',
                       style: TextStyle(color: Colors.purple[100], fontSize: 14),
                     ),
-                    const Text(
-                      'John Doe', // Placeholder name
-                      style: TextStyle(
+                    Text(
+                      displayName, // dynamic name
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -208,7 +222,6 @@ class HomeownerDashboardScreen extends StatelessWidget {
   }
 
   Widget _buildCategorySection(BuildContext context) {
-    // This section likely contains the "carts" (category cards) that were overflowing.
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Column(
@@ -219,21 +232,16 @@ class HomeownerDashboardScreen extends StatelessWidget {
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-          // **CRUCIAL FIX FOR NESTED GRIDVIEW:**
-          // Using shrinkWrap: true and NeverScrollableScrollPhysics()
-          // ensures this GridView plays nicely inside the parent SingleChildScrollView.
           GridView.builder(
-            shrinkWrap:
-                true, // This makes the GridView take only the space it needs.
-            physics:
-                const NeverScrollableScrollPhysics(), // This disables its own scrolling.
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3, // 3 items per row
+              crossAxisCount: 3,
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
-              childAspectRatio: 0.8, // Adjust as needed for card content to fit
+              childAspectRatio: 0.8,
             ),
-            itemCount: 6, // Example: 6 categories
+            itemCount: 6,
             itemBuilder: (context, index) {
               final categories = [
                 {'name': 'Plumbing', 'icon': Icons.plumbing},
@@ -245,7 +253,7 @@ class HomeownerDashboardScreen extends StatelessWidget {
               ];
               final category = categories[index];
               return _buildCategoryCard(
-                context, // Pass context if needed in the card
+                context,
                 category['name'] as String,
                 category['icon'] as IconData,
               );
@@ -263,7 +271,6 @@ class HomeownerDashboardScreen extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(15),
         onTap: () {
-          // TODO: Navigate to service list for this category
           print('Category tapped: $title');
           ScaffoldMessenger.of(
             context,
@@ -292,8 +299,6 @@ class HomeownerDashboardScreen extends StatelessWidget {
   }
 
   Widget _buildPopularServicesSection(BuildContext context) {
-    // This could also be a source of overflow if it's a horizontal list
-    // that somehow has height constraints issues.
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
       child: Column(
@@ -304,14 +309,11 @@ class HomeownerDashboardScreen extends StatelessWidget {
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-          // **FIX FOR HORIZONTAL LIST HEIGHT:**
-          // Ensure horizontal ListView has a defined height when in a Column.
           SizedBox(
-            height:
-                200, // Fixed height for horizontal list example (adjust as needed)
+            height: 200,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              itemCount: 5, // Example: 5 popular services
+              itemCount: 5,
               itemBuilder: (context, index) {
                 final services = [
                   {
@@ -369,7 +371,7 @@ class HomeownerDashboardScreen extends StatelessWidget {
     required String price,
   }) {
     return Container(
-      width: 180, // Fixed width for horizontal cards (adjust as needed)
+      width: 180,
       margin: const EdgeInsets.only(right: 12),
       child: Card(
         elevation: 5,
@@ -377,7 +379,6 @@ class HomeownerDashboardScreen extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(15),
           onTap: () {
-            // TODO: Navigate to service details
             print('Service tapped: $serviceName');
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -391,14 +392,12 @@ class HomeownerDashboardScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  height: 80, // Image placeholder, adjust if needed
+                  height: 80,
                   decoration: BoxDecoration(
                     color: Colors.grey[200],
                     borderRadius: BorderRadius.circular(10),
                     image: const DecorationImage(
-                      image: NetworkImage(
-                        'https://via.placeholder.com/150',
-                      ), // Placeholder image
+                      image: NetworkImage('https://via.placeholder.com/150'),
                       fit: BoxFit.cover,
                     ),
                   ),
@@ -457,7 +456,6 @@ class HomeownerDashboardScreen extends StatelessWidget {
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-          // Example: List of recommended professionals
           Column(
             children: [
               _buildProfessionalCard(
@@ -466,7 +464,7 @@ class HomeownerDashboardScreen extends StatelessWidget {
                 service: 'Plumbing Expert',
                 rating: '4.9',
                 jobsCompleted: '150+',
-                imageUrl: 'https://via.placeholder.com/150', // Placeholder
+                imageUrl: 'https://via.placeholder.com/150',
               ),
               const SizedBox(height: 10),
               _buildProfessionalCard(
@@ -475,7 +473,7 @@ class HomeownerDashboardScreen extends StatelessWidget {
                 service: 'Electrical & AC Repair',
                 rating: '4.7',
                 jobsCompleted: '120+',
-                imageUrl: 'https://via.placeholder.com/150', // Placeholder
+                imageUrl: 'https://via.placeholder.com/150',
               ),
             ],
           ),
@@ -498,7 +496,6 @@ class HomeownerDashboardScreen extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(15),
         onTap: () {
-          // TODO: Navigate to professional's profile
           print('Professional tapped: $name');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Tapped on $name\'s profile!')),
@@ -564,7 +561,6 @@ class HomeownerDashboardScreen extends StatelessWidget {
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-          // Placeholder for booking status
           _buildBookingStatusCard(
             context: context,
             service: 'Plumbing Repair',
@@ -586,7 +582,6 @@ class HomeownerDashboardScreen extends StatelessWidget {
           Center(
             child: TextButton(
               onPressed: () {
-                // TODO: Navigate to All Bookings
                 print('View All Bookings pressed');
               },
               child: const Text('View All My Bookings'),
@@ -611,7 +606,6 @@ class HomeownerDashboardScreen extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(15),
         onTap: () {
-          // TODO: Navigate to booking details
           print('Booking tapped: $service with $provider');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Tapped on booking for $service!')),
@@ -679,24 +673,20 @@ class HomeownerDashboardScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.home),
             color: Colors.purple[700],
-            onPressed: () {
-              // Stay on current page
-            },
+            onPressed: () {},
           ),
           IconButton(
             icon: const Icon(Icons.calendar_today),
             color: Colors.grey,
             onPressed: () {
-              // TODO: Navigate to My Bookings
               print('My Bookings bottom nav pressed!');
             },
           ),
-          const SizedBox(width: 48), // The space for the FAB
+          const SizedBox(width: 48), // Space for the FAB
           IconButton(
             icon: const Icon(Icons.work),
             color: Colors.grey,
             onPressed: () {
-              // TODO: Navigate to My Jobs/Requests
               print('My Jobs bottom nav pressed!');
             },
           ),
@@ -704,7 +694,6 @@ class HomeownerDashboardScreen extends StatelessWidget {
             icon: const Icon(Icons.message),
             color: Colors.grey,
             onPressed: () {
-              // TODO: Navigate to Messages
               print('Messages bottom nav pressed!');
             },
           ),
