@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 
 class ProfileCreationScreen extends StatefulWidget {
   const ProfileCreationScreen({super.key});
@@ -17,6 +19,8 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
   final _descController = TextEditingController();
   final List<String> _skills = [];
   File? _profileImage;
+  double? _latitude;
+  double? _longitude;
 
   final picker = ImagePicker();
   String locationAddress = "Not picked";
@@ -36,6 +40,56 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
     );
     await ref.putFile(_profileImage!);
     return await ref.getDownloadURL();
+  }
+
+  Future<void> _getCurrentLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // 1. Check if location services are enabled
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      return Future.error('Location services are disabled.');
+    }
+
+    // 2. Check permissions
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return Future.error('Location permissions are denied');
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      return Future.error('Location permissions are permanently denied.');
+    }
+
+    //  3. Get location using new LocationSettings
+    final locationSettings = LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 10, // optional: minimum distance before update
+    );
+
+    Position position = await Geolocator.getCurrentPosition(
+      locationSettings: locationSettings,
+    );
+
+    setState(() {
+      _latitude = position.latitude;
+      _longitude = position.longitude;
+    });
+
+    // 4. Convert to address
+    List<Placemark> placemarks = await placemarkFromCoordinates(
+      position.latitude,
+      position.longitude,
+    );
+
+    Placemark place = placemarks[0];
+    setState(() {
+      locationAddress = "${place.locality}, ${place.country}";
+    });
   }
 
   Future<void> _saveProfile() async {
@@ -61,8 +115,8 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
             'skills': _skills,
             'profilePhoto': imageUrl,
             'location': {
-              'lat': 0.3476,
-              'lng': 32.5825,
+              'lat': _latitude,
+              'lng': _longitude,
               'address': locationAddress,
             },
             'createdAt': Timestamp.now(),
@@ -136,6 +190,11 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
               spacing: 6,
               children: _skills.map((s) => Chip(label: Text(s))).toList(),
             ),
+            ElevatedButton(
+              onPressed: _getCurrentLocation,
+              child: const Text("Use Current Location"),
+            ),
+            const SizedBox(height: 10),
             ElevatedButton(
               onPressed: _addSkillDialog,
               child: const Text('Add Skill'),
