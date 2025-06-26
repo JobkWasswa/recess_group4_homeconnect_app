@@ -12,8 +12,24 @@ String nameFromEmail(String email) {
       .join(' ');
 }
 
-class HomeownerDashboardScreen extends StatelessWidget {
+class HomeownerDashboardScreen extends StatefulWidget {
   const HomeownerDashboardScreen({Key? key}) : super(key: key);
+
+  @override
+  State<HomeownerDashboardScreen> createState() => _HomeownerDashboardScreenState();
+}
+
+class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+  
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -186,7 +202,17 @@ class HomeownerDashboardScreen extends StatelessWidget {
         children: [
           Expanded(
             child: TextField(
-              decoration: InputDecoration(
+              controller: _searchController,
+              onSubmitted: (value) {
+                if (value.isNotEmpty) {
+                  Navigator.of(context).pushNamed(
+                    AppRoutes.serviceProviderListPage,
+                    arguments: {'query': value},
+                    );
+                  } 
+               },
+               decoration: InputDecoration(
+
                 hintText: 'Search for services...',
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
@@ -208,13 +234,17 @@ class HomeownerDashboardScreen extends StatelessWidget {
               color: Colors.grey[200],
               borderRadius: BorderRadius.circular(12),
             ),
-            child: IconButton(
+            child:IconButton(
               onPressed: () {
-                // TODO: Open filter options
-                print('Filter button pressed!');
-              },
-              icon: const Icon(Icons.filter_list),
-            ),
+                if (_searchController.text.isNotEmpty) {
+                  Navigator.of(context).pushNamed(
+                    AppRoutes.serviceProviderListPage,
+                    arguments: {'query': _searchController.text},
+                    );
+                    }
+                },
+                icon: const Icon(Icons.search),
+              )
           ),
         ],
       ),
@@ -705,3 +735,4 @@ class HomeownerDashboardScreen extends StatelessWidget {
     );
   }
 }
+
