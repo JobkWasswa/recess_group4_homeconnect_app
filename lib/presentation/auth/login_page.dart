@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:homeconnect/presentation/homeowner/pages/homeowner_dashboard_screen.dart'; // Import for navigation
-import 'package:homeconnect/presentation/service_provider/pages/service_provider_dashboard_screen.dart'; // Import for navigation
-import 'package:homeconnect/presentation/auth/register_page.dart'; // Import for RegisterPage
+import 'package:homeconnect/presentation/homeowner/pages/homeowner_dashboard_screen.dart';
+import 'package:homeconnect/presentation/service_provider/pages/service_provider_dashboard_screen.dart';
+import 'package:homeconnect/presentation/auth/register_page.dart';
+
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -16,6 +19,8 @@ class _LoginPageState extends State<LoginPage> {
   bool _showPassword = false;
   bool _rememberMe = false;
 
+  bool _isLoading = false;
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -23,25 +28,63 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  // --- NEW: Navigation Helper (Local to this page) ---
-  void _handleAuthSuccess(BuildContext context, String userType) {
-    // For UI-first, we're just simulating success and navigating.
-    // In the future, this is where actual Firebase authentication logic goes.
-    print('Simulating Login for User Type: $userType');
-
-    if (userType == 'homeowner') {
-      // Assuming login determines user type or is a general login
-      Navigator.of(context).pushReplacementNamed('/homeowner_dashboard');
-    } else {
-      // Potentially handle provider login differently if your app allows
-      Navigator.of(context).pushReplacementNamed('/service_provider_dashboard');
+  Future<void> _signIn(BuildContext context) async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter email and password.')),
+      );
+      return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Welcome, ${_emailController.text}!')),
-    );
+    try {
+      setState(() => _isLoading = true);
+
+      // Authenticate with Firebase Auth
+      final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      final uid = cred.user!.uid;
+
+      // Get user data from Firestore
+      final doc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+
+      // Use 'userType' instead of 'role' per your Firestore data
+      final userType = doc.data()?['userType']?.toString().toLowerCase();
+
+      if (userType == 'homeowner') {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const HomeownerDashboardScreen()),
+        );
+      } else if (userType == 'provider') {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => const ServiceProviderDashboardScreen(),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Account role not set.')));
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Welcome, ${_emailController.text}!')),
+      );
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message ?? 'Login failed.')));
+    } catch (_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('An unexpected error occurred.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
-  // --- END NEW ---
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +96,6 @@ class _LoginPageState extends State<LoginPage> {
         foregroundColor: Colors.black,
       ),
       body: SingleChildScrollView(
-        // **FIX: Allows scrolling for overflow prevention**
         padding: const EdgeInsets.all(24.0),
         child: ConstrainedBox(
           constraints: BoxConstraints(
@@ -105,8 +147,7 @@ class _LoginPageState extends State<LoginPage> {
                         Checkbox(
                           value: _rememberMe,
                           onChanged:
-                              (value) =>
-                                  setState(() => _rememberMe = value ?? false),
+                              (v) => setState(() => _rememberMe = v ?? false),
                         ),
                         const Text(
                           'Remember me',
@@ -116,7 +157,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     TextButton(
                       onPressed: () {
-                        // TODO: Implement Forgot Password logic
+                        // TODO: implement password reset
                         print('Forgot Password pressed');
                       },
                       child: const Text(
@@ -130,22 +171,11 @@ class _LoginPageState extends State<LoginPage> {
                   ],
                 ),
                 const SizedBox(height: 32),
-                _buildGradientButton('Sign In', () {
-                  // Basic UI validation before "simulated" login
-                  if (_emailController.text.isEmpty ||
-                      _passwordController.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please enter email and password.'),
-                      ),
-                    );
-                  } else {
-                    // For now, we'll navigate to homeowner dashboard.
-                    // In a real app, successful login would determine user type.
-                    _handleAuthSuccess(context, 'homeowner');
-                  }
-                }),
-                const Spacer(), // Pushes content to top if there's extra space
+                _buildGradientButton(
+                  _isLoading ? 'Signing In...' : 'Sign In',
+                  _isLoading ? null : () => _signIn(context),
+                ),
+                const Spacer(),
                 const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -156,7 +186,6 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     TextButton(
                       onPressed: () {
-                        // FIX: Added 'const' before RegisterPage()
                         Navigator.of(context).pushReplacement(
                           MaterialPageRoute(
                             builder: (_) => const RegisterPage(),
@@ -174,7 +203,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ],
                 ),
-                const Spacer(), // Pushes content to top if there's extra space
+                const Spacer(),
               ],
             ),
           ),
@@ -183,7 +212,6 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // Re-used _buildTextField
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -214,7 +242,6 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // Re-used _buildPasswordField
   Widget _buildPasswordField({
     required TextEditingController controller,
     required String label,
@@ -251,8 +278,7 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // Re-used _buildGradientButton
-  Widget _buildGradientButton(String text, VoidCallback onPressed) {
+  Widget _buildGradientButton(String text, VoidCallback? onPressed) {
     return SizedBox(
       width: double.infinity,
       height: 48,

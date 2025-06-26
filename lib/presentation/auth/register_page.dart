@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+// removed: import 'package:google_sign_in/google_sign_in.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({Key? key}) : super(key: key);
@@ -28,7 +29,6 @@ class _RegisterPageState extends State<RegisterPage> {
   // Firebase instances
   final _auth = FirebaseAuth.instance;
   final _db = FirebaseFirestore.instance;
-  final _gSignIn = GoogleSignIn.standard();
 
   @override
   void dispose() {
@@ -72,26 +72,28 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
-  // GOOGLE SIGN-UP
+  // GOOGLE SIGN-UP using Firebase Auth popup
   Future<void> _signUpWithGoogle() async {
     try {
-      final googleUser = await _gSignIn.signIn();
-      if (googleUser == null) return; // cancelled
+      // Create the provider
+      final googleProvider = GoogleAuthProvider();
+      // Optional: scopes
+      // googleProvider.addScope('https://www.googleapis.com/auth/contacts.readonly');
 
-      final googleAuth = await googleUser.authentication;
-      final cred = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-      final userCred = await _auth.signInWithCredential(cred);
+      // Trigger the popup flow
+      final userCred = await _auth.signInWithPopup(googleProvider);
 
-      // always (re)write role — so if they switch devices, you capture it
+      // Save role & email
       await _saveRoleToFirestore(userCred.user!.uid, userCred.user!.email!);
       _goToDashboard();
     } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.message ?? 'Error')));
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Google sign-in failed: $e')));
     }
   }
 
@@ -200,7 +202,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
             // 6) Google sign-up
             ElevatedButton.icon(
-              icon: Image.asset('assets/google_logo.png', width: 20),
+              icon: Image.asset('lib/assets/google_logo.png', width: 20),
               label: const Text('Sign up with Google'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
