@@ -265,9 +265,12 @@ class HomeownerDashboardScreen extends StatelessWidget {
         onTap: () {
           // TODO: Navigate to service list for this category
           print('Category tapped: $title');
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Tapped on $title category!')));
+          
+          Navigator.of(context).pushNamed(
+            AppRoutes.serviceProviderListPage,
+            arguments: {'category': title},
+            );
+
         },
         child: Padding(
           padding: const EdgeInsets.all(12.0),
