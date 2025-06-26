@@ -1,8 +1,78 @@
 import 'package:flutter/material.dart';
 import 'package:homeconnect/config/routes.dart'; // Import routes for logout navigation
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class ServiceProviderDashboardScreen extends StatelessWidget {
+class ServiceProviderDashboardScreen extends StatefulWidget {
   const ServiceProviderDashboardScreen({Key? key}) : super(key: key);
+
+  @override
+  State<ServiceProviderDashboardScreen> createState() =>
+      _ServiceProviderDashboardScreenState();
+}
+
+class _ServiceProviderDashboardScreenState
+    extends State<ServiceProviderDashboardScreen> {
+  String providerName = '';
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchProviderName();
+  }
+
+  String _formatNameFromEmail(String email) {
+    final username = email.split('@').first;
+    // Replace dots, underscores, and dashes with spaces
+    final withSpaces = username.replaceAll(RegExp(r'[._-]'), ' ');
+    // Capitalize each word
+    final words = withSpaces.split(' ');
+    final capitalizedWords = words
+        .map((word) {
+          if (word.isEmpty) return '';
+          return word[0].toUpperCase() + word.substring(1);
+        })
+        .join(' ');
+    return capitalizedWords.trim();
+  }
+
+  Future<void> _fetchProviderName() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        setState(() {
+          providerName = 'Provider';
+          isLoading = false;
+        });
+        return;
+      }
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
+
+      final data = doc.data();
+      final email =
+          data != null && data['email'] != null
+              ? data['email'].toString()
+              : null;
+
+      final generatedName =
+          email != null ? _formatNameFromEmail(email) : 'Provider';
+
+      setState(() {
+        providerName = generatedName;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        providerName = 'Provider';
+        isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,27 +90,25 @@ class ServiceProviderDashboardScreen extends StatelessWidget {
           ),
         ),
         child: SafeArea(
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                _buildHeader(context), // Pass context to _buildHeader
-                _buildStatsSummary(),
-                _buildJobRequestsSection(
-                  context,
-                ), // Pass context to _buildJobRequestsSection
-                _buildProfileManagementSection(
-                  context,
-                ), // Pass context to _buildProfileManagementSection
-              ],
-            ),
-          ),
+          child:
+              isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        _buildHeader(context),
+                        _buildStatsSummary(),
+                        _buildJobRequestsSection(context),
+                        _buildProfileManagementSection(context),
+                      ],
+                    ),
+                  ),
         ),
       ),
     );
   }
 
   Widget _buildHeader(BuildContext context) {
-    // Added BuildContext context
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -63,9 +131,9 @@ class ServiceProviderDashboardScreen extends StatelessWidget {
                       'Hello,',
                       style: TextStyle(color: Colors.purple[100], fontSize: 14),
                     ),
-                    const Text(
-                      'Grace Nakato', // Placeholder name for provider
-                      style: TextStyle(
+                    Text(
+                      providerName,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -276,7 +344,6 @@ class ServiceProviderDashboardScreen extends StatelessWidget {
   }
 
   Widget _buildJobRequestsSection(BuildContext context) {
-    // Added BuildContext context
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
       child: Column(
@@ -299,9 +366,7 @@ class ServiceProviderDashboardScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          // Placeholder for job requests list
           _buildJobRequestCard(
-            // Calls now pass context
             context: context,
             jobType: 'House Cleaning',
             homeownerName: 'Sarah K.',
@@ -310,7 +375,6 @@ class ServiceProviderDashboardScreen extends StatelessWidget {
             price: 'UGX 20,000',
           ),
           _buildJobRequestCard(
-            // Calls now pass context
             context: context,
             jobType: 'Plumbing Fix',
             homeownerName: 'Alex M.',
@@ -334,7 +398,7 @@ class ServiceProviderDashboardScreen extends StatelessWidget {
   }
 
   Widget _buildJobRequestCard({
-    required BuildContext context, // Added BuildContext context parameter
+    required BuildContext context,
     required String jobType,
     required String homeownerName,
     required String date,
@@ -398,7 +462,6 @@ class ServiceProviderDashboardScreen extends StatelessWidget {
                   children: [
                     ElevatedButton(
                       onPressed: () {
-                        // context is now available here
                         print(
                           'Accept button pressed for $jobType from $homeownerName',
                         );
@@ -422,7 +485,6 @@ class ServiceProviderDashboardScreen extends StatelessWidget {
                     const SizedBox(width: 8),
                     OutlinedButton(
                       onPressed: () {
-                        // context is now available here
                         print(
                           'Reject button pressed for $jobType from $homeownerName',
                         );
@@ -454,7 +516,6 @@ class ServiceProviderDashboardScreen extends StatelessWidget {
   }
 
   Widget _buildProfileManagementSection(BuildContext context) {
-    // Added BuildContext context
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
       child: Column(
@@ -466,7 +527,6 @@ class ServiceProviderDashboardScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           _buildManagementCard(
-            // Calls now pass context
             context: context,
             icon: Icons.edit,
             title: 'Edit Services & Profile',
@@ -479,7 +539,6 @@ class ServiceProviderDashboardScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _buildManagementCard(
-            // Calls now pass context
             context: context,
             icon: Icons.calendar_month,
             title: 'Set Availability',
@@ -492,7 +551,6 @@ class ServiceProviderDashboardScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _buildManagementCard(
-            // Calls now pass context
             context: context,
             icon: Icons.history,
             title: 'View Job History',
@@ -509,7 +567,7 @@ class ServiceProviderDashboardScreen extends StatelessWidget {
   }
 
   Widget _buildManagementCard({
-    required BuildContext context, // Added BuildContext context parameter
+    required BuildContext context,
     required IconData icon,
     required String title,
     required String subtitle,
