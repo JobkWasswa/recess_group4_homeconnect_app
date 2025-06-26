@@ -1,34 +1,53 @@
 import 'package:flutter/material.dart';
-// import 'package:myhome/presentation/auth/auth_screen.dart'; // You can remove this import if AuthScreen is no longer used anywhere else
 import 'package:homeconnect/presentation/homeowner/pages/homeowner_dashboard_screen.dart';
 import 'package:homeconnect/presentation/service_provider/pages/service_provider_dashboard_screen.dart';
 import 'package:homeconnect/presentation/auth/login_page.dart';
 import 'package:homeconnect/presentation/auth/register_page.dart';
 import 'package:homeconnect/presentation/auth/splash_screen.dart';
+import 'package:homeconnect/presentation/homeowner/pages/service_provider_list_page.dart';
+import 'package:homeconnect/presentation/homeowner/pages/service_provider_detail_page.dart'; 
 
 class AppRoutes {
-  static const String splash =
-      '/'; // This makes the SplashScreen the app's entry point
-  static const String auth =
-      '/auth'; // This route can remain, but won't be used for initial navigation
-  static const String login =
-      '/login'; // This is the direct target after splash
+  static const String splash = '/';
+  static const String auth = '/auth';
+  static const String login = '/login';
   static const String register = '/register';
   static const String homeownerDashboard = '/homeowner_dashboard';
   static const String serviceProviderDashboard = '/service_provider_dashboard';
 
+  // ✅ New route constants for service provider pages
+  static const String serviceProviderListPage = '/providerList';
+  static const String serviceProviderDetailPage = '/providerDetail';
+
   static Map<String, WidgetBuilder> get routes {
     return {
-      splash:
-          (context) => const SplashScreen(), // Maps '/' to your SplashScreen
-      // auth:
-      //     (context) =>
-      //         const AuthScreen(), // If AuthScreen is truly not needed, you can remove this line and the import
-      login: (context) => const LoginPage(), // Maps '/login' to your LoginPage
+      splash: (context) => const SplashScreen(),
+      login: (context) => const LoginPage(),
       register: (context) => const RegisterPage(),
       homeownerDashboard: (context) => const HomeownerDashboardScreen(),
-      serviceProviderDashboard:
-          (context) => const ServiceProviderDashboardScreen(),
+      serviceProviderDashboard: (context) => const ServiceProviderDashboardScreen(),
+      // Note: No need to add serviceProviderListPage and serviceProviderDetailPage here since they’ll be handled by onGenerateRoute
     };
+  }
+
+  // ✅ New onGenerateRoute function to handle dynamic routing with arguments
+  static Route<dynamic>? onGenerateRoute(RouteSettings settings) {
+    switch (settings.name) {
+      case serviceProviderListPage:
+        final args = settings.arguments as Map<String, dynamic>;
+        final category = args['category'] as String;
+        return MaterialPageRoute(
+          builder: (_) => ServiceProviderListPage(category: category),
+        );
+
+      case serviceProviderDetailPage:
+        // Example — you can add arguments handling here if needed later
+        return MaterialPageRoute(
+          builder: (_) => const ServiceProviderDetailPage(),
+        );
+
+      default:
+        return null; // If route not found here, fallback to static routes map or show error
+    }
   }
 }
