@@ -1,9 +1,9 @@
-import 'package:flutter/material.dart';
 import 'dart:io';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 
@@ -18,10 +18,10 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
   final _nameController = TextEditingController();
   final _descController = TextEditingController();
   final List<String> _skills = [];
+
   File? _profileImage;
   double? _latitude;
   double? _longitude;
-
   final picker = ImagePicker();
   String locationAddress = "Not picked";
 
@@ -34,7 +34,6 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
 
   Future<String?> _uploadProfileImage() async {
     if (_profileImage == null) return null;
-
     final ref = FirebaseStorage.instance.ref(
       'profile_pictures/${DateTime.now().millisecondsSinceEpoch}',
     );
@@ -43,36 +42,19 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
   }
 
   Future<void> _getCurrentLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return Future.error('Location services are disabled.');
 
-    // 1. Check if location services are enabled
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      return Future.error('Location services are disabled.');
-    }
-
-    // 2. Check permissions
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied)
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        return Future.error('Location permissions are denied');
-      }
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      return Future.error('Location permissions are denied.');
     }
-
-    if (permission == LocationPermission.deniedForever) {
-      return Future.error('Location permissions are permanently denied.');
-    }
-
-    //  3. Get location using new LocationSettings
-    final locationSettings = LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 10, // optional: minimum distance before update
-    );
 
     Position position = await Geolocator.getCurrentPosition(
-      locationSettings: locationSettings,
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
     );
 
     setState(() {
@@ -80,16 +62,14 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
       _longitude = position.longitude;
     });
 
-    // 4. Convert to address
     List<Placemark> placemarks = await placemarkFromCoordinates(
       position.latitude,
       position.longitude,
     );
-
-    Placemark place = placemarks[0];
-    setState(() {
-      locationAddress = "${place.locality}, ${place.country}";
-    });
+    if (placemarks.isNotEmpty) {
+      Placemark place = placemarks.first;
+      setState(() => locationAddress = "${place.locality}, ${place.country}");
+    }
   }
 
   Future<void> _saveProfile() async {
@@ -122,7 +102,7 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
             'createdAt': Timestamp.now(),
           });
 
-      if (!mounted) return; // Check if widget is still active
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Profile saved successfully!")),
       );
@@ -155,54 +135,117 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
     );
   }
 
+  Widget _buildProfileImage() {
+    return Stack(
+      alignment: Alignment.bottomRight,
+      children: [
+        CircleAvatar(
+          radius: 60,
+          backgroundImage:
+              _profileImage != null ? FileImage(_profileImage!) : null,
+          child:
+              _profileImage == null ? const Icon(Icons.person, size: 60) : null,
+        ),
+        Positioned(
+          child: InkWell(
+            onTap: _pickImage,
+            child: const CircleAvatar(
+              radius: 18,
+              backgroundColor: Colors.blue,
+              child: Icon(Icons.edit, color: Colors.white, size: 18),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Create Profile')),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _profileImage != null
-                ? CircleAvatar(
-                  radius: 50,
-                  backgroundImage: FileImage(_profileImage!),
-                )
-                : const CircleAvatar(
-                  radius: 50,
-                  child: Icon(Icons.person, size: 40),
-                ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: _pickImage,
-              child: const Text('Select Profile Picture'),
-            ),
+            Center(child: _buildProfileImage()),
+            const SizedBox(height: 20),
+
             TextField(
               controller: _nameController,
-              decoration: const InputDecoration(labelText: 'Name'),
+              decoration: const InputDecoration(
+                labelText: 'Name',
+                border: OutlineInputBorder(),
+              ),
             ),
+            const SizedBox(height: 15),
+
             TextField(
               controller: _descController,
-              decoration: const InputDecoration(labelText: 'Description'),
-              maxLines: 6,
+              decoration: const InputDecoration(
+                labelText: 'Description',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 4,
             ),
+            const SizedBox(height: 15),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Skills:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                TextButton.icon(
+                  onPressed: _addSkillDialog,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Skill'),
+                ),
+              ],
+            ),
+
             Wrap(
-              spacing: 6,
-              children: _skills.map((s) => Chip(label: Text(s))).toList(),
+              spacing: 8,
+              runSpacing: 4,
+              children:
+                  _skills.map((skill) => Chip(label: Text(skill))).toList(),
             ),
-            ElevatedButton(
-              onPressed: _getCurrentLocation,
-              child: const Text("Use Current Location"),
+            const SizedBox(height: 20),
+
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _getCurrentLocation,
+                    icon: const Icon(Icons.location_on),
+                    label: const Text("Use Current Location"),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: _addSkillDialog,
-              child: const Text('Add Skill'),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: _saveProfile,
-              child: const Text('Save Profile'),
+            if (_latitude != null && _longitude != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text(
+                  "Location: $locationAddress",
+                  style: const TextStyle(color: Colors.grey),
+                ),
+              ),
+            const SizedBox(height: 30),
+
+            Center(
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _saveProfile,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 14.0),
+                    child: Text("Save Profile", style: TextStyle(fontSize: 16)),
+                  ),
+                ),
+              ),
             ),
           ],
         ),

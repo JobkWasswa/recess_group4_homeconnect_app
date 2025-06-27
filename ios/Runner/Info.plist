@@ -47,8 +47,8 @@
 	<true/>
 	
 	<!--  Location permission explanation -->
-<key>NSLocationWhenInUseUsageDescription</key>
-<string>We need your location to show nearby services.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We need your location to show nearby services.</string>
 
 </dict>
 </plist>
