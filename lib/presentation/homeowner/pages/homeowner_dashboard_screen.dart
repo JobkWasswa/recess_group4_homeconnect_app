@@ -1,11 +1,12 @@
+// lib/screens/homeowner/homeowner_dashboard_screen.dart
 import 'package:flutter/material.dart';
-import 'package:homeconnect/config/routes.dart'; // Ensure this is imported for navigation
-import 'package:firebase_auth/firebase_auth.dart'; // NEW: to get current user
+import 'package:homeconnect/config/routes.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // Helper – convert something like “john_doe99@example.com” → “John Doe99”
 String nameFromEmail(String email) {
-  final localPart = email.split('@').first; // before "@"
-  final words = localPart.split(RegExp(r'[._]')); // split on "." or "_"
+  final localPart = email.split('@').first;
+  final words = localPart.split(RegExp(r'[._]'));
   return words
       .where((w) => w.isNotEmpty)
       .map((w) => '${w[0].toUpperCase()}${w.substring(1)}')
@@ -13,10 +14,11 @@ String nameFromEmail(String email) {
 }
 
 class HomeownerDashboardScreen extends StatefulWidget {
-  const HomeownerDashboardScreen({Key? key}) : super(key: key);
+  const HomeownerDashboardScreen({super.key});
 
   @override
-  State<HomeownerDashboardScreen> createState() => _HomeownerDashboardScreenState();
+  State<HomeownerDashboardScreen> createState() =>
+      _HomeownerDashboardScreenState();
 }
 
 class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
@@ -27,9 +29,6 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
     _searchController.dispose();
     super.dispose();
   }
-  
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -68,6 +67,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
         onPressed: () {
           // TODO: Navigate to Post a Job screen
           print('Post a new job pressed!');
+          // Example: Navigator.of(context).pushNamed(AppRoutes.postJobScreen);
         },
         backgroundColor: Colors.purple[700],
         child: const Icon(Icons.add, color: Colors.white),
@@ -77,7 +77,6 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
   }
 
   Widget _buildHeader(BuildContext context) {
-    // NEW: derive friendly name from current user's email
     final user = FirebaseAuth.instance.currentUser;
     final displayName =
         user != null && user.email != null
@@ -111,7 +110,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                       style: TextStyle(color: Colors.purple[100], fontSize: 14),
                     ),
                     Text(
-                      displayName, // dynamic name
+                      displayName,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,
@@ -131,7 +130,6 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                         children: [
                           IconButton(
                             onPressed: () {
-                              // TODO: Navigate to Notifications
                               print('Homeowner Notifications pressed');
                             },
                             icon: const Icon(
@@ -162,7 +160,6 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                       ),
                       child: IconButton(
                         onPressed: () {
-                          // TODO: Navigate to Profile Settings
                           print('Homeowner Profile pressed');
                         },
                         icon: const Icon(Icons.person, color: Colors.white),
@@ -175,11 +172,13 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                         borderRadius: BorderRadius.circular(25),
                       ),
                       child: IconButton(
-                        onPressed: () {
-                          // Logout: Navigate back to Auth screen
-                          Navigator.of(
-                            context,
-                          ).pushReplacementNamed(AppRoutes.auth);
+                        onPressed: () async {
+                          await FirebaseAuth.instance.signOut();
+                          if (mounted) {
+                            Navigator.of(
+                              context,
+                            ).pushReplacementNamed(AppRoutes.auth);
+                          }
                         },
                         icon: const Icon(Icons.logout, color: Colors.white),
                       ),
@@ -208,11 +207,10 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                   Navigator.of(context).pushNamed(
                     AppRoutes.serviceProviderListPage,
                     arguments: {'query': value},
-                    );
-                  } 
-               },
-               decoration: InputDecoration(
-
+                  );
+                }
+              },
+              decoration: InputDecoration(
                 hintText: 'Search for services...',
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
@@ -234,17 +232,17 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
               color: Colors.grey[200],
               borderRadius: BorderRadius.circular(12),
             ),
-            child:IconButton(
+            child: IconButton(
               onPressed: () {
                 if (_searchController.text.isNotEmpty) {
                   Navigator.of(context).pushNamed(
                     AppRoutes.serviceProviderListPage,
                     arguments: {'query': _searchController.text},
-                    );
-                    }
-                },
-                icon: const Icon(Icons.search),
-              )
+                  );
+                }
+              },
+              icon: const Icon(Icons.search),
+            ),
           ),
         ],
       ),
@@ -252,6 +250,30 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
   }
 
   Widget _buildCategorySection(BuildContext context) {
+    final categories = [
+      {'name': 'Roof Cleaning', 'image': 'lib/assets/images/roof_cleaning.png'},
+      {
+        'name': 'Compound Cleaning',
+        'image': 'lib/assets/images/compound_cleaning.jpg',
+      },
+      {'name': 'Painting', 'image': 'lib/assets/images/painting.png'},
+      {
+        'name': 'House Cleaning',
+        'image': 'lib/assets/images/house_cleaning.jpg',
+      },
+      {'name': 'Laundry & Ironing', 'image': 'lib/assets/images/laundry.png'},
+      {
+        'name': 'Cooking & Dish Washing',
+        'image': 'lib/assets/images/cooking.jpg',
+      },
+      {'name': 'Babysitting', 'image': 'lib/assets/images/babysitting.png'},
+      {'name': 'Gardening', 'image': 'lib/assets/images/gardening.jpg'},
+      {
+        'name': 'Furniture Repair',
+        'image': 'lib/assets/images/furn_repair.png',
+      },
+    ];
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Column(
@@ -262,76 +284,172 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 0.8,
+          SizedBox(
+            height: 160,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: categories.length,
+              itemBuilder: (context, index) {
+                final category = categories[index];
+                return _buildExploreCategoryCard(
+                  context,
+                  category['name'] as String,
+                  category['image'] as String,
+                );
+              },
             ),
-            itemCount: 6,
-            itemBuilder: (context, index) {
-              final categories = [
-                {'name': 'Plumbing', 'icon': Icons.plumbing},
-                {'name': 'Electrical', 'icon': Icons.electrical_services},
-                {'name': 'Cleaning', 'icon': Icons.cleaning_services},
-                {'name': 'Carpentry', 'icon': Icons.carpenter},
-                {'name': 'Painting', 'icon': Icons.format_paint},
-                {'name': 'Gardening', 'icon': Icons.local_florist},
-              ];
-              final category = categories[index];
-              return _buildCategoryCard(
-                context,
-                category['name'] as String,
-                category['icon'] as IconData,
-              );
-            },
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCategoryCard(BuildContext context, String title, IconData icon) {
-    return Card(
-      elevation: 5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+  Widget _buildExploreCategoryCard(
+    BuildContext context,
+    String title,
+    String imageUrl,
+  ) {
+    return Container(
+      width: 150,
+      margin: const EdgeInsets.only(right: 15),
+      decoration: BoxDecoration(
+        color:
+            Colors
+                .white, // This is the background that might show through transparent PNGs
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            spreadRadius: 2,
+            blurRadius: 5,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(15),
         onTap: () {
           print('Category tapped: $title');
-          
           Navigator.of(context).pushNamed(
             AppRoutes.serviceProviderListPage,
             arguments: {'category': title},
-            );
-
+          );
         },
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 40, color: Colors.purple[700]),
-              const SizedBox(height: 10),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+        child: Stack(
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(15),
+              ),
+              child: Image.asset(
+                imageUrl,
+                fit:
+                    BoxFit
+                        .cover, // Consider changing to BoxFit.contain or BoxFit.fill if image has large transparent borders
+                height: double.infinity,
+                width: double.infinity,
+              ),
+            ),
+            // The gradient overlay to make text readable
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(15),
+                ),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.0),
+                    Colors.black.withOpacity(0.6),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+            Positioned(
+              bottom: 8,
+              left: 8,
+              right: 8,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white.withOpacity(0.5)),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    child: const Text(
+                      'Explore',
+                      style: TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildPopularServicesSection(BuildContext context) {
+    final popularServices = [
+      {
+        'name': 'Painting',
+        'duration': 'Full day',
+        'description': 'Professional wall painting services',
+        'image':
+            'lib/assets/images/painting2.png', // Assuming this is a solid image or cropped
+      },
+      {
+        'name': 'Compound Cleaning',
+        'duration': '3-6 hours',
+        'description': 'Thorough cleaning of outdoor spaces',
+        'image': 'lib/assets/images/compound_cleaning3.jpg',
+      },
+      {
+        'name': 'House Cleaning',
+        'duration': '4-8 hours',
+        'description': 'Deep cleaning for residential properties',
+        'image':
+            'lib/assets/images/furn_moving.png', // Assuming this is a solid image or cropped
+      },
+      {
+        'name': 'Interior Painting',
+        'duration': '1-3 days',
+        'description': 'Transform your indoor spaces with a fresh coat',
+        'image': 'lib/assets/images/painting2.png', // Duplicated from above
+      },
+      {
+        'name': 'Custom Furniture',
+        'duration': '1-2 weeks',
+        'description': 'Handcrafted custom furniture and cabinetry',
+        'image':
+            'lib/assets/images/furn_moving.png', // Added from screenshot (13).jpg
+      },
+      {
+        'name': 'Furniture Repair', // Added from screenshot (13).jpg
+        'duration': '2-5 hours',
+        'description': 'Repair and restoration of existing furniture',
+        'image':
+            'lib/assets/images/furn_repair.png', // Kept, assuming it's the transparent one
+      },
+    ];
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
       child: Column(
@@ -343,50 +461,18 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
           ),
           const SizedBox(height: 16),
           SizedBox(
-            height: 200,
+            height: 300,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              itemCount: 5,
+              itemCount: popularServices.length,
               itemBuilder: (context, index) {
-                final services = [
-                  {
-                    'name': 'Deep Cleaning',
-                    'provider': 'CleanSweep Ltd.',
-                    'rating': '4.9',
-                    'price': 'UGX 50,000',
-                  },
-                  {
-                    'name': 'AC Repair',
-                    'provider': 'Cool Air Pros',
-                    'rating': '4.7',
-                    'price': 'UGX 80,000',
-                  },
-                  {
-                    'name': 'Wall Painting',
-                    'provider': 'Artistic Walls',
-                    'rating': '4.8',
-                    'price': 'UGX 100,000',
-                  },
-                  {
-                    'name': 'Pipe Leak Fix',
-                    'provider': 'Aqua Solutions',
-                    'rating': '4.9',
-                    'price': 'UGX 45,000',
-                  },
-                  {
-                    'name': 'Garden Landscaping',
-                    'provider': 'Green Thumb',
-                    'rating': '4.6',
-                    'price': 'UGX 120,000',
-                  },
-                ];
-                final service = services[index];
-                return _buildServiceCard(
+                final service = popularServices[index];
+                return _buildPopularServiceCard(
                   context: context,
                   serviceName: service['name'] as String,
-                  providerName: service['provider'] as String,
-                  rating: service['rating'] as String,
-                  price: service['price'] as String,
+                  duration: service['duration'] as String,
+                  description: service['description'] as String,
+                  imageUrl: service['image'] as String,
                 );
               },
             ),
@@ -396,82 +482,131 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
     );
   }
 
-  Widget _buildServiceCard({
+  Widget _buildPopularServiceCard({
     required BuildContext context,
     required String serviceName,
-    required String providerName,
-    required String rating,
-    required String price,
+    required String duration,
+    required String description,
+    required String imageUrl,
   }) {
     return Container(
-      width: 180,
-      margin: const EdgeInsets.only(right: 12),
+      width: 220,
+      margin: const EdgeInsets.only(right: 15),
       child: Card(
         elevation: 5,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         child: InkWell(
           borderRadius: BorderRadius.circular(15),
           onTap: () {
-            print('Service tapped: $serviceName');
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Tapped on $serviceName by $providerName!'),
-              ),
-            );
+            print('Popular service tapped: $serviceName');
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('Tapped on $serviceName!')));
+            // TODO: Navigate to service details or booking
           },
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(10),
-                    image: const DecorationImage(
-                      image: NetworkImage('https://via.placeholder.com/150'),
-                      fit: BoxFit.cover,
-                    ),
-                  ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(15),
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  serviceName,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  providerName,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 5),
-                Row(
+                child: Stack(
                   children: [
-                    Icon(Icons.star, color: Colors.amber[700], size: 16),
-                    Text(
-                      rating,
-                      style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                    Image.asset(
+                      imageUrl,
+                      height: 150,
+                      width: double.infinity,
+                      fit:
+                          BoxFit
+                              .cover, // Consider changing to BoxFit.contain or BoxFit.fill here
                     ),
-                    const Spacer(),
-                    Text(
-                      price,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.green,
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.6),
+                          borderRadius: const BorderRadius.only(
+                            bottomLeft: Radius.circular(15),
+                            bottomRight: Radius.circular(15),
+                          ),
+                        ),
+                        child: Center(
+                          child: TextButton.icon(
+                            onPressed: () {
+                              print('Quick View for $serviceName');
+                              // TODO: Implement quick view logic
+                            },
+                            icon: const Icon(
+                              Icons.remove_red_eye,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                            label: const Text(
+                              'Quick View',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                              ),
+                            ),
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      serviceName,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.access_time,
+                          color: Colors.grey[600],
+                          size: 16,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          duration,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      description,
+                      style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -735,4 +870,3 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
     );
   }
 }
-
