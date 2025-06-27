@@ -42,6 +42,20 @@ flutter:
   # App assets
   assets:
     - lib/assets/google_logo.png
+    - lib/assets/images/babysitting.png
+    - lib/assets/images/compound_cleaning.jpg
+    - lib/assets/images/compound_cleaning2.jpg
+    - lib/assets/images/compound_cleaning3.jpg
+    - lib/assets/images/cooking.jpg
+    - lib/assets/images/laundry.png
+    - lib/assets/images/painting.png
+    - lib/assets/images/painting2.png
+    - lib/assets/images/roof_cleaning.png
+    - lib/assets/images/house_cleaning.jpg
+    - lib/assets/images/gardening.jpg
+    - lib/assets/images/gardening2.jpg
+    - lib/assets/images/furn_moving.png
+    - lib/assets/images/furn_repair.png
   #   - images/a_dot_ham.jpeg
 
   # ---- fonts examples kept for reference ----
