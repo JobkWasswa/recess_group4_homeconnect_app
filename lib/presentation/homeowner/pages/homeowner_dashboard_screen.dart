@@ -870,5 +870,3 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
     );
   }
 }
-
-  
