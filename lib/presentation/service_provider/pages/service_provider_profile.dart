@@ -46,8 +46,9 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
     if (!serviceEnabled) return Future.error('Location services are disabled.');
 
     LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied)
+    if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
+    }
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever) {
       return Future.error('Location permissions are denied.');

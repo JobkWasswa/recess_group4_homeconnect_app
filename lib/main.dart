@@ -13,7 +13,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   // Optional: Create a FirebaseAnalytics instance if you want to use Analytics
   static FirebaseAnalytics analytics = FirebaseAnalytics.instance;

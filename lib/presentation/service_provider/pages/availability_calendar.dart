@@ -20,9 +20,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     'Saturday',
     'Sunday',
   ];
-  Map<String, bool> _availability = {};
-  Map<String, TimeOfDay?> _startTimes = {};
-  Map<String, TimeOfDay?> _endTimes = {};
+  final Map<String, bool> _availability = {};
+  final Map<String, TimeOfDay?> _startTimes = {};
+  final Map<String, TimeOfDay?> _endTimes = {};
 
   @override
   void initState() {

@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 // removed: import 'package:google_sign_in/google_sign_in.dart';
 
 class RegisterPage extends StatefulWidget {
-  const RegisterPage({Key? key}) : super(key: key);
+  const RegisterPage({super.key});
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
@@ -226,10 +225,10 @@ class _RegisterPageState extends State<RegisterPage> {
                   );
                 }
               },
-              child: const Text('Create Account'),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size.fromHeight(48),
               ),
+              child: const Text('Create Account'),
             ),
 
             const SizedBox(height: 24),

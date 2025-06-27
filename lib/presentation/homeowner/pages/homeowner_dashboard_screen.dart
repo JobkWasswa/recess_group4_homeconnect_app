@@ -13,10 +13,11 @@ String nameFromEmail(String email) {
 }
 
 class HomeownerDashboardScreen extends StatefulWidget {
-  const HomeownerDashboardScreen({Key? key}) : super(key: key);
+  const HomeownerDashboardScreen({super.key});
 
   @override
-  State<HomeownerDashboardScreen> createState() => _HomeownerDashboardScreenState();
+  State<HomeownerDashboardScreen> createState() =>
+      _HomeownerDashboardScreenState();
 }
 
 class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
@@ -27,9 +28,6 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
     _searchController.dispose();
     super.dispose();
   }
-  
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -208,11 +206,10 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                   Navigator.of(context).pushNamed(
                     AppRoutes.serviceProviderListPage,
                     arguments: {'query': value},
-                    );
-                  } 
-               },
-               decoration: InputDecoration(
-
+                  );
+                }
+              },
+              decoration: InputDecoration(
                 hintText: 'Search for services...',
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
@@ -234,17 +231,17 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
               color: Colors.grey[200],
               borderRadius: BorderRadius.circular(12),
             ),
-            child:IconButton(
+            child: IconButton(
               onPressed: () {
                 if (_searchController.text.isNotEmpty) {
                   Navigator.of(context).pushNamed(
                     AppRoutes.serviceProviderListPage,
                     arguments: {'query': _searchController.text},
-                    );
-                    }
-                },
-                icon: const Icon(Icons.search),
-              )
+                  );
+                }
+              },
+              icon: const Icon(Icons.search),
+            ),
           ),
         ],
       ),
@@ -302,12 +299,11 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
         borderRadius: BorderRadius.circular(15),
         onTap: () {
           print('Category tapped: $title');
-          
+
           Navigator.of(context).pushNamed(
             AppRoutes.serviceProviderListPage,
             arguments: {'category': title},
-            );
-
+          );
         },
         child: Padding(
           padding: const EdgeInsets.all(12.0),
@@ -735,4 +731,3 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
     );
   }
 }
-
