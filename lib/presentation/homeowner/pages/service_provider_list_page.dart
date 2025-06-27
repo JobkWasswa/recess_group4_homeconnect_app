@@ -11,9 +11,17 @@ class ServiceProviderListPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
-    final query = args != null ? args['query'] as String? : null;
-    final category = args != null ? args['category'] as String? : null;
+  final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+  final query = args != null ? args['query'] as String? : null;
+  final category = args != null ? args['category'] as String? : null;
+  final searchValue = query ?? category;
+  if (searchValue == null || searchValue.isEmpty) {
+    return const Scaffold(
+     body: Center(
+       child: Text('No search input provided.'),
+    ),
+  );
+}
 
     return Scaffold(
       appBar: AppBar(
