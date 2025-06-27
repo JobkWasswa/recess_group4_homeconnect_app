@@ -1,26 +1,40 @@
 import 'package:flutter/material.dart';
-import 'package:table_calendar/table_calendar.dart';
-import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-class CalendarAvailabilityScreen extends StatefulWidget {
-  const CalendarAvailabilityScreen({super.key});
+class AvailabilityScreen extends StatefulWidget {
+  const AvailabilityScreen({super.key});
 
   @override
-  State<CalendarAvailabilityScreen> createState() =>
-      _CalendarAvailabilityScreenState();
+  State<AvailabilityScreen> createState() => _AvailabilityScreenState();
 }
 
-class _CalendarAvailabilityScreenState
-    extends State<CalendarAvailabilityScreen> {
-  DateTime _focusedDay = DateTime.now();
-  DateTime? _selectedDay;
-  Map<String, Map<String, String>> _availability = {};
-  TimeOfDay? _startTime;
-  TimeOfDay? _endTime;
+class _AvailabilityScreenState extends State<AvailabilityScreen> {
+  final daysOfWeek = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ];
+  Map<String, bool> _availability = {};
+  Map<String, TimeOfDay?> _startTimes = {};
+  Map<String, TimeOfDay?> _endTimes = {};
 
-  Future<void> _pickTime(bool isStart) async {
+  @override
+  void initState() {
+    super.initState();
+    for (var day in daysOfWeek) {
+      _availability[day] = false;
+      _startTimes[day] = null;
+      _endTimes[day] = null;
+    }
+  }
+
+  Future<void> _pickTime(String day, bool isStart) async {
     final picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
@@ -28,139 +42,95 @@ class _CalendarAvailabilityScreenState
     if (picked != null) {
       setState(() {
         if (isStart) {
-          _startTime = picked;
+          _startTimes[day] = picked;
         } else {
-          _endTime = picked;
+          _endTimes[day] = picked;
         }
       });
     }
   }
 
-  String _formatTime(TimeOfDay? time) {
+  String formatTime(TimeOfDay? time) {
     if (time == null) return '--:--';
     final now = DateTime.now();
     final dt = DateTime(now.year, now.month, now.day, time.hour, time.minute);
     return DateFormat('HH:mm').format(dt);
   }
 
-  void _saveSelectedDateAvailability() {
-    if (_selectedDay != null && _startTime != null && _endTime != null) {
-      final dateKey = DateFormat('yyyy-MM-dd').format(_selectedDay!);
-      _availability[dateKey] = {
-        'start': _formatTime(_startTime),
-        'end': _formatTime(_endTime),
-      };
-      setState(() {
-        _startTime = null;
-        _endTime = null;
-      });
-    }
-  }
-
-  Future<void> _saveToFirestore() async {
+  Future<void> _saveAvailability() async {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? 'provider123';
+    final availabilityMap = {
+      for (var day in daysOfWeek)
+        day: {
+          'available': _availability[day],
+          'start': formatTime(_startTimes[day]),
+          'end': formatTime(_endTimes[day]),
+        },
+    };
+
     await FirebaseFirestore.instance
         .collection('service_providers')
         .doc(uid)
-        .update({'availability': _availability});
+        .update({'availability': availabilityMap});
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Availability saved to Firestore')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Availability saved')));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Calendar Availability')),
-      body: Column(
-        children: [
-          TableCalendar(
-            firstDay: DateTime.now(),
-            lastDay: DateTime.now().add(const Duration(days: 365)),
-            focusedDay: _focusedDay,
-            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-            onDaySelected: (selected, focused) {
-              setState(() {
-                _selectedDay = selected;
-                _focusedDay = focused;
-              });
-            },
-            calendarStyle: const CalendarStyle(
-              selectedDecoration: BoxDecoration(
-                color: Colors.blue,
-                shape: BoxShape.circle,
-              ),
-              todayDecoration: BoxDecoration(
-                color: Colors.orange,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          if (_selectedDay != null)
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                children: [
-                  Text(
-                    'Set availability for ${DateFormat('EEEE, MMM d').format(_selectedDay!)}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
+      appBar: AppBar(title: const Text('Set Availability')),
+      body: ListView(
+        children:
+            daysOfWeek.map((day) {
+              final isAvailable = _availability[day] ?? false;
+              return Card(
+                margin: const EdgeInsets.all(8),
+                child: Column(
+                  children: [
+                    SwitchListTile(
+                      title: Text(day),
+                      value: isAvailable,
+                      onChanged: (val) {
+                        setState(() {
+                          _availability[day] = val;
+                        });
+                      },
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      TextButton(
-                        onPressed: () => _pickTime(true),
-                        child: Text('Start: ${_formatTime(_startTime)}'),
+                    if (isAvailable)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            TextButton(
+                              onPressed: () => _pickTime(day, true),
+                              child: Text(
+                                'Start: ${formatTime(_startTimes[day])}',
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () => _pickTime(day, false),
+                              child: Text('End: ${formatTime(_endTimes[day])}'),
+                            ),
+                          ],
+                        ),
                       ),
-                      TextButton(
-                        onPressed: () => _pickTime(false),
-                        child: Text('End: ${_formatTime(_endTime)}'),
-                      ),
-                    ],
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: _saveSelectedDateAvailability,
-                    icon: const Icon(Icons.check),
-                    label: const Text('Add Availability'),
-                  ),
-                ],
-              ),
-            ),
-          const Divider(),
-          Expanded(
-            child: ListView(
-              children:
-                  _availability.entries.map((entry) {
-                    return ListTile(
-                      title: Text(entry.key),
-                      subtitle: Text(
-                        '${entry.value['start']} - ${entry.value['end']}',
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () {
-                          setState(() {
-                            _availability.remove(entry.key);
-                          });
-                        },
-                      ),
-                    );
-                  }).toList(),
-            ),
-          ),
-        ],
+                  ],
+                ),
+              );
+            }).toList(),
       ),
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: ElevatedButton.icon(
-          onPressed: _saveToFirestore,
-          icon: const Icon(Icons.save),
-          label: const Text('Save All'),
+        child: ElevatedButton(
+          onPressed: _saveAvailability,
+          child: const Text('Save Availability'),
         ),
       ),
     );
