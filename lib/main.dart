@@ -3,7 +3,6 @@ import 'package:homeconnect/config/routes.dart'; // Import your AppRoutes
 import 'package:firebase_core/firebase_core.dart'; // Firebase core
 import 'package:firebase_analytics/firebase_analytics.dart'; // Firebase Analytics (optional)
 import 'firebase_options.dart'; // <-- Import generated Firebase options
-import 'package:homeconnect/presentation/service_provider/pages/service_provider_profile.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,8 +23,13 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'HomeFix App',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(primarySwatch: Colors.blue),
-      home: const ProfileCreationScreen(), // 👈 shows only the profile screen
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        // Define other global themes if needed
+      ),
+      initialRoute: AppRoutes.splash, // Your app’s initial route
+      routes: AppRoutes.routes,
+      onGenerateRoute: AppRoutes.onGenerateRoute, // Your app’s routes
     );
   }
 }
