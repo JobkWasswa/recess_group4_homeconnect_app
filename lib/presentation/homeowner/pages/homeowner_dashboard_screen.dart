@@ -301,14 +301,15 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
       child: InkWell(
         borderRadius: BorderRadius.circular(15),
         onTap: () {
-          print('Category tapped: $title');
-          
-          Navigator.of(context).pushNamed(
-            AppRoutes.serviceProviderListPage,
-            arguments: {'category': title},
+            Navigator.of(context).pushNamed(
+              AppRoutes.serviceProviderListPage,
+              arguments: {
+                'category': title,
+                'location': 'Kampala', // or dynamically pull from user profile later
+              },
             );
+          },
 
-        },
         child: Padding(
           padding: const EdgeInsets.all(12.0),
           child: Column(
