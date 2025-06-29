@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:homeconnect/config/routes.dart'; // Import routes for logout navigation
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:homeconnect/presentation/service_provider/pages/service_provider_savedprofile.dart';
 
 class ServiceProviderDashboardScreen extends StatefulWidget {
   const ServiceProviderDashboardScreen({Key? key}) : super(key: key);
@@ -529,11 +530,13 @@ class _ServiceProviderDashboardScreenState
           _buildManagementCard(
             context: context,
             icon: Icons.edit,
-            title: 'Edit Services & Profile',
-            subtitle: 'Update your skills, description, and contact info.',
+            title: 'View saved proflie',
+            subtitle: 'Like the skills, description, and contact info.',
             onTap: () {
-              // TODO: Navigate to Edit Profile screen
-              print('Edit Services & Profile pressed');
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => ProfileDisplayScreen()),
+              );
             },
             colors: [Color(0xFFFBBF24), Color(0xFFEAB308)], // Yellow
           ),
