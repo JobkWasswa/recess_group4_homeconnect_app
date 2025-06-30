@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:homeconnect/config/routes.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -19,7 +20,6 @@ class _RegisterPageState extends State<RegisterPage> {
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
-  // CHANGE: Added controller for location input
   final _locationCtrl = TextEditingController();
 
   // Validation errors
@@ -35,18 +35,20 @@ class _RegisterPageState extends State<RegisterPage> {
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmCtrl.dispose();
-    // CHANGE: Dispose the location controller to prevent memory leaks
     _locationCtrl.dispose();
     super.dispose();
   }
 
   // Navigate based on role
-  void _goToDashboard() {
-    final route =
-        _userType == 'homeowner'
-            ? '/homeowner_dashboard'
-            : '/service_provider_dashboard';
-    Navigator.pushReplacementNamed(context, route);
+  void _navigateAfterRegistration() {
+    if (_userType == 'homeowner') {
+      Navigator.pushReplacementNamed(context, AppRoutes.homeownerDashboard);
+    } else {
+      Navigator.pushReplacementNamed(
+        context,
+        AppRoutes.serviceProviderCreateProfile,
+      );
+    }
   }
 
   // Write minimal profile (role, email, and location for homeowners) to Firestore
@@ -55,7 +57,6 @@ class _RegisterPageState extends State<RegisterPage> {
       'userType': _userType,
       'email': email,
       'createdAt': FieldValue.serverTimestamp(),
-      // CHANGE: Add location to Firestore for homeowners only
       if (_userType == 'homeowner') 'location': _locationCtrl.text,
     });
   }
@@ -68,7 +69,7 @@ class _RegisterPageState extends State<RegisterPage> {
         password: _passwordCtrl.text,
       );
       await _saveRoleToFirestore(cred.user!.uid, cred.user!.email!);
-      _goToDashboard();
+      _navigateAfterRegistration();
     } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -85,7 +86,7 @@ class _RegisterPageState extends State<RegisterPage> {
       final userCred = await _auth.signInWithPopup(googleProvider);
       // Save role & email
       await _saveRoleToFirestore(userCred.user!.uid, userCred.user!.email!);
-      _goToDashboard();
+      _navigateAfterRegistration();
     } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -116,7 +117,6 @@ class _RegisterPageState extends State<RegisterPage> {
       _confirmError = null;
     }
 
-    // CHANGE: Validate location field for homeowners
     if (_userType == 'homeowner' && _locationCtrl.text.isEmpty) {
       ok = false;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -194,7 +194,6 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
             const SizedBox(height: 16),
 
-            // CHANGE: Add location field for homeowners only
             if (_userType == 'homeowner') ...[
               TextField(
                 controller: _locationCtrl,
@@ -256,7 +255,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 const Text("Already have an account?"),
                 TextButton(
                   onPressed:
-                      () => Navigator.pushReplacementNamed(context, '/login'),
+                      () => Navigator.pushReplacementNamed(context, AppRoutes.login),
                   child: const Text('Sign In'),
                 ),
               ],

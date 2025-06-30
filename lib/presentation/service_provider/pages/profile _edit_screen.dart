@@ -103,6 +103,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text("Profile updated.")));
+
+    // Navigate back
+    Navigator.pop(context);
   }
 
   void _addSkillDialog() {

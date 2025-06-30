@@ -7,6 +7,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:homeconnect/config/routes.dart';
 
 class ProfileCreationScreen extends StatefulWidget {
   const ProfileCreationScreen({super.key});
@@ -180,6 +181,12 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Profile saved successfully!")),
+      );
+
+      //  Navigate to service provider dashboard
+      Navigator.pushReplacementNamed(
+        context,
+        AppRoutes.serviceProviderDashboard,
       );
     } catch (e) {
       if (!mounted) return;

@@ -5,7 +5,8 @@ import 'package:homeconnect/presentation/auth/login_page.dart';
 import 'package:homeconnect/presentation/auth/register_page.dart';
 import 'package:homeconnect/presentation/auth/splash_screen.dart';
 import 'package:homeconnect/presentation/homeowner/pages/service_provider_list_page.dart';
-import 'package:homeconnect/presentation/homeowner/pages/service_provider_detail_page.dart'; 
+import 'package:homeconnect/presentation/homeowner/pages/service_provider_detail_page.dart';
+import 'package:homeconnect/presentation/service_provider/pages/service_provider_profile.dart';
 
 class AppRoutes {
   static const String splash = '/';
@@ -18,6 +19,8 @@ class AppRoutes {
   // ✅ New route constants for service provider pages
   static const String serviceProviderListPage = '/providerList';
   static const String serviceProviderDetailPage = '/providerDetail';
+  static const String serviceProviderCreateProfile =
+      '/service_provider_create_profile';
 
   static Map<String, WidgetBuilder> get routes {
     return {
@@ -25,7 +28,9 @@ class AppRoutes {
       login: (context) => const LoginPage(),
       register: (context) => const RegisterPage(),
       homeownerDashboard: (context) => const HomeownerDashboardScreen(),
-      serviceProviderDashboard: (context) => const ServiceProviderDashboardScreen(),
+      serviceProviderDashboard:
+          (context) => const ServiceProviderDashboardScreen(),
+      serviceProviderCreateProfile: (context) => const ProfileCreationScreen(),
       // Note: No need to add serviceProviderListPage and serviceProviderDetailPage here since they’ll be handled by onGenerateRoute
     };
   }

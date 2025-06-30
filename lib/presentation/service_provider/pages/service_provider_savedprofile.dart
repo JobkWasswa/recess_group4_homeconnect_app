@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:homeconnect/presentation/service_provider/pages/profile _edit_screen.dart';
 
 class ProfileDisplayScreen extends StatelessWidget {
   const ProfileDisplayScreen({super.key});
@@ -98,6 +99,18 @@ class ProfileDisplayScreen extends StatelessWidget {
                   final times = entry.value as Map<String, dynamic>;
                   return Text("$day: ${times['start']} - ${times['end']}");
                 }).toList(),
+                SizedBox(height: 10),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ProfileEditScreen(),
+                      ),
+                    );
+                  },
+                  child: Text('Edit profile'),
+                ),
               ],
             ),
           );
