@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class ServiceProviderDetailPage extends StatelessWidget {
   
-  const ServiceProviderDetailPage({Key? key}) : super(key: key);
+  const ServiceProviderDetailPage({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -8,7 +8,7 @@ class ServiceProviderListPage extends StatelessWidget {
   final String? searchQuery;
   final String? category;
 
-  const ServiceProviderListPage({Key? key, this.searchQuery, this.category}) : super(key: key);
+  const ServiceProviderListPage({super.key, this.searchQuery, this.category});
 
 
   @override
@@ -35,7 +35,7 @@ class ServiceProviderListPage extends StatelessWidget {
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: HomeownerFirestoreProvider()
-              .fetchProvidersBySkillAndLocation(skill: searchValue, location: location!),
+              .fetchProvidersBySkillAndLocation(skill: searchValue, location: location),
 
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {

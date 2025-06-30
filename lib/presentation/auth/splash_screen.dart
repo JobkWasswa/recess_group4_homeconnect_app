@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:homeconnect/config/routes.dart'; // Make sure this is imported
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();

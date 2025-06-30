@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ServiceProviderDashboardScreen extends StatefulWidget {
-  const ServiceProviderDashboardScreen({Key? key}) : super(key: key);
+  const ServiceProviderDashboardScreen({super.key});
 
   @override
   State<ServiceProviderDashboardScreen> createState() =>

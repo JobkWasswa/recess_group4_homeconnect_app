@@ -1,5 +1,6 @@
-import 'dart:io';
+import 'dart:io' as io;
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -19,56 +20,118 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
   final _descController = TextEditingController();
   final List<String> _skills = [];
 
-  File? _profileImage;
+  io.File? _profileImageFile; // for mobile & desktop
+  Uint8List? _webImageBytes; // for web
   double? _latitude;
   double? _longitude;
   final picker = ImagePicker();
   String locationAddress = "Not picked";
+  final Map<String, bool> _availability = {
+    'Monday': false,
+    'Tuesday': false,
+    'Wednesday': false,
+    'Thursday': false,
+    'Friday': false,
+    'Saturday': false,
+    'Sunday': false,
+  };
+
+  final Map<String, TimeOfDay?> _startTimes = {};
+  final Map<String, TimeOfDay?> _endTimes = {};
 
   Future<void> _pickImage() async {
     final picked = await picker.pickImage(source: ImageSource.gallery);
     if (picked != null) {
-      setState(() => _profileImage = File(picked.path));
+      if (kIsWeb) {
+        final bytes = await picked.readAsBytes();
+        setState(() {
+          _webImageBytes = bytes;
+          _profileImageFile = null;
+        });
+      } else {
+        setState(() {
+          _profileImageFile = io.File(picked.path);
+          _webImageBytes = null;
+        });
+      }
     }
   }
 
   Future<String?> _uploadProfileImage() async {
-    if (_profileImage == null) return null;
     final ref = FirebaseStorage.instance.ref(
       'profile_pictures/${DateTime.now().millisecondsSinceEpoch}',
     );
-    await ref.putFile(_profileImage!);
+
+    if (kIsWeb && _webImageBytes != null) {
+      await ref.putData(_webImageBytes!);
+    } else if (!kIsWeb && _profileImageFile != null) {
+      await ref.putFile(_profileImageFile!);
+    } else {
+      return null;
+    }
+
     return await ref.getDownloadURL();
   }
 
   Future<void> _getCurrentLocation() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) return Future.error('Location services are disabled.');
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Location services are disabled.")),
+        );
+        return;
+      }
 
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied)
-      permission = await Geolocator.requestPermission();
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      return Future.error('Location permissions are denied.');
-    }
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Location permission denied.")),
+        );
+        return;
+      }
 
-    Position position = await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-    );
+      Position position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
 
-    setState(() {
-      _latitude = position.latitude;
-      _longitude = position.longitude;
-    });
+      setState(() {
+        _latitude = position.latitude;
+        _longitude = position.longitude;
+      });
 
-    List<Placemark> placemarks = await placemarkFromCoordinates(
-      position.latitude,
-      position.longitude,
-    );
-    if (placemarks.isNotEmpty) {
-      Placemark place = placemarks.first;
-      setState(() => locationAddress = "${place.locality}, ${place.country}");
+      try {
+        List<Placemark> placemarks = await placemarkFromCoordinates(
+          position.latitude,
+          position.longitude,
+        );
+
+        if (placemarks.isNotEmpty) {
+          Placemark place = placemarks.first;
+          setState(() {
+            locationAddress = "${place.locality}, ${place.country}";
+          });
+        } else {
+          setState(() {
+            locationAddress = "Location found, but no address.";
+          });
+        }
+      } catch (e) {
+        setState(() {
+          locationAddress = "Coordinates: $_latitude, $_longitude";
+        });
+        debugPrint("Failed to get placemark: $e");
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Location error: $e")));
     }
   }
 
@@ -86,6 +149,17 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
       final uid = user.uid;
       final imageUrl = await _uploadProfileImage();
 
+      // Build availability map
+      Map<String, dynamic> availabilityData = {};
+      _availability.forEach((day, isAvailable) {
+        if (isAvailable) {
+          availabilityData[day] = {
+            'start': _startTimes[day]?.format(context),
+            'end': _endTimes[day]?.format(context),
+          };
+        }
+      });
+
       await FirebaseFirestore.instance
           .collection('service_providers')
           .doc(uid)
@@ -99,6 +173,7 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
               'lng': _longitude,
               'address': locationAddress,
             },
+            'availability': availabilityData,
             'createdAt': Timestamp.now(),
           });
 
@@ -142,9 +217,18 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
         CircleAvatar(
           radius: 60,
           backgroundImage:
-              _profileImage != null ? FileImage(_profileImage!) : null,
+              kIsWeb
+                  ? (_webImageBytes != null
+                      ? MemoryImage(_webImageBytes!)
+                      : null)
+                  : (_profileImageFile != null
+                      ? FileImage(_profileImageFile!)
+                      : null),
           child:
-              _profileImage == null ? const Icon(Icons.person, size: 60) : null,
+              (kIsWeb && _webImageBytes == null) ||
+                      (!kIsWeb && _profileImageFile == null)
+                  ? const Icon(Icons.person, size: 60)
+                  : null,
         ),
         Positioned(
           child: InkWell(
@@ -157,6 +241,114 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  void _showAvailabilityDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Set Availability'),
+          content: StatefulBuilder(
+            builder: (context, setState) {
+              return SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  child: Column(
+                    children:
+                        _availability.keys.map((day) {
+                          return Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(day),
+                                  Switch(
+                                    value: _availability[day] ?? false,
+                                    onChanged: (val) {
+                                      setState(() {
+                                        _availability[day] = val;
+                                        if (!val) {
+                                          _startTimes.remove(day);
+                                          _endTimes.remove(day);
+                                        }
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                              if (_availability[day] == true) ...[
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    TextButton(
+                                      onPressed: () async {
+                                        final picked = await showTimePicker(
+                                          context: context,
+                                          initialTime: TimeOfDay.now(),
+                                        );
+                                        if (picked != null) {
+                                          setState(
+                                            () => _startTimes[day] = picked,
+                                          );
+                                        }
+                                      },
+                                      child: Text(
+                                        _startTimes[day] != null
+                                            ? "Start: ${_startTimes[day]!.format(context)}"
+                                            : "Set Start Time",
+                                      ),
+                                    ),
+                                    TextButton(
+                                      onPressed: () async {
+                                        final picked = await showTimePicker(
+                                          context: context,
+                                          initialTime: TimeOfDay.now(),
+                                        );
+                                        if (picked != null) {
+                                          setState(
+                                            () => _endTimes[day] = picked,
+                                          );
+                                        }
+                                      },
+                                      child: Text(
+                                        _endTimes[day] != null
+                                            ? "End: ${_endTimes[day]!.format(context)}"
+                                            : "Set End Time",
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ],
+                          );
+                        }).toList(),
+                  ),
+                ),
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                // You can also validate start < end here
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Availability set.")),
+                );
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -233,6 +425,12 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
                   style: const TextStyle(color: Colors.grey),
                 ),
               ),
+            const SizedBox(height: 10),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.calendar_today),
+              label: const Text("Set Availability"),
+              onPressed: _showAvailabilityDialog,
+            ),
             const SizedBox(height: 30),
 
             Center(

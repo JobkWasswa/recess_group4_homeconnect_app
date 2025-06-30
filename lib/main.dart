@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'package:homeconnect/config/routes.dart'; // Import your AppRoutes
 import 'package:firebase_core/firebase_core.dart'; // Firebase core
 import 'package:firebase_analytics/firebase_analytics.dart'; // Firebase Analytics (optional)
@@ -13,7 +14,7 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   // Optional: Create a FirebaseAnalytics instance if you want to use Analytics
   static FirebaseAnalytics analytics = FirebaseAnalytics.instance;
