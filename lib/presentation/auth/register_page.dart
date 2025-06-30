@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-// removed: import 'package:google_sign_in/google_sign_in.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -21,6 +20,8 @@ class _RegisterPageState extends State<RegisterPage> {
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
+  // CHANGE: Added controller for location input
+  final _locationCtrl = TextEditingController();
 
   // Validation errors
   String? _passwordError;
@@ -35,6 +36,8 @@ class _RegisterPageState extends State<RegisterPage> {
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmCtrl.dispose();
+    // CHANGE: Dispose the location controller to prevent memory leaks
+    _locationCtrl.dispose();
     super.dispose();
   }
 
@@ -47,12 +50,14 @@ class _RegisterPageState extends State<RegisterPage> {
     Navigator.pushReplacementNamed(context, route);
   }
 
-  // Write minimal profile (just role + email) to Firestore
+  // Write minimal profile (role, email, and location for homeowners) to Firestore
   Future<void> _saveRoleToFirestore(String uid, String email) async {
     await _db.collection('users').doc(uid).set({
       'userType': _userType,
       'email': email,
       'createdAt': FieldValue.serverTimestamp(),
+      // CHANGE: Add location to Firestore for homeowners only
+      if (_userType == 'homeowner') 'location': _locationCtrl.text,
     });
   }
 
@@ -77,12 +82,8 @@ class _RegisterPageState extends State<RegisterPage> {
     try {
       // Create the provider
       final googleProvider = GoogleAuthProvider();
-      // Optional: scopes
-      // googleProvider.addScope('https://www.googleapis.com/auth/contacts.readonly');
-
       // Trigger the popup flow
       final userCred = await _auth.signInWithPopup(googleProvider);
-
       // Save role & email
       await _saveRoleToFirestore(userCred.user!.uid, userCred.user!.email!);
       _goToDashboard();
@@ -114,6 +115,14 @@ class _RegisterPageState extends State<RegisterPage> {
       ok = false;
     } else {
       _confirmError = null;
+    }
+
+    // CHANGE: Validate location field for homeowners
+    if (_userType == 'homeowner' && _locationCtrl.text.isEmpty) {
+      ok = false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your location')),
+      );
     }
 
     if (!_agreeToTerms) ok = false;
@@ -185,6 +194,15 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
             ),
             const SizedBox(height: 16),
+
+            // CHANGE: Add location field for homeowners only
+            if (_userType == 'homeowner') ...[
+              TextField(
+                controller: _locationCtrl,
+                decoration: const InputDecoration(labelText: 'Location (e.g. Kampala)'),
+              ),
+              const SizedBox(height: 16),
+            ],
 
             // 5) Terms checkbox
             Row(
