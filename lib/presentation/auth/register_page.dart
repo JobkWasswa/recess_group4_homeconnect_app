@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:homeconnect/config/routes.dart';
 // removed: import 'package:google_sign_in/google_sign_in.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -39,12 +40,15 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   // Navigate based on role
-  void _goToDashboard() {
-    final route =
-        _userType == 'homeowner'
-            ? '/homeowner_dashboard'
-            : '/service_provider_dashboard';
-    Navigator.pushReplacementNamed(context, route);
+  void _navigateAfterRegistration() {
+    if (_userType == 'homeowner') {
+      Navigator.pushReplacementNamed(context, AppRoutes.homeownerDashboard);
+    } else {
+      Navigator.pushReplacementNamed(
+        context,
+        AppRoutes.serviceProviderCreateProfile,
+      );
+    }
   }
 
   // Write minimal profile (just role + email) to Firestore
@@ -64,7 +68,7 @@ class _RegisterPageState extends State<RegisterPage> {
         password: _passwordCtrl.text,
       );
       await _saveRoleToFirestore(cred.user!.uid, cred.user!.email!);
-      _goToDashboard();
+      _navigateAfterRegistration();
     } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -85,7 +89,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
       // Save role & email
       await _saveRoleToFirestore(userCred.user!.uid, userCred.user!.email!);
-      _goToDashboard();
+      _navigateAfterRegistration();
     } on FirebaseAuthException catch (e) {
       ScaffoldMessenger.of(
         context,
