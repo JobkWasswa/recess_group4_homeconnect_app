@@ -4,9 +4,10 @@ import 'package:homeconnect/presentation/service_provider/pages/service_provider
 import 'package:homeconnect/presentation/auth/register_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:homeconnect/data/models/users.dart'; // CHANGE: Import UserProfile model
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({Key? key}) : super(key: key);
+  const LoginPage({super.key});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -17,7 +18,6 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _passwordController = TextEditingController();
   bool _showPassword = false;
   bool _rememberMe = false;
-
   bool _isLoading = false;
 
   @override
@@ -25,6 +25,22 @@ class _LoginPageState extends State<LoginPage> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  // CHANGE: Add function to fetch user profile from Firestore
+  Future<UserProfile?> _fetchUserProfile(String uid) async {
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (doc.exists) {
+        return UserProfile.fromFirestore(doc.data()!);
+      }
+      return null;
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching profile: $e')),
+      );
+      return null;
+    }
   }
 
   Future<void> _signIn(BuildContext context) async {
@@ -46,36 +62,41 @@ class _LoginPageState extends State<LoginPage> {
 
       final uid = cred.user!.uid;
 
-      // Get user data from Firestore
-      final doc =
-          await FirebaseFirestore.instance.collection('users').doc(uid).get();
-
-      // Use 'userType' instead of 'role' per your Firestore data
-      final userType = doc.data()?['userType']?.toString().toLowerCase();
-
-      if (userType == 'homeowner') {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeownerDashboardScreen()),
+      // CHANGE: Fetch user profile
+      final profile = await _fetchUserProfile(uid);
+      if (profile == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to load user profile.')),
         );
-      } else if (userType == 'provider') {
+        return;
+      }
+
+      // CHANGE: Navigate with profile
+      if (profile.userType == 'homeowner') {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => HomeownerDashboardScreen(profile: profile), // CHANGE: Pass profile
+          ),
+        );
+      } else if (profile.userType == 'provider') {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => const ServiceProviderDashboardScreen(),
           ),
         );
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Account role not set.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Account role not set.')),
+        );
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Welcome, ${_emailController.text}!')),
       );
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.message ?? 'Login failed.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? 'Login failed.')),
+      );
     } catch (_) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('An unexpected error occurred.')),

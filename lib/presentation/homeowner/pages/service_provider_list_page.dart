@@ -1,19 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:homeconnect/data/providers/homeowner_firestore_provider.dart';
+import 'package:homeconnect/config/routes.dart';
+
 
 
 class ServiceProviderListPage extends StatelessWidget {
   final String? searchQuery;
   final String? category;
 
-  const ServiceProviderListPage({Key? key, this.searchQuery, this.category}) : super(key: key);
+  const ServiceProviderListPage({super.key, this.searchQuery, this.category});
 
 
   @override
   Widget build(BuildContext context) {
-    final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
-    final query = args != null ? args['query'] as String? : null;
-    final category = args != null ? args['category'] as String? : null;
+  final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+  final query = args != null ? args['query'] as String? : null;
+  final category = args != null ? args['category'] as String? : null;
+  final location = args != null ? args['location'] as String? : null;
+
+  final searchValue = query ?? category;
+
+  if (searchValue == null || searchValue.isEmpty || location == null || location.isEmpty) {
+    return const Scaffold(
+      body: Center(
+        child: Text('Missing search input or location.'),
+      ),
+    );
+  }
+
 
     return Scaffold(
       appBar: AppBar(
@@ -21,7 +35,8 @@ class ServiceProviderListPage extends StatelessWidget {
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: HomeownerFirestoreProvider()
-            .fetchProvidersBySkillOrCategory(query ?? category ?? ''),
+              .fetchProvidersBySkillAndLocation(skill: searchValue, location: location),
+
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -40,8 +55,12 @@ class ServiceProviderListPage extends StatelessWidget {
                   subtitle: Text(provider['skills']?.join(', ') ?? 'No skills listed'),
                   trailing: Text('${provider['rating'] ?? 'N/A'} ⭐'),
                   onTap: () {
-                    // TODO: Navigate to detail page
-                  },
+                    Navigator.of(context).pushNamed(
+                      AppRoutes.serviceProviderDetailPage,
+                      
+                      arguments: provider, // Pass full provider Map
+                      );
+                    },
                 );
               },
             );
