@@ -332,6 +332,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
         borderRadius: BorderRadius.circular(15),
         onTap: () {
           print('Category tapped: $title');
+
           Navigator.of(context).pushNamed(
             AppRoutes.serviceProviderListPage,
             arguments: {
