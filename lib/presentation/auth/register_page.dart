@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/config/routes.dart';
-// removed: import 'package:google_sign_in/google_sign_in.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -21,6 +20,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
+  final _locationCtrl = TextEditingController();
 
   // Validation errors
   String? _passwordError;
@@ -35,6 +35,7 @@ class _RegisterPageState extends State<RegisterPage> {
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmCtrl.dispose();
+    _locationCtrl.dispose();
     super.dispose();
   }
 
@@ -50,12 +51,13 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
-  // Write minimal profile (just role + email) to Firestore
+  // Write minimal profile (role, email, and location for homeowners) to Firestore
   Future<void> _saveRoleToFirestore(String uid, String email) async {
     await _db.collection('users').doc(uid).set({
       'userType': _userType,
       'email': email,
       'createdAt': FieldValue.serverTimestamp(),
+      if (_userType == 'homeowner') 'location': _locationCtrl.text,
     });
   }
 
@@ -80,12 +82,8 @@ class _RegisterPageState extends State<RegisterPage> {
     try {
       // Create the provider
       final googleProvider = GoogleAuthProvider();
-      // Optional: scopes
-      // googleProvider.addScope('https://www.googleapis.com/auth/contacts.readonly');
-
       // Trigger the popup flow
       final userCred = await _auth.signInWithPopup(googleProvider);
-
       // Save role & email
       await _saveRoleToFirestore(userCred.user!.uid, userCred.user!.email!);
       _navigateAfterRegistration();
@@ -117,6 +115,13 @@ class _RegisterPageState extends State<RegisterPage> {
       ok = false;
     } else {
       _confirmError = null;
+    }
+
+    if (_userType == 'homeowner' && _locationCtrl.text.isEmpty) {
+      ok = false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your location')),
+      );
     }
 
     if (!_agreeToTerms) ok = false;
@@ -189,6 +194,14 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
             const SizedBox(height: 16),
 
+            if (_userType == 'homeowner') ...[
+              TextField(
+                controller: _locationCtrl,
+                decoration: const InputDecoration(labelText: 'Location (e.g. Kampala)'),
+              ),
+              const SizedBox(height: 16),
+            ],
+
             // 5) Terms checkbox
             Row(
               children: [
@@ -242,7 +255,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 const Text("Already have an account?"),
                 TextButton(
                   onPressed:
-                      () => Navigator.pushReplacementNamed(context, '/login'),
+                      () => Navigator.pushReplacementNamed(context, AppRoutes.login),
                   child: const Text('Sign In'),
                 ),
               ],

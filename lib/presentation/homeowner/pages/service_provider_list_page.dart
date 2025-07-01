@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:homeconnect/data/providers/homeowner_firestore_provider.dart';
+import 'package:homeconnect/config/routes.dart';
 
 class ServiceProviderListPage extends StatelessWidget {
   final String? searchQuery;
@@ -13,12 +14,24 @@ class ServiceProviderListPage extends StatelessWidget {
         ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
     final query = args != null ? args['query'] as String? : null;
     final category = args != null ? args['category'] as String? : null;
+    final location = args != null ? args['location'] as String? : null;
+
+    final searchValue = query ?? category;
+
+    if (searchValue == null || searchValue.isEmpty || location == null || location.isEmpty) {
+      return const Scaffold(
+        body: Center(
+          child: Text('Missing search input or location.'),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Available Professionals')),
       body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: HomeownerFirestoreProvider().fetchProvidersBySkillOrCategory(
-          query ?? category ?? '',
+        future: HomeownerFirestoreProvider().fetchProvidersBySkillAndLocation(
+          skill: searchValue,
+          location: location,
         ),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -40,7 +53,10 @@ class ServiceProviderListPage extends StatelessWidget {
                   ),
                   trailing: Text('${provider['rating'] ?? 'N/A'} ⭐'),
                   onTap: () {
-                    // TODO: Navigate to detail page
+                    Navigator.of(context).pushNamed(
+                      AppRoutes.serviceProviderDetailPage,
+                      arguments: provider, // Pass full provider Map
+                    );
                   },
                 );
               },
@@ -51,4 +67,3 @@ class ServiceProviderListPage extends StatelessWidget {
     );
   }
 }
-// This page will display a list of service providers based on the selected category.

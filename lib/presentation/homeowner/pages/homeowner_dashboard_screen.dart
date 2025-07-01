@@ -1,7 +1,7 @@
-// lib/screens/homeowner/homeowner_dashboard_screen.dart
 import 'package:flutter/material.dart';
 import 'package:homeconnect/config/routes.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:homeconnect/data/models/users.dart'; // CHANGE: Import UserProfile model
 
 // Helper – convert something like “john_doe99@example.com” → “John Doe99”
 String nameFromEmail(String email) {
@@ -14,7 +14,8 @@ String nameFromEmail(String email) {
 }
 
 class HomeownerDashboardScreen extends StatefulWidget {
-  const HomeownerDashboardScreen({super.key});
+  final UserProfile? profile; // CHANGE: Add profile parameter
+  const HomeownerDashboardScreen({super.key, this.profile});
 
   @override
   State<HomeownerDashboardScreen> createState() =>
@@ -51,7 +52,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHeader(context),
-                _buildSearchAndFilter(),
+                _buildSearchAndFilter(), // CHANGE: Will pass profile internally
                 _buildCategorySection(context),
                 _buildPopularServicesSection(context),
                 _buildRecommendedProfessionalsSection(context),
@@ -77,123 +78,120 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
   }
 
   Widget _buildHeader(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    final displayName =
-        user != null && user.email != null
-            ? nameFromEmail(user.email!)
-            : 'User';
+  final user = FirebaseAuth.instance.currentUser;
+  final displayName =
+      user != null && user.email != null
+          ? nameFromEmail(user.email!)
+          : 'User';
 
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)], // Purple to Pink
-        ),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(20),
-          bottomRight: Radius.circular(20),
-        ),
+  return Container(
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)], // Purple to Pink
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Welcome back,',
-                      style: TextStyle(color: Colors.purple[100], fontSize: 14),
+      borderRadius: BorderRadius.only(
+        bottomLeft: Radius.circular(20),
+        bottomRight: Radius.circular(20),
+      ),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Welcome back,',
+                    style: TextStyle(color: Colors.purple[100], fontSize: 14),
+                  ),
+                  Text(
+                    displayName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
                     ),
-                    Text(
-                      displayName,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(25),
                     ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                      child: Stack(
-                        children: [
-                          IconButton(
-                            onPressed: () {
-                              print('Homeowner Notifications pressed');
-                            },
-                            icon: const Icon(
-                              Icons.notifications,
-                              color: Colors.white,
+                    child: Stack(
+                      children: [
+                        IconButton(
+                          onPressed: () {
+                            print('Homeowner Notifications pressed');
+                          },
+                          icon: const Icon(
+                            Icons.notifications,
+                            color: Colors.white,
+                          ),
+                        ),
+                        Positioned(
+                          right: 8,
+                          top: 8,
+                          child: Container(
+                            width: 12,
+                            height: 12,
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
                             ),
                           ),
-                          Positioned(
-                            right: 8,
-                            top: 8,
-                            child: Container(
-                              width: 12,
-                              height: 12,
-                              decoration: const BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                      child: IconButton(
-                        onPressed: () {
-                          print('Homeowner Profile pressed');
-                        },
-                        icon: const Icon(Icons.person, color: Colors.white),
-                      ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(25),
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                      child: IconButton(
-                        onPressed: () async {
-                          await FirebaseAuth.instance.signOut();
-                          if (mounted) {
-                            Navigator.of(
-                              context,
-                            ).pushReplacementNamed(AppRoutes.auth);
-                          }
-                        },
-                        icon: const Icon(Icons.logout, color: Colors.white),
-                      ),
+                    child: IconButton(
+                      onPressed: () {
+                        print('Homeowner Profile pressed');
+                      },
+                      icon: const Icon(Icons.person, color: Colors.white),
                     ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(25), // FIXED: Corrected from 'Fielding:'
+                    ),
+                    child: IconButton(
+                      onPressed: () async {
+                        await FirebaseAuth.instance.signOut();
+                        if (mounted) {
+                          Navigator.of(context).pushReplacementNamed(AppRoutes.auth);
+                        }
+                      },
+                      icon: const Icon(Icons.logout, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+        ],
       ),
-    );
-  }
-
+    ),
+  );
+}
   Widget _buildSearchAndFilter() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -206,7 +204,10 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                 if (value.isNotEmpty) {
                   Navigator.of(context).pushNamed(
                     AppRoutes.serviceProviderListPage,
-                    arguments: {'query': value},
+                    arguments: {
+                      'query': value,
+                      'location': widget.profile?.location ?? 'Kampala', // CHANGE: Use profile location
+                    },
                   );
                 }
               },
@@ -237,7 +238,10 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                 if (_searchController.text.isNotEmpty) {
                   Navigator.of(context).pushNamed(
                     AppRoutes.serviceProviderListPage,
-                    arguments: {'query': _searchController.text},
+                    arguments: {
+                      'query': _searchController.text,
+                      'location': widget.profile?.location ?? 'Kampala', // CHANGE: Use profile location
+                    },
                   );
                 }
               },
@@ -313,9 +317,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
       width: 150,
       margin: const EdgeInsets.only(right: 15),
       decoration: BoxDecoration(
-        color:
-            Colors
-                .white, // This is the background that might show through transparent PNGs
+        color: Colors.white,
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
@@ -333,7 +335,10 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
 
           Navigator.of(context).pushNamed(
             AppRoutes.serviceProviderListPage,
-            arguments: {'category': title},
+            arguments: {
+              'category': title,
+              'location': widget.profile?.location ?? 'Kampala', // CHANGE: Use profile location
+            },
           );
         },
         child: Stack(
@@ -344,14 +349,11 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
               ),
               child: Image.asset(
                 imageUrl,
-                fit:
-                    BoxFit
-                        .cover, // Consider changing to BoxFit.contain or BoxFit.fill if image has large transparent borders
+                fit: BoxFit.cover,
                 height: double.infinity,
                 width: double.infinity,
               ),
             ),
-            // The gradient overlay to make text readable
             Container(
               decoration: BoxDecoration(
                 borderRadius: const BorderRadius.vertical(
@@ -413,8 +415,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
         'name': 'Painting',
         'duration': 'Full day',
         'description': 'Professional wall painting services',
-        'image':
-            'lib/assets/images/painting2.png', // Assuming this is a solid image or cropped
+        'image': 'lib/assets/images/painting2.png',
       },
       {
         'name': 'Compound Cleaning',
@@ -426,28 +427,25 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
         'name': 'House Cleaning',
         'duration': '4-8 hours',
         'description': 'Deep cleaning for residential properties',
-        'image':
-            'lib/assets/images/furn_moving.png', // Assuming this is a solid image or cropped
+        'image': 'lib/assets/images/furn_moving.png',
       },
       {
         'name': 'Interior Painting',
         'duration': '1-3 days',
         'description': 'Transform your indoor spaces with a fresh coat',
-        'image': 'lib/assets/images/painting2.png', // Duplicated from above
+        'image': 'lib/assets/images/painting2.png',
       },
       {
         'name': 'Custom Furniture',
         'duration': '1-2 weeks',
         'description': 'Handcrafted custom furniture and cabinetry',
-        'image':
-            'lib/assets/images/furn_moving.png', // Added from screenshot (13).jpg
+        'image': 'lib/assets/images/furn_moving.png',
       },
       {
-        'name': 'Furniture Repair', // Added from screenshot (13).jpg
+        'name': 'Furniture Repair',
         'duration': '2-5 hours',
         'description': 'Repair and restoration of existing furniture',
-        'image':
-            'lib/assets/images/furn_repair.png', // Kept, assuming it's the transparent one
+        'image': 'lib/assets/images/furn_repair.png',
       },
     ];
 
@@ -518,9 +516,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                       imageUrl,
                       height: 150,
                       width: double.infinity,
-                      fit:
-                          BoxFit
-                              .cover, // Consider changing to BoxFit.contain or BoxFit.fill here
+                      fit: BoxFit.cover,
                     ),
                     Positioned(
                       bottom: 0,

@@ -27,7 +27,7 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
   double? _longitude;
   final picker = ImagePicker();
   String locationAddress = "Not picked";
-  Map<String, bool> _availability = {
+  final Map<String, bool> _availability = {
     'Monday': false,
     'Tuesday': false,
     'Wednesday': false,
@@ -37,8 +37,8 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
     'Sunday': false,
   };
 
-  Map<String, TimeOfDay?> _startTimes = {};
-  Map<String, TimeOfDay?> _endTimes = {};
+  final Map<String, TimeOfDay?> _startTimes = {};
+  final Map<String, TimeOfDay?> _endTimes = {};
 
   Future<void> _pickImage() async {
     final picked = await picker.pickImage(source: ImageSource.gallery);
