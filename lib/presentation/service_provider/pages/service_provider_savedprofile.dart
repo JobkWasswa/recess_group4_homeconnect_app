@@ -21,7 +21,20 @@ class ProfileDisplayScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My Profile')),
+      appBar: AppBar(
+        title: const Text('My Profile'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ProfileEditScreen()),
+              );
+            },
+          ),
+        ],
+      ),
       body: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         future: _fetchProfileData(),
         builder: (context, snapshot) {
@@ -40,7 +53,7 @@ class ProfileDisplayScreen extends StatelessWidget {
           final availability = data['availability'] ?? {};
 
           return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -59,57 +72,81 @@ class ProfileDisplayScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
 
-                Text(
-                  "Name: ${data['name']}",
-                  style: const TextStyle(fontSize: 18),
+                Center(
+                  child: Text(
+                    data['name'] ?? '',
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 10),
-                Text("Description: ${data['description']}"),
-                const SizedBox(height: 10),
 
-                const Text(
-                  "Skills:",
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                const SizedBox(height: 10),
+                Text(
+                  data['description'] ?? '',
+                  style: const TextStyle(fontSize: 16, color: Colors.grey),
                 ),
+
+                const Divider(height: 30),
+                const Text(
+                  "Skills",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const SizedBox(height: 6),
                 Wrap(
                   spacing: 8,
+                  runSpacing: 4,
                   children:
                       (data['skills'] as List<dynamic>)
                           .map((skill) => Chip(label: Text(skill.toString())))
                           .toList(),
                 ),
-                const SizedBox(height: 10),
 
+                const Divider(height: 30),
                 const Text(
-                  "Location:",
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  "Location",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
+                const SizedBox(height: 6),
                 Text("Address: ${location['address'] ?? 'N/A'}"),
-                Text(
-                  "Lat: ${location['lat'] ?? 'N/A'} | Lng: ${location['lng'] ?? 'N/A'}",
-                ),
+                Text("Lat: ${location['lat'] ?? 'N/A'}"),
+                Text("Lng: ${location['lng'] ?? 'N/A'}"),
 
-                const SizedBox(height: 20),
+                const Divider(height: 30),
                 const Text(
-                  "Availability:",
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  "Availability",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
+                const SizedBox(height: 6),
                 ...availability.entries.map((entry) {
                   final day = entry.key;
                   final times = entry.value as Map<String, dynamic>;
-                  return Text("$day: ${times['start']} - ${times['end']}");
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Text("$day: ${times['start']} - ${times['end']}"),
+                  );
                 }).toList(),
-                SizedBox(height: 10),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ProfileEditScreen(),
-                      ),
-                    );
-                  },
-                  child: Text('Edit profile'),
+
+                const SizedBox(height: 30),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.edit),
+                    label: const Text("Edit Profile"),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      textStyle: const TextStyle(fontSize: 16),
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ProfileEditScreen(),
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ],
             ),
