@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'package:homeconnect/config/routes.dart'; // Import your AppRoutes
 import 'package:firebase_core/firebase_core.dart'; // Firebase core
 import 'package:firebase_analytics/firebase_analytics.dart'; // Firebase Analytics (optional)

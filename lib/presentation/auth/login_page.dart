@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:homeconnect/presentation/homeowner/pages/homeowner_dashboard_screen.dart';
 import 'package:homeconnect/presentation/service_provider/pages/service_provider_dashboard_screen.dart';
 import 'package:homeconnect/presentation/auth/register_page.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
