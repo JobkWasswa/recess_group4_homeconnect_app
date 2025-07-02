@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:homeconnect/data/models/services.dart';
 
 class ProfileEditScreen extends StatefulWidget {
   const ProfileEditScreen({super.key});
@@ -16,13 +17,13 @@ class ProfileEditScreen extends StatefulWidget {
 class _ProfileEditScreenState extends State<ProfileEditScreen> {
   final _nameController = TextEditingController();
   final _descController = TextEditingController();
-  final List<String> _skills = [];
 
   Uint8List? _webImageBytes;
   io.File? _imageFile;
   String? _imageUrl;
 
   Map<String, dynamic> _availability = {};
+  List<String> _selectedCategories = [];
 
   final picker = ImagePicker();
 
@@ -42,9 +43,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     setState(() {
       _nameController.text = data['name'] ?? '';
       _descController.text = data['description'] ?? '';
-      _skills.addAll(List<String>.from(data['skills'] ?? []));
       _imageUrl = data['profilePhoto'];
       _availability = data['availability'] ?? {};
+      _selectedCategories = List<String>.from(data['categories'] ?? []);
     });
   }
 
@@ -86,6 +87,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
+    if (_selectedCategories.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select at least one category.")),
+      );
+      return;
+    }
+
     final updatedImageUrl = await _uploadProfileImage();
 
     await FirebaseFirestore.instance
@@ -94,9 +102,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         .update({
           'name': _nameController.text,
           'description': _descController.text,
-          'skills': _skills,
           'profilePhoto': updatedImageUrl,
           'availability': _availability,
+          'categories': _selectedCategories,
         });
 
     if (!mounted) return;
@@ -104,29 +112,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       context,
     ).showSnackBar(const SnackBar(content: Text("Profile updated.")));
 
-    // Navigate back
     Navigator.pop(context);
-  }
-
-  void _addSkillDialog() {
-    final skillController = TextEditingController();
-    showDialog(
-      context: context,
-      builder:
-          (_) => AlertDialog(
-            title: const Text('Add Skill'),
-            content: TextField(controller: skillController),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  setState(() => _skills.add(skillController.text));
-                  Navigator.pop(context);
-                },
-                child: const Text('Add'),
-              ),
-            ],
-          ),
-    );
   }
 
   void _showAvailabilityEditor() {
@@ -207,6 +193,19 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     );
   }
 
+  Future<void> _selectCategories() async {
+    final selected = await Navigator.push<List<String>>(
+      context,
+      MaterialPageRoute(builder: (context) => Selection()),
+    );
+
+    if (selected != null && selected.isNotEmpty) {
+      setState(() {
+        _selectedCategories = selected;
+      });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -268,18 +267,18 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               decoration: const InputDecoration(labelText: 'Description'),
               maxLines: 3,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  "Skills",
+                  "Service Categories",
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 TextButton.icon(
-                  onPressed: _addSkillDialog,
-                  icon: const Icon(Icons.add),
-                  label: const Text("Add"),
+                  onPressed: _selectCategories,
+                  icon: const Icon(Icons.category),
+                  label: const Text("Edit"),
                 ),
               ],
             ),
@@ -287,15 +286,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               spacing: 8,
               runSpacing: 4,
               children:
-                  _skills
-                      .map(
-                        (skill) => Chip(
-                          label: Text(skill),
-                          onDeleted: () {
-                            setState(() => _skills.remove(skill));
-                          },
-                        ),
-                      )
+                  _selectedCategories
+                      .map((cat) => Chip(label: Text(cat)))
                       .toList(),
             ),
             const SizedBox(height: 20),

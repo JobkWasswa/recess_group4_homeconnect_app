@@ -1,14 +1,13 @@
-
 import 'package:flutter/material.dart';
 
-class Selection extends StatefulWidget {
-  const Selection({super.key});
+class CategorySelectionPage extends StatefulWidget {
+  const CategorySelectionPage({super.key});
 
   @override
-  State<Selection> createState() => _SelectionState();
+  State<CategorySelectionPage> createState() => _CategorySelectionPageState();
 }
 
-class _SelectionState extends State<Selection> {
+class _CategorySelectionPageState extends State<CategorySelectionPage> {
   final List<Map<String, String>> _categories = [
     {'name': 'Roof Cleaning', 'image': 'lib/assets/images/roof_cleaning.png'},
     {
@@ -138,6 +137,6 @@ class _SelectionState extends State<Selection> {
           ),
         ),
       ),
- 
+    );
   }
 }
