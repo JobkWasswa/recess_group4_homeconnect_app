@@ -81,18 +81,37 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Set Availability')),
+      appBar: AppBar(
+        title: const Text(
+          'Set Availability',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+      ),
       body: ListView(
         children:
             daysOfWeek.map((day) {
               final isAvailable = _availability[day] ?? false;
               return Card(
-                margin: const EdgeInsets.all(8),
+                margin: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ), // Adjusted margin
+                elevation: 2, // Subtle shadow
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ), // Rounded corners
                 child: Column(
                   children: [
                     SwitchListTile(
-                      title: Text(day),
+                      title: Text(
+                        day,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ), // Slightly bolder text
                       value: isAvailable,
+                      activeColor: const Color(
+                        0xFF6B4EEF,
+                      ), // Purple switch color
                       onChanged: (val) {
                         setState(() {
                           _availability[day] = val;
@@ -101,21 +120,33 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                     ),
                     if (isAvailable)
                       Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 4,
-                        ),
+                        padding: const EdgeInsets.fromLTRB(
+                          16,
+                          4,
+                          16,
+                          16,
+                        ), // Adjusted padding
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             TextButton(
                               onPressed: () => _pickTime(day, true),
+                              style: TextButton.styleFrom(
+                                foregroundColor: const Color(
+                                  0xFF6B4EEF,
+                                ), // Purple text for buttons
+                              ),
                               child: Text(
                                 'Start: ${formatTime(_startTimes[day])}',
                               ),
                             ),
                             TextButton(
                               onPressed: () => _pickTime(day, false),
+                              style: TextButton.styleFrom(
+                                foregroundColor: const Color(
+                                  0xFF6B4EEF,
+                                ), // Purple text for buttons
+                              ),
                               child: Text('End: ${formatTime(_endTimes[day])}'),
                             ),
                           ],
@@ -127,10 +158,25 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
             }).toList(),
       ),
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20.0), // Increased padding
         child: ElevatedButton(
           onPressed: _saveAvailability,
-          child: const Text('Save Availability'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF6B4EEF), // Purple button
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10), // Rounded corners
+            ),
+            elevation: 5,
+            padding: const EdgeInsets.symmetric(vertical: 16), // Taller button
+          ),
+          child: const Text(
+            'Save Availability',
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ),
       ),
     );

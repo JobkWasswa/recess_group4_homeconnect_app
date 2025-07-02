@@ -9,7 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:homeconnect/config/routes.dart';
-import 'package:homeconnect/data/models/services.dart';
+import 'package:homeconnect/data/models/services.dart'; // Assuming Selection() is here or imported elsewhere
 
 class ProfileCreationScreen extends StatefulWidget {
   const ProfileCreationScreen({super.key});
@@ -22,6 +22,7 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
   final _nameController = TextEditingController();
   final _descController = TextEditingController();
   final List<String> _skills = [];
+  List<String> _selectedCategories = [];
 
   io.File? _profileImageFile; // for mobile & desktop
   Uint8List? _webImageBytes; // for web
@@ -39,10 +40,8 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
     'Sunday': false,
   };
 
- 
   final Map<String, TimeOfDay?> _startTimes = {};
   final Map<String, TimeOfDay?> _endTimes = {};
-  >>>>>>main
 
   Future<void> _pickImage() async {
     final picked = await picker.pickImage(source: ImageSource.gallery);
@@ -254,8 +253,14 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
             onTap: _pickImage,
             child: const CircleAvatar(
               radius: 18,
-              backgroundColor: Colors.blue,
-              child: Icon(Icons.edit, color: Colors.white, size: 18),
+              backgroundColor: Color(
+                0xFF6B4EEF,
+              ), // Purple color from screenshot
+              child: Icon(
+                Icons.camera_alt,
+                color: Colors.white,
+                size: 18,
+              ), // Changed to camera icon
             ),
           ),
         ),
@@ -342,6 +347,7 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
                                   ],
                                 ),
                               ],
+                              const Divider(), // Added a divider for better separation between days
                             ],
                           );
                         }).toList(),
@@ -374,7 +380,9 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
   Future<void> _selectCategories() async {
     final selected = await Navigator.push<List<String>>(
       context,
-      MaterialPageRoute(builder: (context) => Selection()),
+      MaterialPageRoute(
+        builder: (context) => Selection(),
+      ), // Assuming 'Selection' is your category selection page
     );
 
     if (selected != null && selected.isNotEmpty) {
@@ -387,49 +395,121 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Create Profile')),
+      appBar: AppBar(
+        title: const Text(
+          'Create Profile',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ), // Bold title
+        centerTitle: true, // Center app bar title
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Center(child: _buildProfileImage()),
-            const SizedBox(height: 20),
+            const SizedBox(height: 30), // Increased space after profile photo
+
+            const Text(
+              'Basic Info',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10), // Space before text field
 
             TextField(
               controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Name',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: 'Full Name',
+                hintText: 'Enter your name',
+                border: OutlineInputBorder(
+                  // Consistent border
+                  borderRadius: BorderRadius.circular(10), // Rounded corners
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF6B4EEF),
+                  ), // Purple focus border
+                ),
+                filled: true,
+                fillColor: Colors.white,
               ),
             ),
             const SizedBox(height: 15),
 
             TextField(
               controller: _descController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Description',
-                border: OutlineInputBorder(),
+                hintText: 'Describe your services...',
+                border: OutlineInputBorder(
+                  // Consistent border
+                  borderRadius: BorderRadius.circular(10), // Rounded corners
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF6B4EEF),
+                  ), // Purple focus border
+                ),
+                filled: true,
+                fillColor: Colors.white,
               ),
               maxLines: 4,
             ),
-            const SizedBox(height: 15),
+            const SizedBox(height: 20), // More space before skills/categories
 
+            const Text(
+              'Skills & Expertise', // Added section title
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+
+            // Moved "Select Categories" into a Row with "Add Skill" if needed,
+            // or just kept it standalone. Assuming "Skills & Expertise" is for categories.
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Service Categories:',
+                  'Service Categories:', // Kept for clarity, but you might rephrase or remove
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-                TextButton.icon(
+                ElevatedButton.icon(
+                  // Changed to ElevatedButton.icon for "Add Skill" look
                   onPressed: _selectCategories,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Select Categories'),
+                  icon: const Icon(
+                    Icons.add,
+                    color: Colors.white,
+                  ), // White icon
+                  label: const Text(
+                    'Add Skill',
+                    style: TextStyle(color: Colors.white),
+                  ), // White text
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(
+                      0xFF4CAF50,
+                    ), // Green color from screenshot for "Add Skill"
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        10,
+                      ), // Rounded corners
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 15,
+                      vertical: 10,
+                    ),
+                  ),
                 ),
               ],
             ),
-
             const SizedBox(height: 8),
 
             Wrap(
@@ -437,47 +517,133 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
               runSpacing: 4,
               children:
                   _selectedCategories
-                      .map((category) => Chip(label: Text(category)))
+                      .map(
+                        (category) => Chip(
+                          label: Text(
+                            category,
+                            style: const TextStyle(color: Colors.white),
+                          ), // White text on chip
+                          backgroundColor: const Color(
+                            0xFF6B4EEF,
+                          ), // Purple background for chip
+                          deleteIcon: const Icon(
+                            Icons.close,
+                            size: 18,
+                            color: Colors.white70,
+                          ), // Optional: add delete icon
+                          onDeleted: () {
+                            // Optional: allow deletion of chips
+                            setState(() {
+                              _selectedCategories.remove(category);
+                            });
+                          },
+                        ),
+                      )
                       .toList(),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 30), // Increased space before Location
 
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _getCurrentLocation,
-                    icon: const Icon(Icons.location_on),
-                    label: const Text("Use Current Location"),
-                  ),
+            const Text(
+              'Location', // Section title
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+
+            SizedBox(
+              // Wrapped in SizedBox for consistent width
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _getCurrentLocation,
+                icon: const Icon(
+                  Icons.my_location,
+                  color: Colors.white,
+                ), // Adjusted icon
+                label: const Text(
+                  "Use Current Location",
+                  style: TextStyle(color: Colors.white),
                 ),
-              ],
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(
+                    0xFF4CAF50,
+                  ), // Green color from screenshot
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 14,
+                  ), // Consistent padding
+                ),
+              ),
             ),
             if (_latitude != null && _longitude != null)
               Padding(
-                padding: const EdgeInsets.only(top: 8.0),
+                padding: const EdgeInsets.only(top: 10.0), // More space
                 child: Text(
                   "Location: $locationAddress",
-                  style: const TextStyle(color: Colors.grey),
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 14,
+                  ), // Slightly larger font
                 ),
               ),
-            const SizedBox(height: 10),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.calendar_today),
-              label: const Text("Set Availability"),
-              onPressed: _showAvailabilityDialog,
+            const SizedBox(height: 30), // Increased space before Availability
+
+            const Text(
+              'Availability', // Section title
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 10),
+
+            SizedBox(
+              // Wrapped in SizedBox for consistent width
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.calendar_today, color: Colors.white),
+                label: const Text(
+                  "Set Your Availability",
+                  style: TextStyle(color: Colors.white),
+                ), // Text from screenshot
+                onPressed: _showAvailabilityDialog,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6B4EEF), // Purple button
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ),
+            const SizedBox(
+              height: 40,
+            ), // Increased space before Create Profile button
 
             Center(
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: _saveProfile,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6B4EEF), // Purple button
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(
+                        10,
+                      ), // Rounded corners
+                    ),
+                    elevation: 5, // Subtle shadow
+                  ),
                   child: const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 14.0),
-                    child: Text("Save Profile", style: TextStyle(fontSize: 16)),
+                    padding: EdgeInsets.symmetric(
+                      vertical: 16.0,
+                    ), // Increased padding for a taller button
+                    child: Text(
+                      "Create Profile",
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ), // Bold and white text
+                    ),
                   ),
                 ),
               ),

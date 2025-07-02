@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:homeconnect/data/models/services.dart';
+import 'package:homeconnect/data/models/services.dart'; // Assuming Selection() is here or imported elsewhere
 
 class ProfileEditScreen extends StatefulWidget {
   const ProfileEditScreen({super.key});
@@ -22,10 +22,17 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   io.File? _imageFile;
   String? _imageUrl;
 
-  Map<String, dynamic> _availability = {};
+  Map<String, dynamic> _availability =
+      {}; // This map should be structured to hold TimeOfDay for consistency
   List<String> _selectedCategories = [];
 
   final picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
 
   Future<void> _loadProfile() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -44,7 +51,34 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       _nameController.text = data['name'] ?? '';
       _descController.text = data['description'] ?? '';
       _imageUrl = data['profilePhoto'];
-      _availability = data['availability'] ?? {};
+      // Reconstruct availability map for TimeOfDay objects from string
+      _availability =
+          (data['availability'] as Map<String, dynamic>?)?.map((key, value) {
+            final startString = value['start'];
+            final endString = value['end'];
+            // You might need a helper to parse HH:mm AM/PM to TimeOfDay
+            // For now, assuming you store them in HH:mm format for direct parsing
+            TimeOfDay? startTime;
+            TimeOfDay? endTime;
+
+            if (startString != null && startString.contains(':')) {
+              final parts = startString.split(':');
+              startTime = TimeOfDay(
+                hour: int.parse(parts[0]),
+                minute: int.parse(parts[1]),
+              );
+            }
+            if (endString != null && endString.contains(':')) {
+              final parts = endString.split(':');
+              endTime = TimeOfDay(
+                hour: int.parse(parts[0]),
+                minute: int.parse(parts[1]),
+              );
+            }
+
+            return MapEntry(key, {'start': startTime, 'end': endTime});
+          }) ??
+          {};
       _selectedCategories = List<String>.from(data['categories'] ?? []);
     });
   }
@@ -96,6 +130,17 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
     final updatedImageUrl = await _uploadProfileImage();
 
+    // Prepare availability data for Firestore
+    Map<String, dynamic> availabilityDataForFirestore = {};
+    _availability.forEach((day, value) {
+      availabilityDataForFirestore[day] = {
+        'start': value['start']?.format(
+          context,
+        ), // Convert TimeOfDay back to string
+        'end': value['end']?.format(context),
+      };
+    });
+
     await FirebaseFirestore.instance
         .collection('service_providers')
         .doc(user.uid)
@@ -103,7 +148,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           'name': _nameController.text,
           'description': _descController.text,
           'profilePhoto': updatedImageUrl,
-          'availability': _availability,
+          'availability': availabilityDataForFirestore, // Use the prepared map
           'categories': _selectedCategories,
         });
 
@@ -140,7 +185,29 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                   itemCount: days.length,
                   itemBuilder: (context, index) {
                     final day = days[index];
-                    final isAvailable = _availability[day] != null;
+                    // Check if day exists in _availability and has start/end times
+                    final isAvailable =
+                        _availability[day]?['start'] != null ||
+                        _availability[day]?['end'] != null;
+
+                    TimeOfDay? startTime = _availability[day]?['start'];
+                    TimeOfDay? endTime = _availability[day]?['end'];
+
+                    // Helper to format TimeOfDay
+                    String formatTime(TimeOfDay? time) {
+                      if (time == null) return '--:--';
+                      final now = DateTime.now();
+                      final dt = DateTime(
+                        now.year,
+                        now.month,
+                        now.day,
+                        time.hour,
+                        time.minute,
+                      );
+                      return TimeOfDay.fromDateTime(
+                        dt,
+                      ).format(context); // Use context for locale format
+                    }
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,12 +218,18 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                             Text(day),
                             Switch(
                               value: isAvailable,
-                              onChanged: (val) {
+                              onChanged: (val) async {
                                 setState(() {
                                   if (val) {
                                     _availability[day] = {
-                                      'start': '08:00 AM',
-                                      'end': '05:00 PM',
+                                      'start': TimeOfDay(
+                                        hour: 8,
+                                        minute: 0,
+                                      ), // Default start
+                                      'end': TimeOfDay(
+                                        hour: 17,
+                                        minute: 0,
+                                      ), // Default end
                                     };
                                   } else {
                                     _availability.remove(day);
@@ -170,11 +243,37 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text("Start: ${_availability[day]['start']}"),
-                              Text("End: ${_availability[day]['end']}"),
+                              TextButton(
+                                onPressed: () async {
+                                  final picked = await showTimePicker(
+                                    context: context,
+                                    initialTime: startTime ?? TimeOfDay.now(),
+                                  );
+                                  if (picked != null) {
+                                    setState(() {
+                                      _availability[day]['start'] = picked;
+                                    });
+                                  }
+                                },
+                                child: Text("Start: ${formatTime(startTime)}"),
+                              ),
+                              TextButton(
+                                onPressed: () async {
+                                  final picked = await showTimePicker(
+                                    context: context,
+                                    initialTime: endTime ?? TimeOfDay.now(),
+                                  );
+                                  if (picked != null) {
+                                    setState(() {
+                                      _availability[day]['end'] = picked;
+                                    });
+                                  }
+                                },
+                                child: Text("End: ${formatTime(endTime)}"),
+                              ),
                             ],
                           ),
-                        const Divider(),
+                        const Divider(), // Added a divider
                       ],
                     );
                   },
@@ -207,15 +306,15 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _loadProfile();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Profile')),
+      appBar: AppBar(
+        title: const Text(
+          'Edit Profile',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ), // Bold title
+        centerTitle: true, // Center app bar title
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -248,37 +347,81 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                       onTap: _pickImage,
                       child: const CircleAvatar(
                         radius: 18,
-                        backgroundColor: Colors.blue,
-                        child: Icon(Icons.edit, color: Colors.white, size: 18),
+                        backgroundColor: Color(0xFF6B4EEF), // Purple color
+                        child: Icon(
+                          Icons.camera_alt,
+                          color: Colors.white,
+                          size: 18,
+                        ), // Camera icon
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 30), // Increased space
+
             TextField(
               controller: _nameController,
-              decoration: const InputDecoration(labelText: 'Name'),
+              decoration: InputDecoration(
+                labelText: 'Name',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFF6B4EEF)),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+              ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 15),
+
             TextField(
               controller: _descController,
-              decoration: const InputDecoration(labelText: 'Description'),
+              decoration: InputDecoration(
+                labelText: 'Description',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFF6B4EEF)),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+              ),
               maxLines: 3,
             ),
             const SizedBox(height: 20),
+
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
                   "Service Categories",
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 TextButton.icon(
+                  // Keeping TextButton.icon as per your original for Edit
                   onPressed: _selectCategories,
-                  icon: const Icon(Icons.category),
-                  label: const Text("Edit"),
+                  icon: const Icon(
+                    Icons.edit,
+                    color: Color(0xFF6B4EEF),
+                  ), // Purple icon
+                  label: const Text(
+                    "Edit",
+                    style: TextStyle(color: Color(0xFF6B4EEF)),
+                  ), // Purple text
                 ),
               ],
             ),
@@ -287,21 +430,82 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               runSpacing: 4,
               children:
                   _selectedCategories
-                      .map((cat) => Chip(label: Text(cat)))
+                      .map(
+                        (cat) => Chip(
+                          label: Text(
+                            cat,
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          backgroundColor: const Color(0xFF6B4EEF),
+                          deleteIcon: const Icon(
+                            Icons.close,
+                            size: 18,
+                            color: Colors.white70,
+                          ),
+                          onDeleted: () {
+                            setState(() {
+                              _selectedCategories.remove(cat);
+                            });
+                          },
+                        ),
+                      )
                       .toList(),
             ),
             const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: _showAvailabilityEditor,
-              icon: const Icon(Icons.calendar_today),
-              label: const Text("Edit Availability"),
+
+            Align(
+              // Align left for "Availability" text
+              alignment: Alignment.centerLeft,
+              child: const Text(
+                'Availability',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            SizedBox(
+              // Wrapped in SizedBox for consistent width
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _showAvailabilityEditor,
+                icon: const Icon(Icons.calendar_today, color: Colors.white),
+                label: const Text(
+                  "Edit Availability",
+                  style: TextStyle(color: Colors.white),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6B4EEF), // Purple button
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
             ),
             const SizedBox(height: 30),
-            ElevatedButton(
-              onPressed: _saveChanges,
-              child: const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12.0),
-                child: Text("Save Changes", style: TextStyle(fontSize: 16)),
+
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _saveChanges,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6B4EEF), // Purple button
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  elevation: 5,
+                ),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16.0),
+                  child: Text(
+                    "Save Changes",
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
