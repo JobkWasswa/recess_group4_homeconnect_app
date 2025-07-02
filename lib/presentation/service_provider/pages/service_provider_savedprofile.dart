@@ -29,7 +29,7 @@ class ProfileDisplayScreen extends StatelessWidget {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const ProfileEditScreen()),
+                MaterialPageRoute(builder: (_) => ProfileEditScreen()),
               );
             },
           ),
@@ -51,6 +51,7 @@ class ProfileDisplayScreen extends StatelessWidget {
           final data = snapshot.data!.data()!;
           final location = data['location'] ?? {};
           final availability = data['availability'] ?? {};
+          final categories = data['categories'] ?? [];
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20),
@@ -89,8 +90,9 @@ class ProfileDisplayScreen extends StatelessWidget {
                 ),
 
                 const Divider(height: 30),
+
                 const Text(
-                  "Skills",
+                  "Service Categories",
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 const SizedBox(height: 6),
@@ -98,12 +100,13 @@ class ProfileDisplayScreen extends StatelessWidget {
                   spacing: 8,
                   runSpacing: 4,
                   children:
-                      (data['skills'] as List<dynamic>)
-                          .map((skill) => Chip(label: Text(skill.toString())))
+                      (categories as List<dynamic>)
+                          .map((cat) => Chip(label: Text(cat.toString())))
                           .toList(),
                 ),
 
                 const Divider(height: 30),
+
                 const Text(
                   "Location",
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -114,6 +117,7 @@ class ProfileDisplayScreen extends StatelessWidget {
                 Text("Lng: ${location['lng'] ?? 'N/A'}"),
 
                 const Divider(height: 30),
+
                 const Text(
                   "Availability",
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
@@ -141,9 +145,7 @@ class ProfileDisplayScreen extends StatelessWidget {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => const ProfileEditScreen(),
-                        ),
+                        MaterialPageRoute(builder: (_) => ProfileEditScreen()),
                       );
                     },
                   ),
