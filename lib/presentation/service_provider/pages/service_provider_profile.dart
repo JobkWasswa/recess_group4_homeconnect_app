@@ -1,4 +1,5 @@
 import 'dart:io' as io;
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
@@ -8,6 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:homeconnect/config/routes.dart';
+import 'package:homeconnect/data/models/services.dart';
 
 class ProfileCreationScreen extends StatefulWidget {
   const ProfileCreationScreen({super.key});
@@ -39,6 +41,7 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
 
   Map<String, TimeOfDay?> _startTimes = {};
   Map<String, TimeOfDay?> _endTimes = {};
+  List<String> _selectedCategories = [];
 
   Future<void> _pickImage() async {
     final picked = await picker.pickImage(source: ImageSource.gallery);
@@ -147,10 +150,18 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
         return;
       }
 
+      // ✅ Validate category selection
+      if (_selectedCategories.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please select at least one category.")),
+        );
+        return;
+      }
+
       final uid = user.uid;
       final imageUrl = await _uploadProfileImage();
 
-      // Build availability map
+      // ✅ Build availability data
       Map<String, dynamic> availabilityData = {};
       _availability.forEach((day, isAvailable) {
         if (isAvailable) {
@@ -161,12 +172,14 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
         }
       });
 
+      // ✅ Save to service_providers collection
       await FirebaseFirestore.instance
           .collection('service_providers')
           .doc(uid)
           .set({
             'name': _nameController.text,
             'description': _descController.text,
+            'categories': _selectedCategories,
             'skills': _skills,
             'profilePhoto': imageUrl,
             'location': {
@@ -178,12 +191,31 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
             'createdAt': Timestamp.now(),
           });
 
+      // ✅ Save user reference under each selected category
+      for (final category in _selectedCategories) {
+        await FirebaseFirestore.instance
+            .collection('categories')
+            .doc(category)
+            .collection('users')
+            .doc(uid)
+            .set({
+              'name': _nameController.text,
+              'profilePhoto': imageUrl,
+              'location': {
+                'lat': _latitude,
+                'lng': _longitude,
+                'address': locationAddress,
+              },
+              'timestamp': Timestamp.now(),
+            });
+      }
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Profile saved successfully!")),
       );
 
-      //  Navigate to service provider dashboard
+      // ✅ Navigate to dashboard
       Navigator.pushReplacementNamed(
         context,
         AppRoutes.serviceProviderDashboard,
@@ -194,27 +226,6 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text("Failed to save profile: $e")));
     }
-  }
-
-  void _addSkillDialog() {
-    final skillController = TextEditingController();
-    showDialog(
-      context: context,
-      builder:
-          (_) => AlertDialog(
-            title: const Text('Add Skill'),
-            content: TextField(controller: skillController),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  setState(() => _skills.add(skillController.text));
-                  Navigator.pop(context);
-                },
-                child: const Text('Add'),
-              ),
-            ],
-          ),
-    );
   }
 
   Widget _buildProfileImage() {
@@ -359,6 +370,19 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
     );
   }
 
+  Future<void> _selectCategories() async {
+    final selected = await Navigator.push<List<String>>(
+      context,
+      MaterialPageRoute(builder: (context) => Selection()),
+    );
+
+    if (selected != null && selected.isNotEmpty) {
+      setState(() {
+        _selectedCategories = selected;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -394,23 +418,28 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Skills:',
+                  'Service Categories:',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 TextButton.icon(
-                  onPressed: _addSkillDialog,
+                  onPressed: _selectCategories,
                   icon: const Icon(Icons.add),
-                  label: const Text('Add Skill'),
+                  label: const Text('Select Categories'),
                 ),
               ],
             ),
+
+            const SizedBox(height: 8),
 
             Wrap(
               spacing: 8,
               runSpacing: 4,
               children:
-                  _skills.map((skill) => Chip(label: Text(skill))).toList(),
+                  _selectedCategories
+                      .map((category) => Chip(label: Text(category)))
+                      .toList(),
             ),
+
             const SizedBox(height: 20),
 
             Row(
