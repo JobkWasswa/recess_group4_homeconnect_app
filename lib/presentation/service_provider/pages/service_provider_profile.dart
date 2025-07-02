@@ -22,6 +22,7 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
   final _nameController = TextEditingController();
   final _descController = TextEditingController();
   final List<String> _skills = [];
+  List<String> _selectedCategories = [];
 
   io.File? _profileImageFile; // for mobile & desktop
   Uint8List? _webImageBytes; // for web
@@ -39,10 +40,8 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
     'Sunday': false,
   };
 
- 
   final Map<String, TimeOfDay?> _startTimes = {};
   final Map<String, TimeOfDay?> _endTimes = {};
-  >>>>>>main
 
   Future<void> _pickImage() async {
     final picked = await picker.pickImage(source: ImageSource.gallery);
