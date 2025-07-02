@@ -29,7 +29,7 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
   double? _longitude;
   final picker = ImagePicker();
   String locationAddress = "Not picked";
-  Map<String, bool> _availability = {
+  final Map<String, bool> _availability = {
     'Monday': false,
     'Tuesday': false,
     'Wednesday': false,

@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/presentation/service_provider/pages/service_provider_savedprofile.dart';
 
 class ServiceProviderDashboardScreen extends StatefulWidget {
-  const ServiceProviderDashboardScreen({Key? key}) : super(key: key);
+  const ServiceProviderDashboardScreen({super.key});
 
   @override
   State<ServiceProviderDashboardScreen> createState() =>
