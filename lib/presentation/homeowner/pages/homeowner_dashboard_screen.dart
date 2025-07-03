@@ -3,7 +3,8 @@ import 'package:homeconnect/config/routes.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/data/models/users.dart'; // CHANGE: Import UserProfile model
-import 'package:geolocator/geolocator.dart'; // ★ ADDED FOR LOCATION
+import 'package:geolocator/geolocator.dart';
+import 'package:homeconnect/presentation/homeowner/pages/list_of _serviceproviders.dart'; // ★ ADDED FOR LOCATION
 
 // Helper – convert something like “john_doe99@example.com” → “John Doe99”
 String nameFromEmail(String email) {
@@ -348,24 +349,21 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                   ),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(15),
-                    onTap: () async {
-                      final pos = await _determinePosition();
-                      if (pos == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Location is required.'),
-                          ),
-                        );
-                        return;
-                      }
-                      Navigator.of(context).pushNamed(
-                        AppRoutes.serviceProviderListPage,
-                        arguments: {
-                          'category': category['name'],
-                          'location': GeoPoint(pos.latitude, pos.longitude),
-                        },
+                    onTap: () {
+                      print(
+                        'Tapped category: ${category['name']}',
+                      ); // 👈 Debug output
+
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder:
+                              (_) => ServiceProvidersList(
+                                category: category['name']!,
+                              ),
+                        ),
                       );
                     },
+
                     child: Stack(
                       children: [
                         ClipRRect(
