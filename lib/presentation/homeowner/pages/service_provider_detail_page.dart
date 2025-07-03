@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
 
 class ServiceProviderDetailPage extends StatelessWidget {
-  
   const ServiceProviderDetailPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final provider = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+    final provider =
+        ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(provider['name'] ?? 'Provider Details'),
-      ),
+      appBar: AppBar(title: Text(provider['name'] ?? 'Provider Details')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -36,4 +34,4 @@ class ServiceProviderDetailPage extends StatelessWidget {
       ),
     );
   }
-  }
+}

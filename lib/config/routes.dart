@@ -42,7 +42,11 @@ class AppRoutes {
         final args = settings.arguments as Map<String, dynamic>;
         final category = args['category'] as String;
         return MaterialPageRoute(
-          builder: (_) => ServiceProviderListPage(category: category),
+          builder:
+              (_) => ServiceProviderListScreen(
+                serviceCategory: args[category],
+                userLocation: args['location'],
+              ),
         );
 
       case serviceProviderDetailPage:

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:homeconnect/presentation/homeowner/pages/homeowner_dashboard_screen.dart';
+//import 'package:homeconnect/presentation/homeowner/pages/homeowner_dashboard_screen.dart';
 import 'package:homeconnect/presentation/service_provider/pages/service_provider_dashboard_screen.dart';
+import 'package:homeconnect/presentation/homeowner/pages/homeowner_dashboard_screen.dart';
 import 'package:homeconnect/presentation/auth/register_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -30,15 +31,16 @@ class _LoginPageState extends State<LoginPage> {
   // CHANGE: Add function to fetch user profile from Firestore
   Future<UserProfile?> _fetchUserProfile(String uid) async {
     try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final doc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
       if (doc.exists) {
         return UserProfile.fromFirestore(doc.data()!);
       }
       return null;
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching profile: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error fetching profile: $e')));
       return null;
     }
   }
@@ -75,7 +77,10 @@ class _LoginPageState extends State<LoginPage> {
       if (profile.userType == 'homeowner') {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (_) => HomeownerDashboardScreen(profile: profile), // CHANGE: Pass profile
+            builder:
+                (_) => HomeownerDashboardScreen(
+                  profile: profile,
+                ), // CHANGE: Pass profile
           ),
         );
       } else if (profile.userType == 'provider') {
@@ -85,18 +90,18 @@ class _LoginPageState extends State<LoginPage> {
           ),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Account role not set.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Account role not set.')));
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Welcome, ${_emailController.text}!')),
       );
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? 'Login failed.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message ?? 'Login failed.')));
     } catch (_) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('An unexpected error occurred.')),

@@ -15,12 +15,17 @@ class ServiceProviderDashboardScreen extends StatefulWidget {
 class _ServiceProviderDashboardScreenState
     extends State<ServiceProviderDashboardScreen> {
   String providerName = '';
+  String _userProfession = ''; // To store the service provider's profession
+  double _starRating = 1.0; // Default: one star rating
+  int _jobsCompleted = 0; // Default: zero jobs completed
+  String _availabilityStatus = 'Active'; // Default: active
+
   bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _fetchProviderName();
+    _fetchProviderData();
   }
 
   String _formatNameFromEmail(String email) {
@@ -38,7 +43,7 @@ class _ServiceProviderDashboardScreenState
     return capitalizedWords.trim();
   }
 
-  Future<void> _fetchProviderName() async {
+  Future<void> _fetchProviderData() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
@@ -59,20 +64,44 @@ class _ServiceProviderDashboardScreenState
           data != null && data['email'] != null
               ? data['email'].toString()
               : null;
-
-      final generatedName =
-          email != null ? _formatNameFromEmail(email) : 'Provider';
+      final profession =
+          data != null && data['profession'] != null
+              ? data['profession'].toString()
+              : ''; // Fetch profession
 
       setState(() {
-        providerName = generatedName;
+        providerName = email != null ? _formatNameFromEmail(email) : 'Provider';
+        _userProfession = profession; // Set the fetched profession
+        // Initialize or fetch actual rating/jobs from Firestore if available
+        // For now, using default values as per requirement 1
+        _starRating = (data?['starRating'] as num?)?.toDouble() ?? 1.0;
+        _jobsCompleted = (data?['jobsCompleted'] as int?) ?? 0;
+        _availabilityStatus =
+            (data?['availabilityStatus'] as String?) ?? 'Active';
         isLoading = false;
       });
     } catch (e) {
       setState(() {
         providerName = 'Provider';
+        _userProfession = ''; // Default profession on error
+        _starRating = 1.0;
+        _jobsCompleted = 0;
+        _availabilityStatus = 'Active';
         isLoading = false;
       });
+      print('Error fetching provider data: $e');
     }
+  }
+
+  // Simulate updating availability status
+  void _updateAvailabilityStatus(String newStatus) {
+    setState(() {
+      _availabilityStatus = newStatus;
+    });
+    // In a real app, you would update this in Firestore
+    // FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser?.uid).update({
+    //   'availabilityStatus': newStatus,
+    // });
   }
 
   @override
@@ -223,21 +252,23 @@ class _ServiceProviderDashboardScreenState
                 children: [
                   _buildStatusItem(
                     Icons.star,
-                    '4.8',
+                    _starRating.toStringAsFixed(1), // Display dynamic rating
                     'Avg. Rating',
                     Colors.amber,
                   ),
                   _buildStatusItem(
                     Icons.work,
-                    '150+',
+                    _jobsCompleted.toString(), // Display dynamic jobs completed
                     'Jobs Completed',
                     Colors.lightBlueAccent,
                   ),
                   _buildStatusItem(
                     Icons.calendar_today,
-                    'Active',
+                    _availabilityStatus, // Display dynamic availability status
                     'Availability',
-                    Colors.greenAccent,
+                    _availabilityStatus == 'Active'
+                        ? Colors.greenAccent
+                        : Colors.orangeAccent, // Change color based on status
                   ),
                 ],
               ),
@@ -297,25 +328,25 @@ class _ServiceProviderDashboardScreenState
                 _buildStatRow(
                   Icons.check_circle_outline,
                   'Completed Jobs',
-                  '150',
+                  _jobsCompleted.toString(), // Use dynamic value
                   Colors.green,
                 ),
                 _buildStatRow(
                   Icons.calendar_today_outlined,
                   'Upcoming Jobs',
-                  '3',
+                  '0', // This can be dynamic too if you fetch it
                   Colors.blue,
                 ),
                 _buildStatRow(
                   Icons.star_half,
                   'Avg. Rating',
-                  '4.8 (120 reviews)',
+                  '${_starRating.toStringAsFixed(1)} (0 reviews)', // Use dynamic value
                   Colors.amber,
                 ),
                 _buildStatRow(
                   Icons.monetization_on,
                   'Earnings (last 30 days)',
-                  'UGX 1,200,000',
+                  'UGX 0', // This should be dynamic
                   Colors.purple,
                 ),
               ],
@@ -344,7 +375,55 @@ class _ServiceProviderDashboardScreenState
     );
   }
 
+  // Simulated list of all job requests (replace with actual Firestore fetch)
+  final List<Map<String, String>> _allJobRequests = [
+    {
+      'jobType': 'House Cleaning',
+      'profession': 'Cleaner',
+      'homeownerName': 'Sarah K.',
+      'date': 'Today, 2:00 PM',
+      'location': 'Ntinda',
+      'price': 'UGX 20,000',
+    },
+    {
+      'jobType': 'Plumbing Fix',
+      'profession': 'Plumber',
+      'homeownerName': 'Alex M.',
+      'date': 'Tomorrow, 10:00 AM',
+      'location': 'Kansanga',
+      'price': 'UGX 35,000',
+    },
+    {
+      'jobType': 'Electrical Wiring',
+      'profession': 'Electrician',
+      'homeownerName': 'John D.',
+      'date': 'Friday, 9:00 AM',
+      'location': 'Muyenga',
+      'price': 'UGX 50,000',
+    },
+    {
+      'jobType': 'Deep Cleaning',
+      'profession': 'Cleaner',
+      'homeownerName': 'Alice G.',
+      'date': 'Tomorrow, 3:00 PM',
+      'location': 'Bugolobi',
+      'price': 'UGX 40,000',
+    },
+  ];
+
+  // Function to filter job requests based on the provider's profession
+  List<Map<String, String>> _getFilteredJobRequests(String profession) {
+    if (profession.isEmpty) {
+      return [];
+    }
+    return _allJobRequests
+        .where((job) => job['profession'] == profession)
+        .toList();
+  }
+
   Widget _buildJobRequestsSection(BuildContext context) {
+    final filteredJobs = _getFilteredJobRequests(_userProfession);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
       child: Column(
@@ -359,40 +438,43 @@ class _ServiceProviderDashboardScreenState
               ),
               TextButton(
                 onPressed: () {
-                  // TODO: Navigate to All Job Requests
-                  print('View All Requests pressed');
+                  // TODO: Navigate to All Job Requests screen, possibly passing the profession
+                  print(
+                    'View All Requests pressed for profession: $_userProfession',
+                  );
                 },
                 child: const Text('View All'),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          _buildJobRequestCard(
-            context: context,
-            jobType: 'House Cleaning',
-            homeownerName: 'Sarah K.',
-            date: 'Today, 2:00 PM',
-            location: 'Ntinda',
-            price: 'UGX 20,000',
-          ),
-          _buildJobRequestCard(
-            context: context,
-            jobType: 'Plumbing Fix',
-            homeownerName: 'Alex M.',
-            date: 'Tomorrow, 10:00 AM',
-            location: 'Kansanga',
-            price: 'UGX 35,000',
-          ),
-          const SizedBox(height: 16),
-          Center(
-            child: Text(
-              'No new requests at the moment.',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontStyle: FontStyle.italic,
+          if (filteredJobs.isEmpty)
+            Center(
+              child: Text(
+                'No new requests for your profession ($_userProfession) at the moment.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontStyle: FontStyle.italic,
+                ),
               ),
+            )
+          else
+            Column(
+              children:
+                  filteredJobs
+                      .map(
+                        (job) => _buildJobRequestCard(
+                          context: context,
+                          jobType: job['jobType']!,
+                          homeownerName: job['homeownerName']!,
+                          date: job['date']!,
+                          location: job['location']!,
+                          price: job['price']!,
+                        ),
+                      )
+                      .toList(),
             ),
-          ),
         ],
       ),
     );
@@ -466,13 +548,17 @@ class _ServiceProviderDashboardScreenState
                         print(
                           'Accept button pressed for $jobType from $homeownerName',
                         );
+                        _updateAvailabilityStatus(
+                          'Booked',
+                        ); // Change status to Booked
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              'Accepted $jobType from $homeownerName!',
+                              'Accepted $jobType from $homeownerName! Your status is now Booked.',
                             ),
                           ),
                         );
+                        // In a real app, you would also update job status in Firestore
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green[600],
@@ -538,21 +624,21 @@ class _ServiceProviderDashboardScreenState
                 MaterialPageRoute(builder: (context) => ProfileDisplayScreen()),
               );
             },
-            colors: [Color(0xFFFBBF24), Color(0xFFEAB308)], // Yellow
+            colors: const [Color(0xFFFBBF24), Color(0xFFEAB308)], // Yellow
           ),
           const SizedBox(height: 12),
-          _buildManagementCard(
-            context: context,
-            icon: Icons.calendar_month,
-            title: 'Set Availability',
-            subtitle: 'Manage your working hours and days off.',
-            onTap: () {
-              // TODO: Navigate to Set Availability screen
-              print('Set Availability pressed');
-            },
-            colors: [Color(0xFF22C55E), Color(0xFF16A34A)], // Green
-          ),
-          const SizedBox(height: 12),
+          // Removed 'Set Availability' as per requirement 3
+          // _buildManagementCard(
+          //   context: context,
+          //   icon: Icons.calendar_month,
+          //   title: 'Set Availability',
+          //   subtitle: 'Manage your working hours and days off.',
+          //   onTap: () {
+          //     print('Set Availability pressed');
+          //   },
+          //   colors: const [Color(0xFF22C55E), Color(0xFF16A34A)], // Green
+          // ),
+          // const SizedBox(height: 12),
           _buildManagementCard(
             context: context,
             icon: Icons.history,
@@ -562,7 +648,7 @@ class _ServiceProviderDashboardScreenState
               // TODO: Navigate to Job History screen
               print('View Job History pressed');
             },
-            colors: [Color(0xFFA855F7), Color(0xFF9333EA)], // Purple
+            colors: const [Color(0xFFA855F7), Color(0xFF9333EA)], // Purple
           ),
         ],
       ),

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:homeconnect/config/routes.dart';
+//import 'package:homeconnect/config/routes.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:homeconnect/data/models/users.dart'; // CHANGE: Import UserProfile model
+//import 'package:homeconnect/data/models/users.dart'; // Import UserProfile model
+import 'package:homeconnect/data/models/users.dart';
+//import 'package:homeconnect/presentation/service_provider/pages/service_provider_profile.dart'; // Assuming you have a ServiceProvider model
+//import 'package:homeconnect/data/models/booking.dart'; // Assuming you have a Booking model
 
 // Helper – convert something like “john_doe99@example.com” → “John Doe99”
 String nameFromEmail(String email) {
@@ -14,7 +17,7 @@ String nameFromEmail(String email) {
 }
 
 class HomeownerDashboardScreen extends StatefulWidget {
-  final UserProfile? profile; // CHANGE: Add profile parameter
+  final UserProfile? profile; // Add profile parameter
   const HomeownerDashboardScreen({super.key, this.profile});
 
   @override
@@ -25,10 +28,116 @@ class HomeownerDashboardScreen extends StatefulWidget {
 class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
   final TextEditingController _searchController = TextEditingController();
 
+  // Mock data for bookings to simulate pending and confirmed services
+  // In a real app, you would fetch this from a backend
+  List<Booking> _pendingBookings = [];
+  List<Booking> _confirmedBookings = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchBookings(); // Simulate fetching bookings on init
+  }
+
+  void _fetchBookings() {
+    // This is mock data. In a real application, you would
+    // fetch this from a database (e.g., Firebase, your backend API)
+    setState(() {
+      _pendingBookings = [
+        Booking(
+          id: 'b1',
+          serviceName: 'Plumbing Repair',
+          providerName: 'Grace Nakato',
+          status: 'Pending',
+          date: 'Tomorrow, 10:00 AM',
+          providerId: 'sp1', // Example provider ID
+        ),
+      ];
+      _confirmedBookings = [
+        Booking(
+          id: 'b2',
+          serviceName: 'House Cleaning',
+          providerName: 'CleanSweep Ltd.',
+          status: 'Confirmed',
+          date: 'Today, 2:00 PM',
+          providerId: 'sp2', // Example provider ID
+        ),
+      ];
+    });
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _showRatingPopup(String serviceProviderId, String providerName) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        double currentRating = 0.0;
+        return AlertDialog(
+          title: Text('Rate $providerName'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('How would you rate the service provided by $providerName?'),
+              const SizedBox(height: 20),
+              StatefulBuilder(
+                builder: (context, setState) {
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(5, (index) {
+                      return IconButton(
+                        icon: Icon(
+                          index < currentRating
+                              ? Icons.star
+                              : Icons.star_border,
+                          color: Colors.amber,
+                          size: 30,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            currentRating = (index + 1).toDouble();
+                          });
+                        },
+                      );
+                    }),
+                  );
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (currentRating > 0) {
+                  // TODO: Implement logic to update the service provider's rating
+                  // This would typically involve sending the rating to your backend
+                  print('User rated $providerName $currentRating stars.');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Thank you for rating $providerName!'),
+                    ),
+                  );
+                  // Simulate updating the provider's dashboard (in a real app, this would be backend logic)
+                  // For now, just print a confirmation
+                }
+                Navigator.of(context).pop();
+              },
+              child: const Text('Submit Rating'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -52,10 +161,10 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHeader(context),
-                _buildSearchAndFilter(), // CHANGE: Will pass profile internally
+                _buildSearchAndFilter(), // Will pass profile internally
                 _buildCategorySection(context),
                 _buildPopularServicesSection(context),
-                _buildRecommendedProfessionalsSection(context),
+                // _buildRecommendedProfessionalsSection(context), // REMOVED as per requirement 3
                 _buildBookingStatusSection(context),
                 const SizedBox(height: 20),
               ],
@@ -78,120 +187,125 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
   }
 
   Widget _buildHeader(BuildContext context) {
-  final user = FirebaseAuth.instance.currentUser;
-  final displayName =
-      user != null && user.email != null
-          ? nameFromEmail(user.email!)
-          : 'User';
+    final user = FirebaseAuth.instance.currentUser;
+    final displayName =
+        user != null && user.email != null
+            ? nameFromEmail(user.email!)
+            : 'User';
 
-  return Container(
-    decoration: const BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.centerLeft,
-        end: Alignment.centerRight,
-        colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)], // Purple to Pink
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)], // Purple to Pink
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(20),
+          bottomRight: Radius.circular(20),
+        ),
       ),
-      borderRadius: BorderRadius.only(
-        bottomLeft: Radius.circular(20),
-        bottomRight: Radius.circular(20),
-      ),
-    ),
-    child: Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Welcome back,',
-                    style: TextStyle(color: Colors.purple[100], fontSize: 14),
-                  ),
-                  Text(
-                    displayName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Welcome back,',
+                      style: TextStyle(color: Colors.purple[100], fontSize: 14),
                     ),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(25),
+                    Text(
+                      displayName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    child: Stack(
-                      children: [
-                        IconButton(
-                          onPressed: () {
-                            print('Homeowner Notifications pressed');
-                          },
-                          icon: const Icon(
-                            Icons.notifications,
-                            color: Colors.white,
-                          ),
-                        ),
-                        Positioned(
-                          right: 8,
-                          top: 8,
-                          child: Container(
-                            width: 12,
-                            height: 12,
-                            decoration: const BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
+                  ],
+                ),
+                Row(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: Stack(
+                        children: [
+                          IconButton(
+                            onPressed: () {
+                              print('Homeowner Notifications pressed');
+                            },
+                            icon: const Icon(
+                              Icons.notifications,
+                              color: Colors.white,
                             ),
                           ),
-                        ),
-                      ],
+                          Positioned(
+                            right: 8,
+                            top: 8,
+                            child: Container(
+                              width: 12,
+                              height: 12,
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(25),
+                    const SizedBox(width: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: IconButton(
+                        onPressed: () {
+                          print('Homeowner Profile pressed');
+                        },
+                        icon: const Icon(Icons.person, color: Colors.white),
+                      ),
                     ),
-                    child: IconButton(
-                      onPressed: () {
-                        print('Homeowner Profile pressed');
-                      },
-                      icon: const Icon(Icons.person, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(
+                          25,
+                        ), // Corrected from 'Fielding:'
+                      ),
+                      child: IconButton(
+                        onPressed: () async {
+                          await FirebaseAuth.instance.signOut();
+                          if (mounted) {
+                            Navigator.of(
+                              context,
+                            ).pushReplacementNamed(AppRoutes.auth);
+                          }
+                        },
+                        icon: const Icon(Icons.logout, color: Colors.white),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(25), // FIXED: Corrected from 'Fielding:'
-                    ),
-                    child: IconButton(
-                      onPressed: () async {
-                        await FirebaseAuth.instance.signOut();
-                        if (mounted) {
-                          Navigator.of(context).pushReplacementNamed(AppRoutes.auth);
-                        }
-                      },
-                      icon: const Icon(Icons.logout, color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-        ],
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
+
   Widget _buildSearchAndFilter() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -200,13 +314,30 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
           Expanded(
             child: TextField(
               controller: _searchController,
+              readOnly: true, // Make it read-only to act as a button
+              onTap: () {
+                // Feature 1: Navigate to recommended service providers on search bar tap
+                Navigator.of(context).pushNamed(
+                  AppRoutes.serviceProviderListPage,
+                  arguments: {
+                    'query':
+                        _searchController.text.isNotEmpty
+                            ? _searchController.text
+                            : null,
+                    'location': widget.profile?.location ?? 'Kampala',
+                    'recommendationCriteria':
+                        true, // Indicate that recommendations are needed
+                  },
+                );
+              },
               onSubmitted: (value) {
                 if (value.isNotEmpty) {
+                  // This is for actual search submission, but onTap handles the initial navigation
                   Navigator.of(context).pushNamed(
                     AppRoutes.serviceProviderListPage,
                     arguments: {
                       'query': value,
-                      'location': widget.profile?.location ?? 'Kampala', // CHANGE: Use profile location
+                      'location': widget.profile?.location ?? 'Kampala',
                     },
                   );
                 }
@@ -235,15 +366,19 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
             ),
             child: IconButton(
               onPressed: () {
-                if (_searchController.text.isNotEmpty) {
-                  Navigator.of(context).pushNamed(
-                    AppRoutes.serviceProviderListPage,
-                    arguments: {
-                      'query': _searchController.text,
-                      'location': widget.profile?.location ?? 'Kampala', // CHANGE: Use profile location
-                    },
-                  );
-                }
+                // Feature 1: Navigate to recommended service providers on search icon tap
+                Navigator.of(context).pushNamed(
+                  AppRoutes.serviceProviderListPage,
+                  arguments: {
+                    'query':
+                        _searchController.text.isNotEmpty
+                            ? _searchController.text
+                            : null,
+                    'location': widget.profile?.location ?? 'Kampala',
+                    'recommendationCriteria':
+                        true, // Indicate that recommendations are needed
+                  },
+                );
               },
               icon: const Icon(Icons.search),
             ),
@@ -331,12 +466,15 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
       child: InkWell(
         borderRadius: BorderRadius.circular(15),
         onTap: () {
+          // Feature 2: Navigate to selected category service providers
           print('Category tapped: $title');
           Navigator.of(context).pushNamed(
             AppRoutes.serviceProviderListPage,
             arguments: {
               'category': title,
-              'location': widget.profile?.location ?? 'Kampala', // CHANGE: Use profile location
+              'location': widget.profile?.location ?? 'Kampala',
+              'recommendationCriteria':
+                  true, // Indicate recommendations for category
             },
           );
         },
@@ -496,11 +634,17 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
         child: InkWell(
           borderRadius: BorderRadius.circular(15),
           onTap: () {
+            // Feature 2: Navigate to selected popular service providers
             print('Popular service tapped: $serviceName');
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text('Tapped on $serviceName!')));
-            // TODO: Navigate to service details or booking
+            Navigator.of(context).pushNamed(
+              AppRoutes.serviceProviderListPage,
+              arguments: {
+                'service': serviceName,
+                'location': widget.profile?.location ?? 'Kampala',
+                'recommendationCriteria':
+                    true, // Indicate recommendations for popular service
+              },
+            );
           },
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -609,110 +753,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
     );
   }
 
-  Widget _buildRecommendedProfessionalsSection(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Recommended Professionals',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          Column(
-            children: [
-              _buildProfessionalCard(
-                context: context,
-                name: 'Grace Nakato',
-                service: 'Plumbing Expert',
-                rating: '4.9',
-                jobsCompleted: '150+',
-                imageUrl: 'https://via.placeholder.com/150',
-              ),
-              const SizedBox(height: 10),
-              _buildProfessionalCard(
-                context: context,
-                name: 'David Ssenyonga',
-                service: 'Electrical & AC Repair',
-                rating: '4.7',
-                jobsCompleted: '120+',
-                imageUrl: 'https://via.placeholder.com/150',
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProfessionalCard({
-    required BuildContext context,
-    required String name,
-    required String service,
-    required String rating,
-    required String jobsCompleted,
-    required String imageUrl,
-  }) {
-    return Card(
-      elevation: 5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(15),
-        onTap: () {
-          print('Professional tapped: $name');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Tapped on $name\'s profile!')),
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Row(
-            children: [
-              CircleAvatar(radius: 30, backgroundImage: NetworkImage(imageUrl)),
-              const SizedBox(width: 15),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      service,
-                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 5),
-                    Row(
-                      children: [
-                        Icon(Icons.star, color: Colors.amber[700], size: 16),
-                        Text(
-                          '$rating ($jobsCompleted jobs)',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[700],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: Colors.grey),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  // Removed _buildRecommendedProfessionalsSection as per requirement 3
 
   Widget _buildBookingStatusSection(BuildContext context) {
     return Padding(
@@ -725,28 +766,65 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-          _buildBookingStatusCard(
-            context: context,
-            service: 'Plumbing Repair',
-            provider: 'Grace Nakato',
-            status: 'Pending',
-            date: 'Tomorrow, 10:00 AM',
-            statusColor: Colors.orange,
-          ),
-          const SizedBox(height: 10),
-          _buildBookingStatusCard(
-            context: context,
-            service: 'House Cleaning',
-            provider: 'CleanSweep Ltd.',
-            status: 'Confirmed',
-            date: 'Today, 2:00 PM',
-            statusColor: Colors.green,
-          ),
-          const SizedBox(height: 10),
+          if (_pendingBookings.isEmpty && _confirmedBookings.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20.0),
+                child: Text(
+                  'You have no active bookings yet.',
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+              ),
+            ),
+          // Display Pending Services
+          if (_pendingBookings.isNotEmpty) ...[
+            const Text(
+              'Pending Services',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            ..._pendingBookings.map(
+              (booking) => _buildBookingStatusCard(
+                context: context,
+                service: booking.serviceName,
+                provider: booking.providerName,
+                status: booking.status,
+                date: booking.date,
+                statusColor: Colors.orange,
+                isCompleted: false, // Mark as not completed
+                bookingId: booking.id,
+                providerId: booking.providerId,
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+          // Display Confirmed Services
+          if (_confirmedBookings.isNotEmpty) ...[
+            const Text(
+              'Confirmed Services',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            ..._confirmedBookings.map(
+              (booking) => _buildBookingStatusCard(
+                context: context,
+                service: booking.serviceName,
+                provider: booking.providerName,
+                status: booking.status,
+                date: booking.date,
+                statusColor: Colors.green,
+                isCompleted: true, // Mark as completed for demonstration
+                bookingId: booking.id,
+                providerId: booking.providerId,
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
           Center(
             child: TextButton(
               onPressed: () {
                 print('View All Bookings pressed');
+                // TODO: Navigate to a dedicated "My Bookings" page
               },
               child: const Text('View All My Bookings'),
             ),
@@ -763,6 +841,9 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
     required String status,
     required String date,
     required Color statusColor,
+    required bool isCompleted, // Added to trigger rating pop-up
+    required String bookingId,
+    required String providerId,
   }) {
     return Card(
       elevation: 5,
@@ -820,6 +901,22 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                   ),
                 ],
               ),
+              if (isCompleted) // Feature 4: Show rate button if service is "completed"
+                Align(
+                  alignment: Alignment.bottomRight,
+                  child: TextButton.icon(
+                    onPressed: () {
+                      _showRatingPopup(providerId, provider);
+                      // In a real app, you'd remove this booking from confirmed once rated
+                      // or mark it as 'rated' to prevent multiple ratings
+                    },
+                    icon: Icon(Icons.star_rate, color: Colors.amber[700]),
+                    label: const Text(
+                      'Rate Service',
+                      style: TextStyle(color: Colors.amber),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -865,4 +962,52 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
       ),
     );
   }
+}
+
+// Dummy models for demonstration purposes. You should replace these with your actual models.
+
+class ServiceProvider {
+  final String id;
+  final String name;
+  final String service;
+  final double rating;
+  final int jobsCompleted;
+  final String imageUrl;
+  final String location;
+  final bool isAvailable;
+
+  ServiceProvider({
+    required this.id,
+    required this.name,
+    required this.service,
+    required this.rating,
+    required this.jobsCompleted,
+    required this.imageUrl,
+    required this.location,
+    required this.isAvailable,
+  });
+}
+
+class Booking {
+  final String id;
+  final String serviceName;
+  final String providerName;
+  final String status;
+  final String date;
+  final String providerId;
+
+  Booking({
+    required this.id,
+    required this.serviceName,
+    required this.providerName,
+    required this.status,
+    required this.date,
+    required this.providerId,
+  });
+}
+
+// Dummy AppRoutes for navigation. Ensure these match your actual route definitions.
+class AppRoutes {
+  static const String auth = '/auth';
+  static const String serviceProviderListPage = '/serviceProviderList';
 }
