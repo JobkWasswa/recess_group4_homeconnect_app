@@ -18,11 +18,12 @@ class ServiceProviderListPage extends StatelessWidget {
 
     final searchValue = query ?? category;
 
-    if (searchValue == null || searchValue.isEmpty || location == null || location.isEmpty) {
+    if (searchValue == null ||
+        searchValue.isEmpty ||
+        location == null ||
+        location.isEmpty) {
       return const Scaffold(
-        body: Center(
-          child: Text('Missing search input or location.'),
-        ),
+        body: Center(child: Text('Missing search input or location.')),
       );
     }
 
