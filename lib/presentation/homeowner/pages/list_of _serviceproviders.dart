@@ -12,7 +12,7 @@ class ServiceProvidersList extends StatelessWidget {
       final snapshot =
           await FirebaseFirestore.instance
               .collection('service_providers')
-              .where('categories', arrayContains: 'Compound Cleaning')
+              .where('categories', arrayContains: category)
               .get();
 
       print('✅ Successfully fetched ${snapshot.docs.length} providers');
