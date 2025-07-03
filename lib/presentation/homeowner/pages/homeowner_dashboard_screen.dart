@@ -78,120 +78,125 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
   }
 
   Widget _buildHeader(BuildContext context) {
-  final user = FirebaseAuth.instance.currentUser;
-  final displayName =
-      user != null && user.email != null
-          ? nameFromEmail(user.email!)
-          : 'User';
+    final user = FirebaseAuth.instance.currentUser;
+    final displayName =
+        user != null && user.email != null
+            ? nameFromEmail(user.email!)
+            : 'User';
 
-  return Container(
-    decoration: const BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.centerLeft,
-        end: Alignment.centerRight,
-        colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)], // Purple to Pink
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)], // Purple to Pink
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(20),
+          bottomRight: Radius.circular(20),
+        ),
       ),
-      borderRadius: BorderRadius.only(
-        bottomLeft: Radius.circular(20),
-        bottomRight: Radius.circular(20),
-      ),
-    ),
-    child: Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Welcome back,',
-                    style: TextStyle(color: Colors.purple[100], fontSize: 14),
-                  ),
-                  Text(
-                    displayName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Welcome back,',
+                      style: TextStyle(color: Colors.purple[100], fontSize: 14),
                     ),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(25),
+                    Text(
+                      displayName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    child: Stack(
-                      children: [
-                        IconButton(
-                          onPressed: () {
-                            print('Homeowner Notifications pressed');
-                          },
-                          icon: const Icon(
-                            Icons.notifications,
-                            color: Colors.white,
-                          ),
-                        ),
-                        Positioned(
-                          right: 8,
-                          top: 8,
-                          child: Container(
-                            width: 12,
-                            height: 12,
-                            decoration: const BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
+                  ],
+                ),
+                Row(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: Stack(
+                        children: [
+                          IconButton(
+                            onPressed: () {
+                              print('Homeowner Notifications pressed');
+                            },
+                            icon: const Icon(
+                              Icons.notifications,
+                              color: Colors.white,
                             ),
                           ),
-                        ),
-                      ],
+                          Positioned(
+                            right: 8,
+                            top: 8,
+                            child: Container(
+                              width: 12,
+                              height: 12,
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(25),
+                    const SizedBox(width: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: IconButton(
+                        onPressed: () {
+                          print('Homeowner Profile pressed');
+                        },
+                        icon: const Icon(Icons.person, color: Colors.white),
+                      ),
                     ),
-                    child: IconButton(
-                      onPressed: () {
-                        print('Homeowner Profile pressed');
-                      },
-                      icon: const Icon(Icons.person, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(
+                          25,
+                        ), // FIXED: Corrected from 'Fielding:'
+                      ),
+                      child: IconButton(
+                        onPressed: () async {
+                          await FirebaseAuth.instance.signOut();
+                          if (mounted) {
+                            Navigator.of(
+                              context,
+                            ).pushReplacementNamed(AppRoutes.auth);
+                          }
+                        },
+                        icon: const Icon(Icons.logout, color: Colors.white),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(25), // FIXED: Corrected from 'Fielding:'
-                    ),
-                    child: IconButton(
-                      onPressed: () async {
-                        await FirebaseAuth.instance.signOut();
-                        if (mounted) {
-                          Navigator.of(context).pushReplacementNamed(AppRoutes.auth);
-                        }
-                      },
-                      icon: const Icon(Icons.logout, color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-        ],
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
+
   Widget _buildSearchAndFilter() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -206,7 +211,9 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                     AppRoutes.serviceProviderListPage,
                     arguments: {
                       'query': value,
-                      'location': widget.profile?.location ?? 'Kampala', // CHANGE: Use profile location
+                      'location':
+                          widget.profile?.location ??
+                          'Kampala', // CHANGE: Use profile location
                     },
                   );
                 }
@@ -240,7 +247,9 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                     AppRoutes.serviceProviderListPage,
                     arguments: {
                       'query': _searchController.text,
-                      'location': widget.profile?.location ?? 'Kampala', // CHANGE: Use profile location
+                      'location':
+                          widget.profile?.location ??
+                          'Kampala', // CHANGE: Use profile location
                     },
                   );
                 }
@@ -337,7 +346,9 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
             AppRoutes.serviceProviderListPage,
             arguments: {
               'category': title,
-              'location': widget.profile?.location ?? 'Kampala', // CHANGE: Use profile location
+              'location':
+                  widget.profile?.location ??
+                  'Kampala', // CHANGE: Use profile location
             },
           );
         },
