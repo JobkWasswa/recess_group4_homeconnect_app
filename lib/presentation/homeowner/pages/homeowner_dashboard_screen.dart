@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:homeconnect/config/routes.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/data/models/users.dart'; // CHANGE: Import UserProfile model
+import 'package:geolocator/geolocator.dart'; // ★ ADDED FOR LOCATION
 
 // Helper – convert something like “john_doe99@example.com” → “John Doe99”
 String nameFromEmail(String email) {
@@ -24,6 +26,29 @@ class HomeownerDashboardScreen extends StatefulWidget {
 
 class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
   final TextEditingController _searchController = TextEditingController();
+
+  // ★ ADDED: Request permission and fetch GPS coordinates
+  Future<Position?> _determinePosition() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      return null;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return null;
+      }
+    }
+    if (permission == LocationPermission.deniedForever) {
+      return null;
+    }
+
+    return await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+  }
 
   @override
   void dispose() {
@@ -52,7 +77,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHeader(context),
-                _buildSearchAndFilter(), // CHANGE: Will pass profile internally
+                _buildSearchAndFilter(),
                 _buildCategorySection(context),
                 _buildPopularServicesSection(context),
                 _buildRecommendedProfessionalsSection(context),
@@ -66,9 +91,8 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
       bottomNavigationBar: _buildBottomNavigationBar(),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // TODO: Navigate to Post a Job screen
           print('Post a new job pressed!');
-          // Example: Navigator.of(context).pushNamed(AppRoutes.postJobScreen);
+          // Navigator.of(context).pushNamed(AppRoutes.postJobScreen);
         },
         backgroundColor: Colors.purple[700],
         child: const Icon(Icons.add, color: Colors.white),
@@ -78,120 +102,119 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
   }
 
   Widget _buildHeader(BuildContext context) {
-  final user = FirebaseAuth.instance.currentUser;
-  final displayName =
-      user != null && user.email != null
-          ? nameFromEmail(user.email!)
-          : 'User';
+    final user = FirebaseAuth.instance.currentUser;
+    final displayName =
+        user != null && user.email != null
+            ? nameFromEmail(user.email!)
+            : 'User';
 
-  return Container(
-    decoration: const BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.centerLeft,
-        end: Alignment.centerRight,
-        colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)], // Purple to Pink
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(20),
+          bottomRight: Radius.circular(20),
+        ),
       ),
-      borderRadius: BorderRadius.only(
-        bottomLeft: Radius.circular(20),
-        bottomRight: Radius.circular(20),
-      ),
-    ),
-    child: Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Welcome back,',
-                    style: TextStyle(color: Colors.purple[100], fontSize: 14),
-                  ),
-                  Text(
-                    displayName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Welcome back,',
+                      style: TextStyle(color: Colors.purple[100], fontSize: 14),
                     ),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(25),
+                    Text(
+                      displayName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    child: Stack(
-                      children: [
-                        IconButton(
-                          onPressed: () {
-                            print('Homeowner Notifications pressed');
-                          },
-                          icon: const Icon(
-                            Icons.notifications,
-                            color: Colors.white,
-                          ),
-                        ),
-                        Positioned(
-                          right: 8,
-                          top: 8,
-                          child: Container(
-                            width: 12,
-                            height: 12,
-                            decoration: const BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
+                  ],
+                ),
+                Row(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: Stack(
+                        children: [
+                          IconButton(
+                            onPressed:
+                                () => print('Homeowner Notifications pressed'),
+                            icon: const Icon(
+                              Icons.notifications,
+                              color: Colors.white,
                             ),
                           ),
-                        ),
-                      ],
+                          Positioned(
+                            right: 8,
+                            top: 8,
+                            child: Container(
+                              width: 12,
+                              height: 12,
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(25),
+                    const SizedBox(width: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: IconButton(
+                        onPressed: () => print('Homeowner Profile pressed'),
+                        icon: const Icon(Icons.person, color: Colors.white),
+                      ),
                     ),
-                    child: IconButton(
-                      onPressed: () {
-                        print('Homeowner Profile pressed');
-                      },
-                      icon: const Icon(Icons.person, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      child: IconButton(
+                        onPressed: () async {
+                          await FirebaseAuth.instance.signOut();
+                          if (mounted)
+                            Navigator.of(
+                              context,
+                            ).pushReplacementNamed(AppRoutes.auth);
+                        },
+                        icon: const Icon(Icons.logout, color: Colors.white),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(25), // FIXED: Corrected from 'Fielding:'
-                    ),
-                    child: IconButton(
-                      onPressed: () async {
-                        await FirebaseAuth.instance.signOut();
-                        if (mounted) {
-                          Navigator.of(context).pushReplacementNamed(AppRoutes.auth);
-                        }
-                      },
-                      icon: const Icon(Icons.logout, color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-        ],
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
+
   Widget _buildSearchAndFilter() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -200,16 +223,22 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
           Expanded(
             child: TextField(
               controller: _searchController,
-              onSubmitted: (value) {
-                if (value.isNotEmpty) {
-                  Navigator.of(context).pushNamed(
-                    AppRoutes.serviceProviderListPage,
-                    arguments: {
-                      'query': value,
-                      'location': widget.profile?.location ?? 'Kampala', // CHANGE: Use profile location
-                    },
+              onSubmitted: (value) async {
+                if (value.isEmpty) return;
+                final pos = await _determinePosition();
+                if (pos == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Location is required.')),
                   );
+                  return;
                 }
+                Navigator.of(context).pushNamed(
+                  AppRoutes.serviceProviderListPage,
+                  arguments: {
+                    'query': value,
+                    'location': GeoPoint(pos.latitude, pos.longitude),
+                  },
+                );
               },
               decoration: InputDecoration(
                 hintText: 'Search for services...',
@@ -234,16 +263,23 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: IconButton(
-              onPressed: () {
-                if (_searchController.text.isNotEmpty) {
-                  Navigator.of(context).pushNamed(
-                    AppRoutes.serviceProviderListPage,
-                    arguments: {
-                      'query': _searchController.text,
-                      'location': widget.profile?.location ?? 'Kampala', // CHANGE: Use profile location
-                    },
+              onPressed: () async {
+                final text = _searchController.text;
+                if (text.isEmpty) return;
+                final pos = await _determinePosition();
+                if (pos == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Location is required.')),
                   );
+                  return;
                 }
+                Navigator.of(context).pushNamed(
+                  AppRoutes.serviceProviderListPage,
+                  arguments: {
+                    'query': text,
+                    'location': GeoPoint(pos.latitude, pos.longitude),
+                  },
+                );
               },
               icon: const Icon(Icons.search),
             ),
@@ -295,116 +331,116 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
               itemCount: categories.length,
               itemBuilder: (context, index) {
                 final category = categories[index];
-                return _buildExploreCategoryCard(
-                  context,
-                  category['name'] as String,
-                  category['image'] as String,
+                return Container(
+                  width: 150,
+                  margin: const EdgeInsets.only(right: 15),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(15),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.2),
+                        spreadRadius: 2,
+                        blurRadius: 5,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(15),
+                    onTap: () async {
+                      final pos = await _determinePosition();
+                      if (pos == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Location is required.'),
+                          ),
+                        );
+                        return;
+                      }
+                      Navigator.of(context).pushNamed(
+                        AppRoutes.serviceProviderListPage,
+                        arguments: {
+                          'category': category['name'],
+                          'location': GeoPoint(pos.latitude, pos.longitude),
+                        },
+                      );
+                    },
+                    child: Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(15),
+                          ),
+                          child: Image.asset(
+                            category['image']!,
+                            fit: BoxFit.cover,
+                            height: double.infinity,
+                            width: double.infinity,
+                          ),
+                        ),
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(15),
+                            ),
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.black.withOpacity(0.0),
+                                Colors.black.withOpacity(0.6),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 8,
+                          left: 8,
+                          right: 8,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                category['name']!,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.5),
+                                  ),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 5,
+                                ),
+                                child: const Text(
+                                  'Explore',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 );
               },
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildExploreCategoryCard(
-    BuildContext context,
-    String title,
-    String imageUrl,
-  ) {
-    return Container(
-      width: 150,
-      margin: const EdgeInsets.only(right: 15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            spreadRadius: 2,
-            blurRadius: 5,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(15),
-        onTap: () {
-          print('Category tapped: $title');
-
-          Navigator.of(context).pushNamed(
-            AppRoutes.serviceProviderListPage,
-            arguments: {
-              'category': title,
-              'location': widget.profile?.location ?? 'Kampala', // CHANGE: Use profile location
-            },
-          );
-        },
-        child: Stack(
-          children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(15),
-              ),
-              child: Image.asset(
-                imageUrl,
-                fit: BoxFit.cover,
-                height: double.infinity,
-                width: double.infinity,
-              ),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(15),
-                ),
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withOpacity(0.0),
-                    Colors.black.withOpacity(0.6),
-                  ],
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: 8,
-              left: 8,
-              right: 8,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white.withOpacity(0.5)),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    child: const Text(
-                      'Explore',
-                      style: TextStyle(color: Colors.white, fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -466,146 +502,134 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
               itemCount: popularServices.length,
               itemBuilder: (context, index) {
                 final service = popularServices[index];
-                return _buildPopularServiceCard(
-                  context: context,
-                  serviceName: service['name'] as String,
-                  duration: service['duration'] as String,
-                  description: service['description'] as String,
-                  imageUrl: service['image'] as String,
+                return Container(
+                  width: 220,
+                  margin: const EdgeInsets.only(right: 15),
+                  child: Card(
+                    elevation: 5,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(15),
+                      onTap: () {
+                        print('Popular service tapped: ${service['name']}');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Tapped on ${service['name']}!'),
+                          ),
+                        );
+                      },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ClipRRect(
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(15),
+                            ),
+                            child: Stack(
+                              children: [
+                                Image.asset(
+                                  service['image']!,
+                                  height: 150,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                ),
+                                Positioned(
+                                  bottom: 0,
+                                  left: 0,
+                                  right: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.6),
+                                      borderRadius: const BorderRadius.only(
+                                        bottomLeft: Radius.circular(15),
+                                        bottomRight: Radius.circular(15),
+                                      ),
+                                    ),
+                                    child: Center(
+                                      child: TextButton.icon(
+                                        onPressed: () {
+                                          print(
+                                            'Quick View for ${service['name']}',
+                                          );
+                                        },
+                                        icon: const Icon(
+                                          Icons.remove_red_eye,
+                                          color: Colors.white,
+                                          size: 18,
+                                        ),
+                                        label: const Text(
+                                          'Quick View',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  service['name']!,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 5),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.access_time,
+                                      color: Colors.grey[600],
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      service['duration']!,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  service['description']!,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey[700],
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 );
               },
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildPopularServiceCard({
-    required BuildContext context,
-    required String serviceName,
-    required String duration,
-    required String description,
-    required String imageUrl,
-  }) {
-    return Container(
-      width: 220,
-      margin: const EdgeInsets.only(right: 15),
-      child: Card(
-        elevation: 5,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(15),
-          onTap: () {
-            print('Popular service tapped: $serviceName');
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text('Tapped on $serviceName!')));
-            // TODO: Navigate to service details or booking
-          },
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(15),
-                ),
-                child: Stack(
-                  children: [
-                    Image.asset(
-                      imageUrl,
-                      height: 150,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.6),
-                          borderRadius: const BorderRadius.only(
-                            bottomLeft: Radius.circular(15),
-                            bottomRight: Radius.circular(15),
-                          ),
-                        ),
-                        child: Center(
-                          child: TextButton.icon(
-                            onPressed: () {
-                              print('Quick View for $serviceName');
-                              // TODO: Implement quick view logic
-                            },
-                            icon: const Icon(
-                              Icons.remove_red_eye,
-                              color: Colors.white,
-                              size: 18,
-                            ),
-                            label: const Text(
-                              'Quick View',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                              ),
-                            ),
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      serviceName,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 5),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.access_time,
-                          color: Colors.grey[600],
-                          size: 16,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          duration,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      description,
-                      style: TextStyle(fontSize: 13, color: Colors.grey[700]),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -661,9 +685,9 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
       child: InkWell(
         borderRadius: BorderRadius.circular(15),
         onTap: () {
-          print('Professional tapped: $name');
+          print('Professional tapped: \$name');
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Tapped on $name\'s profile!')),
+            SnackBar(content: Text('Tapped on \$name\'s profile!')),
           );
         },
         child: Padding(
@@ -696,7 +720,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                       children: [
                         Icon(Icons.star, color: Colors.amber[700], size: 16),
                         Text(
-                          '$rating ($jobsCompleted jobs)',
+                          '\$rating (\$jobsCompleted jobs)',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey[700],
@@ -771,9 +795,9 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
       child: InkWell(
         borderRadius: BorderRadius.circular(15),
         onTap: () {
-          print('Booking tapped: $service with $provider');
+          print('Booking tapped: \$service with \$provider');
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Tapped on booking for $service!')),
+            SnackBar(content: Text('Tapped on booking for \$service!')),
           );
         },
         child: Padding(
@@ -790,7 +814,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
               ),
               const SizedBox(height: 5),
               Text(
-                'With: $provider',
+                'With: \$provider',
                 style: TextStyle(fontSize: 14, color: Colors.grey[700]),
               ),
               const SizedBox(height: 5),
@@ -847,7 +871,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
               print('My Bookings bottom nav pressed!');
             },
           ),
-          const SizedBox(width: 48), // Space for the FAB
+          const SizedBox(width: 48),
           IconButton(
             icon: const Icon(Icons.work),
             color: Colors.grey,
