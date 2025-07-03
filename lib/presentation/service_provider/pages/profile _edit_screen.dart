@@ -157,7 +157,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       context,
     ).showSnackBar(const SnackBar(content: Text("Profile updated.")));
 
-    Navigator.pop(context);
+    Navigator.pop(context, true);
   }
 
   void _showAvailabilityEditor() {
