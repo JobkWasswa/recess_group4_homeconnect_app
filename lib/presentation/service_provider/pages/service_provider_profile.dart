@@ -181,11 +181,7 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
             'categories': _selectedCategories,
             'skills': _skills,
             'profilePhoto': imageUrl,
-            'location': {
-              'lat': _latitude,
-              'lng': _longitude,
-              'address': locationAddress,
-            },
+            'location': GeoPoint(_latitude!, _longitude!),
             'availability': availabilityData,
             'createdAt': Timestamp.now(),
           });
