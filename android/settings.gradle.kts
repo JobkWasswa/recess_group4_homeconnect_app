@@ -26,7 +26,7 @@ plugins {
     // ─────────────────────────────────────
 
     // ─── Kotlin: UPDATED to 2.1.0 to resolve metadata mismatch ───
-    id("org.jetbrains.kotlin.android") version "1.9.22" apply false
+    id("org.jetbrains.kotlin.android") version "2.1.0" apply false
     // ─────────────────────────────────────────────────────────────
 }
 

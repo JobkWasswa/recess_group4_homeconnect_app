@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-//import 'package:homeconnect/config/routes.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-//import 'package:homeconnect/data/models/users.dart'; // Import UserProfile model
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:homeconnect/config/routes.dart';
 import 'package:homeconnect/data/models/users.dart';
-//import 'package:homeconnect/presentation/service_provider/pages/service_provider_profile.dart'; // Assuming you have a ServiceProvider model
-//import 'package:homeconnect/data/models/booking.dart'; // Assuming you have a Booking model
+//import 'package:homeconnect/data/models/booking.dart';
 
-// Helper – convert something like “john_doe99@example.com” → “John Doe99”
 String nameFromEmail(String email) {
   final localPart = email.split('@').first;
   final words = localPart.split(RegExp(r'[._]'));
@@ -17,7 +16,7 @@ String nameFromEmail(String email) {
 }
 
 class HomeownerDashboardScreen extends StatefulWidget {
-  final UserProfile? profile; // Add profile parameter
+  final UserProfile? profile;
   const HomeownerDashboardScreen({super.key, this.profile});
 
   @override
@@ -27,21 +26,32 @@ class HomeownerDashboardScreen extends StatefulWidget {
 
 class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
   final TextEditingController _searchController = TextEditingController();
-
-  // Mock data for bookings to simulate pending and confirmed services
-  // In a real app, you would fetch this from a backend
   List<Booking> _pendingBookings = [];
   List<Booking> _confirmedBookings = [];
 
   @override
   void initState() {
     super.initState();
-    _fetchBookings(); // Simulate fetching bookings on init
+    _fetchBookings();
+  }
+
+  Future<Position?> _determinePosition() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return null;
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return null;
+    }
+    if (permission == LocationPermission.deniedForever) return null;
+
+    return await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
   }
 
   void _fetchBookings() {
-    // This is mock data. In a real application, you would
-    // fetch this from a database (e.g., Firebase, your backend API)
     setState(() {
       _pendingBookings = [
         Booking(
@@ -50,7 +60,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
           providerName: 'Grace Nakato',
           status: 'Pending',
           date: 'Tomorrow, 10:00 AM',
-          providerId: 'sp1', // Example provider ID
+          providerId: 'sp1',
         ),
       ];
       _confirmedBookings = [
@@ -60,7 +70,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
           providerName: 'CleanSweep Ltd.',
           status: 'Confirmed',
           date: 'Today, 2:00 PM',
-          providerId: 'sp2', // Example provider ID
+          providerId: 'sp2',
         ),
       ];
     });
@@ -72,7 +82,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
     super.dispose();
   }
 
-  void _showRatingPopup(String serviceProviderId, String providerName) {
+  void showRatingPopup(String serviceProviderId, String providerName) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -111,24 +121,18 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+              onPressed: () => Navigator.of(context).pop(),
               child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
                 if (currentRating > 0) {
-                  // TODO: Implement logic to update the service provider's rating
-                  // This would typically involve sending the rating to your backend
-                  print('User rated $providerName $currentRating stars.');
+                  debugPrint('User rated $providerName $currentRating stars.');
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Thank you for rating $providerName!'),
                     ),
                   );
-                  // Simulate updating the provider's dashboard (in a real app, this would be backend logic)
-                  // For now, just print a confirmation
                 }
                 Navigator.of(context).pop();
               },
@@ -148,11 +152,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFF0F9FF), // blue-50
-              Color(0xFFFFFFFF), // white
-              Color(0xFFFEF2F2), // red-50
-            ],
+            colors: [Color(0xFFF0F9FF), Color(0xFFFFFFFF), Color(0xFFFEF2F2)],
           ),
         ),
         child: SafeArea(
@@ -160,11 +160,10 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHeader(context),
-                _buildSearchAndFilter(), // Will pass profile internally
-                _buildCategorySection(context),
-                _buildPopularServicesSection(context),
-                // _buildRecommendedProfessionalsSection(context), // REMOVED as per requirement 3
+                buildHeader(context),
+                buildSearchAndFilter(),
+                buildCategorySection(context),
+                buildPopularServicesSection(context),
                 _buildBookingStatusSection(context),
                 const SizedBox(height: 20),
               ],
@@ -174,11 +173,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
       ),
       bottomNavigationBar: _buildBottomNavigationBar(),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: Navigate to Post a Job screen
-          print('Post a new job pressed!');
-          // Example: Navigator.of(context).pushNamed(AppRoutes.postJobScreen);
-        },
+        onPressed: () => debugPrint('Post a new job pressed!'),
         backgroundColor: Colors.purple[700],
         child: const Icon(Icons.add, color: Colors.white),
       ),
@@ -186,19 +181,17 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget buildHeader(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final displayName =
-        user != null && user.email != null
-            ? nameFromEmail(user.email!)
-            : 'User';
+        user?.email != null ? nameFromEmail(user!.email!) : 'User';
 
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
-          colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)], // Purple to Pink
+          colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
         ),
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(20),
@@ -231,69 +224,27 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                 ),
                 Row(
                   children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                      child: Stack(
-                        children: [
-                          IconButton(
-                            onPressed: () {
-                              print('Homeowner Notifications pressed');
-                            },
-                            icon: const Icon(
-                              Icons.notifications,
-                              color: Colors.white,
-                            ),
-                          ),
-                          Positioned(
-                            right: 8,
-                            top: 8,
-                            child: Container(
-                              width: 12,
-                              height: 12,
-                              decoration: const BoxDecoration(
-                                color: Colors.red,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                    _buildHeaderIconButton(
+                      icon: Icons.notifications,
+                      onPressed: () => debugPrint('Notifications pressed'),
+                      hasNotification: true,
                     ),
                     const SizedBox(width: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                      child: IconButton(
-                        onPressed: () {
-                          print('Homeowner Profile pressed');
-                        },
-                        icon: const Icon(Icons.person, color: Colors.white),
-                      ),
+                    _buildHeaderIconButton(
+                      icon: Icons.person,
+                      onPressed: () => debugPrint('Profile pressed'),
                     ),
                     const SizedBox(width: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(
-                          25,
-                        ), // Corrected from 'Fielding:'
-                      ),
-                      child: IconButton(
-                        onPressed: () async {
-                          await FirebaseAuth.instance.signOut();
-                          if (mounted) {
-                            Navigator.of(
-                              context,
-                            ).pushReplacementNamed(AppRoutes.auth);
-                          }
-                        },
-                        icon: const Icon(Icons.logout, color: Colors.white),
-                      ),
+                    _buildHeaderIconButton(
+                      icon: Icons.logout,
+                      onPressed: () async {
+                        await FirebaseAuth.instance.signOut();
+                        if (mounted) {
+                          Navigator.of(
+                            context,
+                          ).pushReplacementNamed(AppRoutes.auth);
+                        }
+                      },
                     ),
                   ],
                 ),
@@ -306,7 +257,41 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
     );
   }
 
-  Widget _buildSearchAndFilter() {
+  Widget _buildHeaderIconButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+    bool hasNotification = false,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(25),
+      ),
+      child: Stack(
+        children: [
+          IconButton(
+            onPressed: onPressed,
+            icon: Icon(icon, color: Colors.white),
+          ),
+          if (hasNotification)
+            Positioned(
+              right: 8,
+              top: 8,
+              child: Container(
+                width: 12,
+                height: 12,
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildSearchAndFilter() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Row(
@@ -314,33 +299,22 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
           Expanded(
             child: TextField(
               controller: _searchController,
-              readOnly: true, // Make it read-only to act as a button
-              onTap: () {
-                // Feature 1: Navigate to recommended service providers on search bar tap
+              onSubmitted: (value) async {
+                if (value.isEmpty) return;
+                final pos = await _determinePosition();
+                if (pos == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Location is required.')),
+                  );
+                  return;
+                }
                 Navigator.of(context).pushNamed(
                   AppRoutes.serviceProviderListPage,
                   arguments: {
-                    'query':
-                        _searchController.text.isNotEmpty
-                            ? _searchController.text
-                            : null,
-                    'location': widget.profile?.location ?? 'Kampala',
-                    'recommendationCriteria':
-                        true, // Indicate that recommendations are needed
+                    'query': value,
+                    'location': GeoPoint(pos.latitude, pos.longitude),
                   },
                 );
-              },
-              onSubmitted: (value) {
-                if (value.isNotEmpty) {
-                  // This is for actual search submission, but onTap handles the initial navigation
-                  Navigator.of(context).pushNamed(
-                    AppRoutes.serviceProviderListPage,
-                    arguments: {
-                      'query': value,
-                      'location': widget.profile?.location ?? 'Kampala',
-                    },
-                  );
-                }
               },
               decoration: InputDecoration(
                 hintText: 'Search for services...',
@@ -365,18 +339,21 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: IconButton(
-              onPressed: () {
-                // Feature 1: Navigate to recommended service providers on search icon tap
+              onPressed: () async {
+                final text = _searchController.text;
+                if (text.isEmpty) return;
+                final pos = await _determinePosition();
+                if (pos == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Location is required.')),
+                  );
+                  return;
+                }
                 Navigator.of(context).pushNamed(
                   AppRoutes.serviceProviderListPage,
                   arguments: {
-                    'query':
-                        _searchController.text.isNotEmpty
-                            ? _searchController.text
-                            : null,
-                    'location': widget.profile?.location ?? 'Kampala',
-                    'recommendationCriteria':
-                        true, // Indicate that recommendations are needed
+                    'query': text,
+                    'location': GeoPoint(pos.latitude, pos.longitude),
                   },
                 );
               },
@@ -388,7 +365,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
     );
   }
 
-  Widget _buildCategorySection(BuildContext context) {
+  Widget buildCategorySection(BuildContext context) {
     final categories = [
       {'name': 'Roof Cleaning', 'image': 'lib/assets/images/roof_cleaning.png'},
       {
@@ -430,10 +407,111 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
               itemCount: categories.length,
               itemBuilder: (context, index) {
                 final category = categories[index];
-                return _buildExploreCategoryCard(
-                  context,
-                  category['name'] as String,
-                  category['image'] as String,
+                return Container(
+                  width: 150,
+                  margin: const EdgeInsets.only(right: 15),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(15),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.2),
+                        spreadRadius: 2,
+                        blurRadius: 5,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(15),
+                    onTap: () async {
+                      final pos = await _determinePosition();
+                      if (pos == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Location is required.'),
+                          ),
+                        );
+                        return;
+                      }
+                      Navigator.of(context).pushNamed(
+                        AppRoutes.serviceProviderListPage,
+                        arguments: {
+                          'category': category['name'],
+                          'location': GeoPoint(pos.latitude, pos.longitude),
+                        },
+                      );
+                    },
+                    child: Stack(
+                      children: [
+                        ClipRRect(
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(15),
+                          ),
+                          child: Image.asset(
+                            category['image']!,
+                            fit: BoxFit.cover,
+                            height: double.infinity,
+                            width: double.infinity,
+                          ),
+                        ),
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(15),
+                            ),
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.black.withOpacity(0.0),
+                                Colors.black.withOpacity(0.6),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 8,
+                          left: 8,
+                          right: 8,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                category['name']!,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.5),
+                                  ),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 5,
+                                ),
+                                child: const Text(
+                                  'Explore',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 );
               },
             ),
@@ -443,110 +521,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
     );
   }
 
-  Widget _buildExploreCategoryCard(
-    BuildContext context,
-    String title,
-    String imageUrl,
-  ) {
-    return Container(
-      width: 150,
-      margin: const EdgeInsets.only(right: 15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            spreadRadius: 2,
-            blurRadius: 5,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(15),
-        onTap: () {
-          // Feature 2: Navigate to selected category service providers
-          print('Category tapped: $title');
-          Navigator.of(context).pushNamed(
-            AppRoutes.serviceProviderListPage,
-            arguments: {
-              'category': title,
-              'location': widget.profile?.location ?? 'Kampala',
-              'recommendationCriteria':
-                  true, // Indicate recommendations for category
-            },
-          );
-        },
-        child: Stack(
-          children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(15),
-              ),
-              child: Image.asset(
-                imageUrl,
-                fit: BoxFit.cover,
-                height: double.infinity,
-                width: double.infinity,
-              ),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(15),
-                ),
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withOpacity(0.0),
-                    Colors.black.withOpacity(0.6),
-                  ],
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: 8,
-              left: 8,
-              right: 8,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white.withOpacity(0.5)),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 5,
-                    ),
-                    child: const Text(
-                      'Explore',
-                      style: TextStyle(color: Colors.white, fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPopularServicesSection(BuildContext context) {
+  Widget buildPopularServicesSection(BuildContext context) {
     final popularServices = [
       {
         'name': 'Painting',
@@ -603,12 +578,131 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
               itemCount: popularServices.length,
               itemBuilder: (context, index) {
                 final service = popularServices[index];
-                return _buildPopularServiceCard(
-                  context: context,
-                  serviceName: service['name'] as String,
-                  duration: service['duration'] as String,
-                  description: service['description'] as String,
-                  imageUrl: service['image'] as String,
+                return Container(
+                  width: 220,
+                  margin: const EdgeInsets.only(right: 15),
+                  child: Card(
+                    elevation: 5,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(15),
+                      onTap: () {
+                        debugPrint(
+                          'Popular service tapped: ${service['name']}',
+                        );
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Tapped on ${service['name']}!'),
+                          ),
+                        );
+                      },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ClipRRect(
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(15),
+                            ),
+                            child: Stack(
+                              children: [
+                                Image.asset(
+                                  service['image']!,
+                                  height: 150,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                ),
+                                Positioned(
+                                  bottom: 0,
+                                  left: 0,
+                                  right: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.6),
+                                      borderRadius: const BorderRadius.only(
+                                        bottomLeft: Radius.circular(15),
+                                        bottomRight: Radius.circular(15),
+                                      ),
+                                    ),
+                                    child: Center(
+                                      child: TextButton.icon(
+                                        onPressed: () {
+                                          debugPrint(
+                                            'Quick View for ${service['name']}',
+                                          );
+                                        },
+                                        icon: const Icon(
+                                          Icons.remove_red_eye,
+                                          color: Colors.white,
+                                          size: 18,
+                                        ),
+                                        label: const Text(
+                                          'Quick View',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(12.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  service['name']!,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 5),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.access_time,
+                                      color: Colors.grey[600],
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      service['duration']!,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 5),
+                                Text(
+                                  service['description']!,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey[700],
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 );
               },
             ),
@@ -617,143 +711,6 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
       ),
     );
   }
-
-  Widget _buildPopularServiceCard({
-    required BuildContext context,
-    required String serviceName,
-    required String duration,
-    required String description,
-    required String imageUrl,
-  }) {
-    return Container(
-      width: 220,
-      margin: const EdgeInsets.only(right: 15),
-      child: Card(
-        elevation: 5,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(15),
-          onTap: () {
-            // Feature 2: Navigate to selected popular service providers
-            print('Popular service tapped: $serviceName');
-            Navigator.of(context).pushNamed(
-              AppRoutes.serviceProviderListPage,
-              arguments: {
-                'service': serviceName,
-                'location': widget.profile?.location ?? 'Kampala',
-                'recommendationCriteria':
-                    true, // Indicate recommendations for popular service
-              },
-            );
-          },
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(15),
-                ),
-                child: Stack(
-                  children: [
-                    Image.asset(
-                      imageUrl,
-                      height: 150,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.6),
-                          borderRadius: const BorderRadius.only(
-                            bottomLeft: Radius.circular(15),
-                            bottomRight: Radius.circular(15),
-                          ),
-                        ),
-                        child: Center(
-                          child: TextButton.icon(
-                            onPressed: () {
-                              print('Quick View for $serviceName');
-                              // TODO: Implement quick view logic
-                            },
-                            icon: const Icon(
-                              Icons.remove_red_eye,
-                              color: Colors.white,
-                              size: 18,
-                            ),
-                            label: const Text(
-                              'Quick View',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                              ),
-                            ),
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      serviceName,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 5),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.access_time,
-                          color: Colors.grey[600],
-                          size: 16,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          duration,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      description,
-                      style: TextStyle(fontSize: 13, color: Colors.grey[700]),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Removed _buildRecommendedProfessionalsSection as per requirement 3
 
   Widget _buildBookingStatusSection(BuildContext context) {
     return Padding(
@@ -776,7 +733,6 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                 ),
               ),
             ),
-          // Display Pending Services
           if (_pendingBookings.isNotEmpty) ...[
             const Text(
               'Pending Services',
@@ -791,14 +747,13 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                 status: booking.status,
                 date: booking.date,
                 statusColor: Colors.orange,
-                isCompleted: false, // Mark as not completed
+                isCompleted: false,
                 bookingId: booking.id,
                 providerId: booking.providerId,
               ),
             ),
             const SizedBox(height: 20),
           ],
-          // Display Confirmed Services
           if (_confirmedBookings.isNotEmpty) ...[
             const Text(
               'Confirmed Services',
@@ -813,7 +768,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                 status: booking.status,
                 date: booking.date,
                 statusColor: Colors.green,
-                isCompleted: true, // Mark as completed for demonstration
+                isCompleted: true,
                 bookingId: booking.id,
                 providerId: booking.providerId,
               ),
@@ -822,10 +777,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
           ],
           Center(
             child: TextButton(
-              onPressed: () {
-                print('View All Bookings pressed');
-                // TODO: Navigate to a dedicated "My Bookings" page
-              },
+              onPressed: () => debugPrint('View All Bookings pressed'),
               child: const Text('View All My Bookings'),
             ),
           ),
@@ -841,7 +793,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
     required String status,
     required String date,
     required Color statusColor,
-    required bool isCompleted, // Added to trigger rating pop-up
+    required bool isCompleted,
     required String bookingId,
     required String providerId,
   }) {
@@ -851,7 +803,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
       child: InkWell(
         borderRadius: BorderRadius.circular(15),
         onTap: () {
-          print('Booking tapped: $service with $provider');
+          debugPrint('Booking tapped: $service with $provider');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Tapped on booking for $service!')),
           );
@@ -901,15 +853,11 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                   ),
                 ],
               ),
-              if (isCompleted) // Feature 4: Show rate button if service is "completed"
+              if (isCompleted)
                 Align(
                   alignment: Alignment.bottomRight,
                   child: TextButton.icon(
-                    onPressed: () {
-                      _showRatingPopup(providerId, provider);
-                      // In a real app, you'd remove this booking from confirmed once rated
-                      // or mark it as 'rated' to prevent multiple ratings
-                    },
+                    onPressed: () => showRatingPopup(providerId, provider),
                     icon: Icon(Icons.star_rate, color: Colors.amber[700]),
                     label: const Text(
                       'Rate Service',
@@ -939,75 +887,21 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
           IconButton(
             icon: const Icon(Icons.calendar_today),
             color: Colors.grey,
-            onPressed: () {
-              print('My Bookings bottom nav pressed!');
-            },
+            onPressed: () => debugPrint('My Bookings bottom nav pressed!'),
           ),
-          const SizedBox(width: 48), // Space for the FAB
+          const SizedBox(width: 48),
           IconButton(
             icon: const Icon(Icons.work),
             color: Colors.grey,
-            onPressed: () {
-              print('My Jobs bottom nav pressed!');
-            },
+            onPressed: () => debugPrint('My Jobs bottom nav pressed!'),
           ),
           IconButton(
             icon: const Icon(Icons.message),
             color: Colors.grey,
-            onPressed: () {
-              print('Messages bottom nav pressed!');
-            },
+            onPressed: () => debugPrint('Messages bottom nav pressed!'),
           ),
         ],
       ),
     );
   }
-}
-
-// Dummy models for demonstration purposes. You should replace these with your actual models.
-
-class ServiceProvider {
-  final String id;
-  final String name;
-  final String service;
-  final double rating;
-  final int jobsCompleted;
-  final String imageUrl;
-  final String location;
-  final bool isAvailable;
-
-  ServiceProvider({
-    required this.id,
-    required this.name,
-    required this.service,
-    required this.rating,
-    required this.jobsCompleted,
-    required this.imageUrl,
-    required this.location,
-    required this.isAvailable,
-  });
-}
-
-class Booking {
-  final String id;
-  final String serviceName;
-  final String providerName;
-  final String status;
-  final String date;
-  final String providerId;
-
-  Booking({
-    required this.id,
-    required this.serviceName,
-    required this.providerName,
-    required this.status,
-    required this.date,
-    required this.providerId,
-  });
-}
-
-// Dummy AppRoutes for navigation. Ensure these match your actual route definitions.
-class AppRoutes {
-  static const String auth = '/auth';
-  static const String serviceProviderListPage = '/serviceProviderList';
 }
