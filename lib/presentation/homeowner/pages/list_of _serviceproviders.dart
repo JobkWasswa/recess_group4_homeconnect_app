@@ -4,8 +4,13 @@ import 'package:homeconnect/presentation/homeowner/pages/profile_display_for_cli
 
 class ServiceProvidersList extends StatelessWidget {
   final String category;
+  final GeoPoint userLocation;
 
-  const ServiceProvidersList({super.key, required this.category});
+  const ServiceProvidersList({
+    super.key,
+    required this.category,
+    required this.userLocation,
+  });
 
   Future<List<DocumentSnapshot>> _fetchProviders() async {
     try {
