@@ -4,7 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/data/models/users.dart'; // CHANGE: Import UserProfile model
 import 'package:geolocator/geolocator.dart';
-import 'package:homeconnect/presentation/homeowner/pages/list_of _serviceproviders.dart'; // ★ ADDED FOR LOCATION
+import 'package:homeconnect/presentation/homeowner/pages/list_of _serviceproviders.dart';
+//import 'package:geolocator/geolocator.dart';
 
 // Helper – convert something like “john_doe99@example.com” → “John Doe99”
 String nameFromEmail(String email) {
@@ -47,7 +48,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
     }
 
     return await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
     );
   }
 
@@ -349,19 +350,121 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                   ),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(15),
-                    onTap: () {
-                      print(
-                        'Tapped category: ${category['name']}',
-                      ); // 👈 Debug output
+                    onTap: () async {
+                      try {
+                        // Step 1: Check if location services are enabled
+                        bool serviceEnabled =
+                            await Geolocator.isLocationServiceEnabled();
+                        if (!serviceEnabled) {
+                          throw Exception('Location services are disabled.');
+                        }
 
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
+                        // Step 2: Check permission and request if necessary
+                        LocationPermission permission =
+                            await Geolocator.checkPermission();
+                        if (permission == LocationPermission.denied) {
+                          permission = await Geolocator.requestPermission();
+                          if (permission == LocationPermission.denied) {
+                            throw Exception('Location permission was denied.');
+                          }
+                        }
+
+                        // Step 3: Handle deniedForever — guide user to settings
+                        if (permission == LocationPermission.deniedForever) {
+                          // Show dialog to help user fix it
+                          showDialog(
+                            context: context,
+                            builder:
+                                (_) => AlertDialog(
+                                  title: Text('Location Permission Required'),
+                                  content: Text(
+                                    'To get service providers near your current location, please enable location permission in your phone settings.',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                        Geolocator.openAppSettings();
+                                      },
+                                      child: Text('Open Settings'),
+                                    ),
+                                    TextButton(
+                                      onPressed:
+                                          () => Navigator.of(context).pop(),
+                                      child: Text('Cancel'),
+                                    ),
+                                  ],
+                                ),
+                          );
+                          return; // stop here
+                        }
+
+                        // ✅ Step 4: Always get new location on tap
+                        final pos = await Geolocator.getCurrentPosition(
+                          locationSettings: const LocationSettings(
+                            accuracy: LocationAccuracy.best,
+                          ),
+                        );
+
+                        // ✅ 1. Show dialog and wait for it to close
+                        await showDialog(
+                          context: context,
                           builder:
-                              (_) => ServiceProvidersList(
-                                category: category['name']!,
+                              (_) => AlertDialog(
+                                title: const Text('Your Location'),
+                                content: Text(
+                                  'Latitude: ${pos.latitude.toStringAsFixed(6)}\n'
+                                  'Longitude: ${pos.longitude.toStringAsFixed(6)}',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed:
+                                        () =>
+                                            Navigator.of(
+                                              context,
+                                            ).pop(), // closes dialog
+                                    child: const Text('OK'),
+                                  ),
+                                ],
                               ),
-                        ),
-                      );
+                        );
+
+                        // Step 5: Save location in Firestore
+                        final userId = FirebaseAuth.instance.currentUser!.uid;
+                        final docRef = FirebaseFirestore.instance
+                            .collection('homeowners')
+                            .doc(userId);
+                        final doc = await docRef.get();
+
+                        if (doc.exists) {
+                          await docRef.update({
+                            'location': GeoPoint(pos.latitude, pos.longitude),
+                          });
+                        } else {
+                          await docRef.set({
+                            'location': GeoPoint(pos.latitude, pos.longitude),
+                          });
+                        }
+
+                        // Step 6: Navigate to provider list with new location
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder:
+                                (_) => ServiceProvidersList(
+                                  category: category['name']!,
+                                  userLocation: GeoPoint(
+                                    pos.latitude,
+                                    pos.longitude,
+                                  ),
+                                ),
+                          ),
+                        );
+                      } catch (e) {
+                        print('❌ Error: $e');
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+                      }
                     },
 
                     child: Stack(
