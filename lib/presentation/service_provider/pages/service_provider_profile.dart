@@ -8,7 +8,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:homeconnect/config/routes.dart';
-import 'package:homeconnect/data/models/services.dart'; // Assuming Selection() is here or imported elsewhere
+import 'package:homeconnect/data/models/services.dart';
+import 'package:homeconnect/data/models/service_providers.dart';
 
 class ProfileCreationScreen extends StatefulWidget {
   const ProfileCreationScreen({super.key});
@@ -188,6 +189,10 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
             },
             'availability': availabilityData,
             'createdAt': Timestamp.now(),
+            // --- Add initial rating and review fields ---
+            'averageRating': 0.0, // Initial rating
+            'numberOfReviews': 0, // Initial number of reviews
+            // ------------------------------------------
           });
 
       // ✅ Save user reference under each selected category
@@ -206,6 +211,11 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
                 'address': locationAddress,
               },
               'timestamp': Timestamp.now(),
+              // You might want to add rating/review info here too,
+              // depending on how you plan to query providers by category.
+              // For now, I'll keep it consistent with the service_providers collection.
+              'averageRating': 0.0,
+              'numberOfReviews': 0,
             });
       }
 
