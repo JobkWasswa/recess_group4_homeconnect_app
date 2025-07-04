@@ -43,7 +43,9 @@ class ProfileDisplayScreenForClient extends StatelessWidget {
           }
 
           final data = snapshot.data!.data()!;
-          final location = data['location'] ?? {};
+          final GeoPoint? location =
+              data['location'] is GeoPoint ? data['location'] : null;
+          final String address = data['address'] ?? 'N/A';
           final availability = data['availability'] ?? {};
           final categories = data['categories'] ?? [];
 
@@ -127,19 +129,15 @@ class ProfileDisplayScreenForClient extends StatelessWidget {
                 const Divider(height: 40, thickness: 1.5, color: Colors.grey),
                 _buildSectionTitle(context, "Location", Icons.location_on),
                 const SizedBox(height: 10),
-                _buildProfileDetailRow(
-                  "Address",
-                  location['address'] ?? 'N/A',
-                  Icons.pin_drop,
-                ),
+                _buildProfileDetailRow("Address", address, Icons.pin_drop),
                 _buildProfileDetailRow(
                   "Latitude",
-                  location['lat']?.toString() ?? 'N/A',
+                  location?.latitude.toString() ?? 'N/A',
                   Icons.map,
                 ),
                 _buildProfileDetailRow(
                   "Longitude",
-                  location['lng']?.toString() ?? 'N/A',
+                  location?.longitude.toString() ?? 'N/A',
                   Icons.map,
                 ),
                 const Divider(height: 40, thickness: 1.5, color: Colors.grey),
