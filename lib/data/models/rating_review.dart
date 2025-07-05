@@ -23,7 +23,7 @@ class RatingReview {
       id: doc.id,
       serviceProviderId: data['serviceProviderId'] as String,
       userId: data['userId'] as String,
-      rating: (data['rating'] as num).toDouble(), // Ensure double
+      rating: (data['rating'] as num).toDouble(),
       reviewText: data['reviewText'] as String?,
       timestamp: data['timestamp'] as Timestamp,
     );
