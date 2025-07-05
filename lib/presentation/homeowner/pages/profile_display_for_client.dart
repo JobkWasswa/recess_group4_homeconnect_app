@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:homeconnect/data/models/rating_review.dart'; // Make sure this path is correct
-// import 'package:homeconnect/data/models/users.dart'; // Only import if you actually use it
-import 'package:firebase_auth/firebase_auth.dart'; // To get the current client's UID
+import 'package:homeconnect/data/models/rating_review.dart'; // Still needed for displaying existing reviews
+// import 'package:firebase_auth/firebase_auth.dart'; // No longer needed if no review submission
 
 class ProfileDisplayScreenForClient extends StatefulWidget {
   final String serviceProviderId; // Renamed from userId for clarity
@@ -29,22 +28,19 @@ class _ProfileDisplayScreenForClientState
     _loadRatingsAndReviews();
   }
 
-  // Renamed the method to make it private and clearly indicate it's part of the state
+  // Method to load existing ratings and reviews (still needed for display)
   Future<void> _loadRatingsAndReviews() async {
-    // Check if the widget is still mounted before performing async operations
     if (!mounted) return;
 
-    // Fetch profile data first (existing logic)
     final profileSnapshot =
         await FirebaseFirestore.instance
             .collection('service_providers')
             .doc(widget.serviceProviderId)
             .get();
 
-    if (!mounted) return; // Check again after await
+    if (!mounted) return;
 
     if (!profileSnapshot.exists) {
-      // Handle case where profile doesn't exist
       setState(() {
         _averageRating = 0.0;
         _totalReviews = 0;
@@ -53,42 +49,25 @@ class _ProfileDisplayScreenForClientState
       return;
     }
 
-    // Fetch all ratings and reviews for this service provider
     final querySnapshot =
         await FirebaseFirestore.instance
             .collection('ratings_reviews')
             .where('serviceProviderId', isEqualTo: widget.serviceProviderId)
-            .orderBy('timestamp', descending: true) // Order by latest reviews
+            .orderBy('timestamp', descending: true)
             .get();
 
-    if (!mounted) return; // Check again after await
+    if (!mounted) return;
 
     double sumRatings = 0;
     List<RatingReview> fetchedReviews = [];
 
-    // This section might be where you need to fetch client names if they are not
-    // stored directly in the 'ratings_reviews' document.
-    // For now, I'm assuming your RatingReview.fromFirestore *can* get clientName
-    // or you accept 'Anonymous User'. If not, you'll need additional async calls here.
     for (var doc in querySnapshot.docs) {
       try {
         final ratingReview = RatingReview.fromFirestore(doc);
-
-        // --- IMPORTANT: If clientName is not stored in the review document,
-        // --- you need to fetch it here. Example:
-        // if (ratingReview.clientName == null) {
-        //   final clientDoc = await FirebaseFirestore.instance.collection('clients').doc(ratingReview.clientId).get();
-        //   if (clientDoc.exists) {
-        //     ratingReview.clientName = clientDoc.data()?['name'] ?? 'Anonymous User';
-        //   }
-        // }
-        // --- End of IMPORTANT section
-
         sumRatings += ratingReview.rating;
         fetchedReviews.add(ratingReview);
       } catch (e) {
         print('Error parsing rating review document: $e');
-        // Optionally, show a snackbar or log more detailed error
       }
     }
 
@@ -99,161 +78,7 @@ class _ProfileDisplayScreenForClientState
     });
   }
 
-  Future<void> _submitReview(BuildContext dialogContext) async {
-    // Use a new context for the dialog
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) {
-      if (mounted) {
-        // Ensure widget is still in tree before showing snackbar
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('You must be logged in to submit a review.'),
-          ),
-        );
-      }
-      return;
-    }
-
-    // You would typically navigate to a new screen or show a dialog for review submission
-    final result = await showDialog<Map<String, dynamic>>(
-      context: dialogContext, // Use the passed dialogContext for the dialog
-      builder: (BuildContext innerDialogContext) {
-        // Use a new context for the builder
-        double currentRating = 3.0; // Default rating
-        TextEditingController reviewController = TextEditingController();
-
-        return AlertDialog(
-          title: const Text('Submit a Review'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('Overall Rating:'),
-                StatefulBuilder(
-                  builder: (context, setStateSB) {
-                    return Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(5, (index) {
-                        return IconButton(
-                          icon: Icon(
-                            index < currentRating
-                                ? Icons.star
-                                : Icons.star_border,
-                            color: Colors.amber,
-                            size: 30,
-                          ),
-                          onPressed: () {
-                            setStateSB(() {
-                              currentRating = (index + 1).toDouble();
-                            });
-                          },
-                        );
-                      }),
-                    );
-                  },
-                ),
-                const SizedBox(height: 15),
-                TextField(
-                  controller: reviewController,
-                  decoration: const InputDecoration(
-                    labelText: 'Your Review',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 3,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(innerDialogContext).pop(); // Close dialog
-              },
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(innerDialogContext).pop({
-                  'rating': currentRating,
-                  'reviewText': reviewController.text.trim(),
-                });
-              },
-              child: const Text('Submit'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (!mounted)
-      return; // Check if the widget is still mounted after dialog closes
-
-    if (result != null) {
-      final double rating = result['rating'];
-      final String reviewText = result['reviewText'];
-
-      if (reviewText.isEmpty && rating == 0.0) {
-        // Allow submitting rating without reviewText
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Please provide a rating or a reviewText.'),
-            ),
-          );
-        }
-        return;
-      }
-
-      // Check if the user has already reviewed this service provider
-      final existingReviews =
-          await FirebaseFirestore.instance
-              .collection('ratings_reviews')
-              .where('serviceProviderId', isEqualTo: widget.serviceProviderId)
-              .where('clientId', isEqualTo: currentUser.uid)
-              .get();
-
-      if (!mounted) return; // Check again after async operation
-
-      if (existingReviews.docs.isNotEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'You have already submitted a review for this provider.',
-              ),
-            ),
-          );
-        }
-        return;
-      }
-
-      try {
-        await FirebaseFirestore.instance.collection('ratings_reviews').add({
-          'serviceProviderId': widget.serviceProviderId,
-          'clientId': currentUser.uid,
-          'rating': rating,
-          'reviewText': reviewText,
-          'timestamp': FieldValue.serverTimestamp(),
-          // You might want to store client's name/photo for display in reviews
-          // To avoid extra reads for every review, it's often better to denormalize
-          // the client's name here.
-          'clientName': currentUser.displayName, // Assuming displayName is set
-          // 'clientPhotoUrl': currentUser.photoURL,
-        });
-
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Review submitted successfully!')),
-        );
-        _loadRatingsAndReviews(); // Reload to update displayed average and reviews
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to submit review: $e')));
-      }
-    }
-  }
+  // Removed the _submitReview method entirely as it's no longer needed on this screen.
 
   @override
   Widget build(BuildContext context) {
@@ -338,7 +163,7 @@ class _ProfileDisplayScreenForClientState
                 ),
                 const SizedBox(height: 15),
 
-                // Ratings Display
+                // Ratings Display (still needed to show existing ratings)
                 Center(
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -346,9 +171,7 @@ class _ProfileDisplayScreenForClientState
                       Icon(Icons.star, color: Colors.amber, size: 28),
                       const SizedBox(width: 8),
                       Text(
-                        _averageRating.toStringAsFixed(
-                          1,
-                        ), // Display average rating
+                        _averageRating.toStringAsFixed(1),
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -357,7 +180,7 @@ class _ProfileDisplayScreenForClientState
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '($_totalReviews reviews)', // Display total reviews
+                        '($_totalReviews reviews)',
                         style: const TextStyle(
                           fontSize: 18,
                           color: Colors.grey,
@@ -452,21 +275,20 @@ class _ProfileDisplayScreenForClientState
                   ),
                 const Divider(height: 40, thickness: 1.5, color: Colors.grey),
 
-                // Reviews Section
+                // Reviews Section (still needed to display existing reviews)
                 _buildSectionTitle(context, "Reviews", Icons.reviews),
                 const SizedBox(height: 10),
                 if (_reviews.isEmpty)
                   const Center(
                     child: Text(
-                      'No reviews yet. Be the first to review!',
+                      'No reviews yet.', // Changed text slightly
                       style: TextStyle(color: Colors.grey),
                     ),
                   )
                 else
                   ListView.builder(
                     shrinkWrap: true,
-                    physics:
-                        const NeverScrollableScrollPhysics(), // To prevent nested scrolling issues
+                    physics: const NeverScrollableScrollPhysics(),
                     itemCount: _reviews.length,
                     itemBuilder: (context, index) {
                       final review = _reviews[index];
@@ -482,7 +304,6 @@ class _ProfileDisplayScreenForClientState
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  // Display client name if available, otherwise 'Anonymous'
                                   Text(
                                     review.clientName ?? 'Anonymous User',
                                     style: const TextStyle(
@@ -505,7 +326,8 @@ class _ProfileDisplayScreenForClientState
                               ),
                               const SizedBox(height: 5),
                               Text(
-                                review.reviewText,
+                                review
+                                    .reviewText, // Assuming your RatingReview model has 'comment' or 'reviewText'
                                 style: const TextStyle(fontSize: 14),
                               ),
                               if (review.timestamp != null)
@@ -530,20 +352,20 @@ class _ProfileDisplayScreenForClientState
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        // Pass the context from the build method to _submitReview
-        onPressed: () => _submitReview(context),
-        label: const Text(
-          'Rate & Review',
-          style: TextStyle(color: Colors.white),
-        ),
-        icon: const Icon(Icons.rate_review, color: Colors.white),
-        backgroundColor: Colors.deepPurple,
-      ),
+      // Removed the FloatingActionButton for "Rate & Review"
+      // floatingActionButton: FloatingActionButton.extended(
+      //   onPressed: () => _submitReview(context),
+      //   label: const Text(
+      //     'Rate & Review',
+      //     style: TextStyle(color: Colors.white),
+      //   ),
+      //   icon: const Icon(Icons.rate_review, color: Colors.white),
+      //   backgroundColor: Colors.deepPurple,
+      // ),
     );
   }
 
-  // Section Title Widget
+  // Section Title Widget (unchanged)
   Widget _buildSectionTitle(BuildContext context, String title, IconData icon) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 5.0),
@@ -564,7 +386,7 @@ class _ProfileDisplayScreenForClientState
     );
   }
 
-  // Profile Detail Row
+  // Profile Detail Row (unchanged)
   Widget _buildProfileDetailRow(String label, String value, IconData icon) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
