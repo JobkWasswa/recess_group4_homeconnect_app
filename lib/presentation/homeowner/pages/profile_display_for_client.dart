@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:homeconnect/data/models/rating_review.dart'; // Still needed for displaying existing reviews
-// import 'package:firebase_auth/firebase_auth.dart'; // No longer needed if no review submission
+import 'package:homeconnect/data/models/rating_review.dart'; // Needed for RatingReview model to calculate average
+
+// Removed firebase_auth as no review submission is happening here
 
 class ProfileDisplayScreenForClient extends StatefulWidget {
-  final String serviceProviderId; // Renamed from userId for clarity
+  final String serviceProviderId;
 
   const ProfileDisplayScreenForClient({
     super.key,
@@ -20,52 +21,37 @@ class _ProfileDisplayScreenForClientState
     extends State<ProfileDisplayScreenForClient> {
   double _averageRating = 0.0;
   int _totalReviews = 0;
-  List<RatingReview> _reviews = [];
+  // Removed List<RatingReview> _reviews; as individual reviews are not displayed
 
   @override
   void initState() {
     super.initState();
-    _loadRatingsAndReviews();
+    _loadRatingsAndReviews(); // Reinstated to fetch data for average rating
   }
 
-  // Method to load existing ratings and reviews (still needed for display)
+  // Reinstated to calculate average rating and total reviews
   Future<void> _loadRatingsAndReviews() async {
     if (!mounted) return;
 
-    final profileSnapshot =
-        await FirebaseFirestore.instance
-            .collection('service_providers')
-            .doc(widget.serviceProviderId)
-            .get();
+    // No need to fetch profile data again here, it's handled by the FutureBuilder in build().
 
-    if (!mounted) return;
-
-    if (!profileSnapshot.exists) {
-      setState(() {
-        _averageRating = 0.0;
-        _totalReviews = 0;
-        _reviews = [];
-      });
-      return;
-    }
-
+    // Fetch all ratings and reviews for this service provider
     final querySnapshot =
         await FirebaseFirestore.instance
             .collection('ratings_reviews')
             .where('serviceProviderId', isEqualTo: widget.serviceProviderId)
-            .orderBy('timestamp', descending: true)
-            .get();
+            .get(); // No need to order by timestamp if only calculating average/total
 
-    if (!mounted) return;
+    if (!mounted) return; // Check again after await
 
     double sumRatings = 0;
-    List<RatingReview> fetchedReviews = [];
+    // List<RatingReview> fetchedReviews = []; // No longer needed
 
     for (var doc in querySnapshot.docs) {
       try {
         final ratingReview = RatingReview.fromFirestore(doc);
         sumRatings += ratingReview.rating;
-        fetchedReviews.add(ratingReview);
+        // fetchedReviews.add(ratingReview); // No longer needed
       } catch (e) {
         print('Error parsing rating review document: $e');
       }
@@ -74,11 +60,11 @@ class _ProfileDisplayScreenForClientState
     setState(() {
       _totalReviews = querySnapshot.docs.length;
       _averageRating = _totalReviews > 0 ? sumRatings / _totalReviews : 0.0;
-      _reviews = fetchedReviews;
+      // _reviews = fetchedReviews; // No longer needed
     });
   }
 
-  // Removed the _submitReview method entirely as it's no longer needed on this screen.
+  // Removed _submitReview method as reviews are not submitted from here
 
   @override
   Widget build(BuildContext context) {
@@ -163,7 +149,7 @@ class _ProfileDisplayScreenForClientState
                 ),
                 const SizedBox(height: 15),
 
-                // Ratings Display (still needed to show existing ratings)
+                // Reinstated Ratings Display Section (summary only)
                 Center(
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -273,95 +259,13 @@ class _ProfileDisplayScreenForClientState
                     "No availability set.",
                     style: TextStyle(color: Colors.grey),
                   ),
-                const Divider(height: 40, thickness: 1.5, color: Colors.grey),
-
-                // Reviews Section (still needed to display existing reviews)
-                _buildSectionTitle(context, "Reviews", Icons.reviews),
-                const SizedBox(height: 10),
-                if (_reviews.isEmpty)
-                  const Center(
-                    child: Text(
-                      'No reviews yet.', // Changed text slightly
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  )
-                else
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _reviews.length,
-                    itemBuilder: (context, index) {
-                      final review = _reviews[index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 8.0),
-                        elevation: 2,
-                        child: Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    review.clientName ?? 'Anonymous User',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  Row(
-                                    children: List.generate(5, (starIndex) {
-                                      return Icon(
-                                        starIndex < review.rating
-                                            ? Icons.star
-                                            : Icons.star_border,
-                                        color: Colors.amber,
-                                        size: 18,
-                                      );
-                                    }),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 5),
-                              Text(
-                                review
-                                    .reviewText, // Assuming your RatingReview model has 'comment' or 'reviewText'
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                              if (review.timestamp != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 8.0),
-                                  child: Text(
-                                    'Reviewed on: ${review.timestamp!.toDate().toLocal().toString().split(' ')[0]}',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                // The individual reviews section (ListView.builder) remains removed.
               ],
             ),
           );
         },
       ),
-      // Removed the FloatingActionButton for "Rate & Review"
-      // floatingActionButton: FloatingActionButton.extended(
-      //   onPressed: () => _submitReview(context),
-      //   label: const Text(
-      //     'Rate & Review',
-      //     style: TextStyle(color: Colors.white),
-      //   ),
-      //   icon: const Icon(Icons.rate_review, color: Colors.white),
-      //   backgroundColor: Colors.deepPurple,
-      // ),
+      // The FloatingActionButton for "Rate & Review" remains removed.
     );
   }
 
