@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/data/models/rating_review.dart'; // Make sure this path is correct
-import 'package:homeconnect/data/models/users.dart'; // Assuming you have a User model, if needed for context
+// import 'package:homeconnect/data/models/users.dart'; // Only import if you actually use it
 import 'package:firebase_auth/firebase_auth.dart'; // To get the current client's UID
 
 class ProfileDisplayScreenForClient extends StatefulWidget {
@@ -29,13 +29,19 @@ class _ProfileDisplayScreenForClientState
     _loadRatingsAndReviews();
   }
 
+  // Renamed the method to make it private and clearly indicate it's part of the state
   Future<void> _loadRatingsAndReviews() async {
+    // Check if the widget is still mounted before performing async operations
+    if (!mounted) return;
+
     // Fetch profile data first (existing logic)
     final profileSnapshot =
         await FirebaseFirestore.instance
             .collection('service_providers')
             .doc(widget.serviceProviderId)
             .get();
+
+    if (!mounted) return; // Check again after await
 
     if (!profileSnapshot.exists) {
       // Handle case where profile doesn't exist
@@ -55,12 +61,29 @@ class _ProfileDisplayScreenForClientState
             .orderBy('timestamp', descending: true) // Order by latest reviews
             .get();
 
+    if (!mounted) return; // Check again after await
+
     double sumRatings = 0;
     List<RatingReview> fetchedReviews = [];
 
+    // This section might be where you need to fetch client names if they are not
+    // stored directly in the 'ratings_reviews' document.
+    // For now, I'm assuming your RatingReview.fromFirestore *can* get clientName
+    // or you accept 'Anonymous User'. If not, you'll need additional async calls here.
     for (var doc in querySnapshot.docs) {
       try {
         final ratingReview = RatingReview.fromFirestore(doc);
+
+        // --- IMPORTANT: If clientName is not stored in the review document,
+        // --- you need to fetch it here. Example:
+        // if (ratingReview.clientName == null) {
+        //   final clientDoc = await FirebaseFirestore.instance.collection('clients').doc(ratingReview.clientId).get();
+        //   if (clientDoc.exists) {
+        //     ratingReview.clientName = clientDoc.data()?['name'] ?? 'Anonymous User';
+        //   }
+        // }
+        // --- End of IMPORTANT section
+
         sumRatings += ratingReview.rating;
         fetchedReviews.add(ratingReview);
       } catch (e) {
@@ -76,21 +99,26 @@ class _ProfileDisplayScreenForClientState
     });
   }
 
-  Future<void> _submitReview(BuildContext context) async {
+  Future<void> _submitReview(BuildContext dialogContext) async {
+    // Use a new context for the dialog
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('You must be logged in to submit a review.'),
-        ),
-      );
+      if (mounted) {
+        // Ensure widget is still in tree before showing snackbar
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('You must be logged in to submit a review.'),
+          ),
+        );
+      }
       return;
     }
 
     // You would typically navigate to a new screen or show a dialog for review submission
     final result = await showDialog<Map<String, dynamic>>(
-      context: context,
-      builder: (BuildContext dialogContext) {
+      context: dialogContext, // Use the passed dialogContext for the dialog
+      builder: (BuildContext innerDialogContext) {
+        // Use a new context for the builder
         double currentRating = 3.0; // Default rating
         TextEditingController reviewController = TextEditingController();
 
@@ -139,15 +167,15 @@ class _ProfileDisplayScreenForClientState
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.of(dialogContext).pop(); // Close dialog
+                Navigator.of(innerDialogContext).pop(); // Close dialog
               },
               child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
-                Navigator.of(dialogContext).pop({
+                Navigator.of(innerDialogContext).pop({
                   'rating': currentRating,
-                  'comment': reviewController.text.trim(),
+                  'reviewText': reviewController.text.trim(),
                 });
               },
               child: const Text('Submit'),
@@ -157,17 +185,22 @@ class _ProfileDisplayScreenForClientState
       },
     );
 
+    if (!mounted)
+      return; // Check if the widget is still mounted after dialog closes
+
     if (result != null) {
       final double rating = result['rating'];
-      final String comment = result['comment'];
+      final String reviewText = result['reviewText'];
 
-      if (comment.isEmpty && rating == 0) {
-        // Allow submitting rating without comment
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please provide a rating or a comment.'),
-          ),
-        );
+      if (reviewText.isEmpty && rating == 0.0) {
+        // Allow submitting rating without reviewText
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please provide a rating or a reviewText.'),
+            ),
+          );
+        }
         return;
       }
 
@@ -179,14 +212,18 @@ class _ProfileDisplayScreenForClientState
               .where('clientId', isEqualTo: currentUser.uid)
               .get();
 
+      if (!mounted) return; // Check again after async operation
+
       if (existingReviews.docs.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'You have already submitted a review for this provider.',
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'You have already submitted a review for this provider.',
+              ),
             ),
-          ),
-        );
+          );
+        }
         return;
       }
 
@@ -195,10 +232,12 @@ class _ProfileDisplayScreenForClientState
           'serviceProviderId': widget.serviceProviderId,
           'clientId': currentUser.uid,
           'rating': rating,
-          'comment': comment,
+          'reviewText': reviewText,
           'timestamp': FieldValue.serverTimestamp(),
           // You might want to store client's name/photo for display in reviews
-          // 'clientName': currentUser.displayName,
+          // To avoid extra reads for every review, it's often better to denormalize
+          // the client's name here.
+          'clientName': currentUser.displayName, // Assuming displayName is set
           // 'clientPhotoUrl': currentUser.photoURL,
         });
 
@@ -466,7 +505,7 @@ class _ProfileDisplayScreenForClientState
                               ),
                               const SizedBox(height: 5),
                               Text(
-                                review.comment,
+                                review.reviewText,
                                 style: const TextStyle(fontSize: 14),
                               ),
                               if (review.timestamp != null)
@@ -492,6 +531,7 @@ class _ProfileDisplayScreenForClientState
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
+        // Pass the context from the build method to _submitReview
         onPressed: () => _submitReview(context),
         label: const Text(
           'Rate & Review',
