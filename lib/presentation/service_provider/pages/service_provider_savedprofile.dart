@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:homeconnect/presentation/service_provider/pages/profile _edit_screen.dart';
 
 class ProfileDisplayScreen extends StatefulWidget {
@@ -14,6 +15,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen> {
   late Future<DocumentSnapshot<Map<String, dynamic>>> _profileFuture;
   double _averageRating = 0.0;
   int _totalReviews = 0;
+  String? _resolvedAddress;
 
   @override
   void initState() {
@@ -24,12 +26,24 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen> {
   void _loadProfile() {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-    _profileFuture =
-        FirebaseFirestore.instance
-            .collection('service_providers')
-            .doc(user.uid)
-            .get();
-    _loadRatings(user.uid); // Load ratings when profile loads
+
+    _profileFuture = FirebaseFirestore.instance
+        .collection('service_providers')
+        .doc(user.uid)
+        .get()
+        .then((doc) {
+          final geo = doc.data()?['location'] as GeoPoint?;
+          if (geo != null) {
+            _getAddressFromGeoPoint(geo).then((addr) {
+              setState(() {
+                _resolvedAddress = addr;
+              });
+            });
+          }
+          return doc;
+        });
+
+    _loadRatings(user.uid);
   }
 
   Future<void> _loadRatings(String serviceProviderId) async {
@@ -51,6 +65,25 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen> {
     });
   }
 
+  Future<String> _getAddressFromGeoPoint(GeoPoint geoPoint) async {
+    try {
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        geoPoint.latitude,
+        geoPoint.longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        final place = placemarks.first;
+        return '${place.street ?? ''}, ${place.locality ?? ''}, ${place.country ?? ''}';
+      } else {
+        return 'Unknown location';
+      }
+    } catch (e) {
+      print("Reverse geocoding error: $e");
+      return 'Address not available';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -68,7 +101,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen> {
               );
               if (result == true) {
                 setState(() {
-                  _loadProfile(); // Reload profile and ratings
+                  _loadProfile();
                 });
               }
             },
@@ -94,7 +127,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen> {
           }
 
           final data = snapshot.data!.data()!;
-          final location = data['location'] ?? {};
+          final GeoPoint? location = data['location'];
           final availability = data['availability'] ?? {};
           final categories = data['categories'] ?? [];
 
@@ -122,38 +155,6 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen> {
                                 )
                                 : null,
                       ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: GestureDetector(
-                          onTap: () async {
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const ProfileEditScreen(),
-                              ),
-                            );
-                            if (result == true) {
-                              setState(() {
-                                _loadProfile();
-                              });
-                            }
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: Colors.blueAccent,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
-                            ),
-                            child: const Icon(
-                              Icons.camera_alt,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -169,12 +170,11 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                // Display Rating and Reviews here
                 Center(
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.star, color: Colors.amber, size: 24),
+                      const Icon(Icons.star, color: Colors.amber, size: 24),
                       const SizedBox(width: 5),
                       Text(
                         _averageRating.toStringAsFixed(1),
@@ -247,17 +247,17 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen> {
                 const SizedBox(height: 10),
                 _buildProfileDetailRow(
                   "Address",
-                  location['address'] ?? 'N/A',
+                  _resolvedAddress ?? 'Loading address...',
                   Icons.pin_drop,
                 ),
                 _buildProfileDetailRow(
                   "Latitude",
-                  location['lat']?.toString() ?? 'N/A',
+                  location?.latitude.toString() ?? 'N/A',
                   Icons.map,
                 ),
                 _buildProfileDetailRow(
                   "Longitude",
-                  location['lng']?.toString() ?? 'N/A',
+                  location?.longitude.toString() ?? 'N/A',
                   Icons.map,
                 ),
                 const Divider(height: 40, thickness: 1.5, color: Colors.grey),
@@ -293,38 +293,6 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen> {
                     "No availability set.",
                     style: TextStyle(color: Colors.grey),
                   ),
-                const SizedBox(height: 40),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.edit, color: Colors.white),
-                    label: const Text(
-                      "Edit Profile",
-                      style: TextStyle(fontSize: 18, color: Colors.white),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blueAccent,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      elevation: 3,
-                    ),
-                    onPressed: () async {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ProfileEditScreen(),
-                        ),
-                      );
-                      if (result == true) {
-                        setState(() {
-                          _loadProfile();
-                        });
-                      }
-                    },
-                  ),
-                ),
               ],
             ),
           );
