@@ -12,6 +12,8 @@ class ProfileDisplayScreen extends StatefulWidget {
 
 class _ProfileDisplayScreenState extends State<ProfileDisplayScreen> {
   late Future<DocumentSnapshot<Map<String, dynamic>>> _profileFuture;
+  double _averageRating = 0.0;
+  int _totalReviews = 0;
 
   @override
   void initState() {
@@ -27,6 +29,26 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen> {
             .collection('service_providers')
             .doc(user.uid)
             .get();
+    _loadRatings(user.uid); // Load ratings when profile loads
+  }
+
+  Future<void> _loadRatings(String serviceProviderId) async {
+    final querySnapshot =
+        await FirebaseFirestore.instance
+            .collection('ratings_reviews')
+            .where('serviceProviderId', isEqualTo: serviceProviderId)
+            .get();
+
+    double sumRatings = 0;
+    for (var doc in querySnapshot.docs) {
+      final rating = (doc.data()['rating'] as num?)?.toDouble() ?? 0.0;
+      sumRatings += rating;
+    }
+
+    setState(() {
+      _totalReviews = querySnapshot.docs.length;
+      _averageRating = _totalReviews > 0 ? sumRatings / _totalReviews : 0.0;
+    });
   }
 
   @override
@@ -46,7 +68,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen> {
               );
               if (result == true) {
                 setState(() {
-                  _loadProfile();
+                  _loadProfile(); // Reload profile and ratings
                 });
               }
             },
@@ -147,6 +169,33 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
+                // Display Rating and Reviews here
+                Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.star, color: Colors.amber, size: 24),
+                      const SizedBox(width: 5),
+                      Text(
+                        _averageRating.toStringAsFixed(1),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        '($_totalReviews reviews)',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 15),
                 Center(
                   child: Text(
                     data['email'] ?? '',
