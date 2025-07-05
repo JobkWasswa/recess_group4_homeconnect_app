@@ -216,7 +216,7 @@ class ServiceProvidersList extends StatelessWidget {
                                         builder:
                                             (_) =>
                                                 ProfileDisplayScreenForClient(
-                                                  userId: docId,
+                                                  serviceProviderId: docId,
                                                 ),
                                       ),
                                     );

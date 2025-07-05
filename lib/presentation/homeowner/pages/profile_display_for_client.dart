@@ -1,17 +1,84 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:homeconnect/data/models/rating_review.dart'; // Still needed for displaying existing reviews
+// import 'package:firebase_auth/firebase_auth.dart'; // No longer needed if no review submission
 
-class ProfileDisplayScreenForClient extends StatelessWidget {
-  final String userId;
+class ProfileDisplayScreenForClient extends StatefulWidget {
+  final String serviceProviderId; // Renamed from userId for clarity
 
-  const ProfileDisplayScreenForClient({super.key, required this.userId});
+  const ProfileDisplayScreenForClient({
+    super.key,
+    required this.serviceProviderId,
+  });
 
-  Future<DocumentSnapshot<Map<String, dynamic>>> _fetchProfileData() {
-    return FirebaseFirestore.instance
-        .collection('service_providers')
-        .doc(userId)
-        .get();
+  @override
+  State<ProfileDisplayScreenForClient> createState() =>
+      _ProfileDisplayScreenForClientState();
+}
+
+class _ProfileDisplayScreenForClientState
+    extends State<ProfileDisplayScreenForClient> {
+  double _averageRating = 0.0;
+  int _totalReviews = 0;
+  List<RatingReview> _reviews = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRatingsAndReviews();
   }
+
+  // Method to load existing ratings and reviews (still needed for display)
+  Future<void> _loadRatingsAndReviews() async {
+    if (!mounted) return;
+
+    final profileSnapshot =
+        await FirebaseFirestore.instance
+            .collection('service_providers')
+            .doc(widget.serviceProviderId)
+            .get();
+
+    if (!mounted) return;
+
+    if (!profileSnapshot.exists) {
+      setState(() {
+        _averageRating = 0.0;
+        _totalReviews = 0;
+        _reviews = [];
+      });
+      return;
+    }
+
+    final querySnapshot =
+        await FirebaseFirestore.instance
+            .collection('ratings_reviews')
+            .where('serviceProviderId', isEqualTo: widget.serviceProviderId)
+            .orderBy('timestamp', descending: true)
+            .get();
+
+    if (!mounted) return;
+
+    double sumRatings = 0;
+    List<RatingReview> fetchedReviews = [];
+
+    for (var doc in querySnapshot.docs) {
+      try {
+        final ratingReview = RatingReview.fromFirestore(doc);
+        sumRatings += ratingReview.rating;
+        fetchedReviews.add(ratingReview);
+      } catch (e) {
+        print('Error parsing rating review document: $e');
+      }
+    }
+
+    setState(() {
+      _totalReviews = querySnapshot.docs.length;
+      _averageRating = _totalReviews > 0 ? sumRatings / _totalReviews : 0.0;
+      _reviews = fetchedReviews;
+    });
+  }
+
+  // Removed the _submitReview method entirely as it's no longer needed on this screen.
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +92,11 @@ class ProfileDisplayScreenForClient extends StatelessWidget {
         elevation: 0,
       ),
       body: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        future: _fetchProfileData(),
+        future:
+            FirebaseFirestore.instance
+                .collection('service_providers')
+                .doc(widget.serviceProviderId)
+                .get(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -91,6 +162,35 @@ class ProfileDisplayScreenForClient extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 15),
+
+                // Ratings Display (still needed to show existing ratings)
+                Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.star, color: Colors.amber, size: 28),
+                      const SizedBox(width: 8),
+                      Text(
+                        _averageRating.toStringAsFixed(1),
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '($_totalReviews reviews)',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 15),
+
                 Container(
                   padding: const EdgeInsets.all(15),
                   decoration: BoxDecoration(
@@ -173,15 +273,99 @@ class ProfileDisplayScreenForClient extends StatelessWidget {
                     "No availability set.",
                     style: TextStyle(color: Colors.grey),
                   ),
+                const Divider(height: 40, thickness: 1.5, color: Colors.grey),
+
+                // Reviews Section (still needed to display existing reviews)
+                _buildSectionTitle(context, "Reviews", Icons.reviews),
+                const SizedBox(height: 10),
+                if (_reviews.isEmpty)
+                  const Center(
+                    child: Text(
+                      'No reviews yet.', // Changed text slightly
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  )
+                else
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _reviews.length,
+                    itemBuilder: (context, index) {
+                      final review = _reviews[index];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 8.0),
+                        elevation: 2,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    review.clientName ?? 'Anonymous User',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  Row(
+                                    children: List.generate(5, (starIndex) {
+                                      return Icon(
+                                        starIndex < review.rating
+                                            ? Icons.star
+                                            : Icons.star_border,
+                                        color: Colors.amber,
+                                        size: 18,
+                                      );
+                                    }),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                review
+                                    .reviewText, // Assuming your RatingReview model has 'comment' or 'reviewText'
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              if (review.timestamp != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8.0),
+                                  child: Text(
+                                    'Reviewed on: ${review.timestamp!.toDate().toLocal().toString().split(' ')[0]}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
               ],
             ),
           );
         },
       ),
+      // Removed the FloatingActionButton for "Rate & Review"
+      // floatingActionButton: FloatingActionButton.extended(
+      //   onPressed: () => _submitReview(context),
+      //   label: const Text(
+      //     'Rate & Review',
+      //     style: TextStyle(color: Colors.white),
+      //   ),
+      //   icon: const Icon(Icons.rate_review, color: Colors.white),
+      //   backgroundColor: Colors.deepPurple,
+      // ),
     );
   }
 
-  // Section Title Widget
+  // Section Title Widget (unchanged)
   Widget _buildSectionTitle(BuildContext context, String title, IconData icon) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 5.0),
@@ -202,7 +386,7 @@ class ProfileDisplayScreenForClient extends StatelessWidget {
     );
   }
 
-  // Profile Detail Row
+  // Profile Detail Row (unchanged)
   Widget _buildProfileDetailRow(String label, String value, IconData icon) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
