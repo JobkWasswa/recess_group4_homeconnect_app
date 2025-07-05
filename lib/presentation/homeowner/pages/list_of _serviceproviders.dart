@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:geolocator/geolocator.dart';
+import 'package:geolocator/geolocator.dart'; // Make sure geolocator is added to your pubspec.yaml
 import 'package:homeconnect/presentation/homeowner/pages/profile_display_for_client.dart';
 
 class ServiceProvidersList extends StatelessWidget {
@@ -97,6 +97,8 @@ class ServiceProvidersList extends StatelessWidget {
               final categories = List<String>.from(data['categories'] ?? []);
               final profilePhoto = data['profilePhoto'];
               final providerLocation = _extractGeoPoint(data['location']);
+              final double rating = (data['rating'] as num?)?.toDouble() ?? 0.0;
+              final int reviewCount = data['reviewCount'] ?? 0;
 
               double? distanceKm;
               if (providerLocation != null) {
@@ -109,149 +111,204 @@ class ServiceProvidersList extends StatelessWidget {
                 distanceKm = distanceInMeters / 1000;
               }
 
-              return GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (_) => ProfileDisplayScreenForClient(userId: docId),
-                    ),
-                  );
-                },
-                child: Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 3,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 30,
-                              backgroundColor: Colors.grey[200],
-                              child:
-                                  profilePhoto != null
-                                      ? ClipOval(
-                                        child: Image.network(
-                                          profilePhoto,
-                                          width: 60,
-                                          height: 60,
-                                          fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stack) =>
-                                                  const Icon(
-                                                    Icons.person,
-                                                    size: 30,
-                                                  ),
-                                        ),
-                                      )
-                                      : const Icon(Icons.person, size: 30),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    name,
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 3,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start, // Align items to the top
+                        children: [
+                          CircleAvatar(
+                            radius: 30,
+                            backgroundColor: Colors.grey[200],
+                            child:
+                                profilePhoto != null
+                                    ? ClipOval(
+                                      child: Image.network(
+                                        profilePhoto,
+                                        width: 60,
+                                        height: 60,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stack) =>
+                                                const Icon(
+                                                  Icons.person,
+                                                  size: 30,
+                                                ),
+                                      ),
+                                    )
+                                    : const Icon(Icons.person, size: 30),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  name,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.location_on,
-                                        size: 16,
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.location_on,
+                                      size: 16,
+                                      color: Colors.grey,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      distanceKm != null
+                                          ? '${distanceKm.toStringAsFixed(1)} km away'
+                                          : 'Distance unknown',
+                                      style: const TextStyle(
                                         color: Colors.grey,
                                       ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        distanceKm != null
-                                            ? '${distanceKm.toStringAsFixed(1)} km away'
-                                            : 'Distance unknown',
-                                        style: const TextStyle(
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                    ],
+                                    ),
+                                  ],
+                                ),
+                                // Moved available/unavailable to the bottom
+                              ],
+                            ),
+                          ),
+                          // Right-aligned section for rating and buttons
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              const SizedBox(height: 4),
+                              Row(
+                                mainAxisSize:
+                                    MainAxisSize.min, // To keep the row compact
+                                children: [
+                                  const Icon(
+                                    Icons.star,
+                                    color: Colors.amber,
+                                    size: 16,
+                                  ),
+                                  Text(
+                                    '$rating (${reviewCount} reviews)',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey,
+                                    ),
                                   ),
                                 ],
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 4,
-                          children:
-                              categories
-                                  .take(3)
-                                  .map(
-                                    (cat) => Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                width: 120, // Consistent width for buttons
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (_) =>
+                                                ProfileDisplayScreenForClient(
+                                                  userId: docId,
+                                                ),
                                       ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey[200],
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                      child: Text(
-                                        cat,
-                                        style: const TextStyle(fontSize: 12),
-                                      ),
+                                    );
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.purple,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
                                     ),
-                                  )
-                                  .toList(),
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              availableToday
-                                  ? 'Available today'
-                                  : 'Unavailable',
-                              style: TextStyle(
-                                color:
-                                    availableToday ? Colors.green : Colors.red,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            ElevatedButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder:
-                                        (_) => ProfileDisplayScreenForClient(
-                                          userId: docId,
-                                        ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ), // Adjust padding
                                   ),
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.purple,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
+                                  child: const Text(
+                                    'View Profile',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                                 ),
                               ),
-                              child: const Text('View Profile'),
-                            ),
-                          ],
+                              const SizedBox(
+                                height: 8,
+                              ), // Spacing between buttons
+                              SizedBox(
+                                width: 120, // Consistent width for buttons
+                                child: OutlinedButton(
+                                  onPressed: () {
+                                    // Implement your "Book Now" logic here
+                                    print('Book Now for $name (ID: $docId)');
+                                    // You might navigate to a booking screen, show a dialog, etc.
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor:
+                                        Colors.purple, // Text color
+                                    side: const BorderSide(
+                                      color: Colors.purple,
+                                    ), // Border color
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ), // Adjust padding
+                                  ),
+                                  child: const Text(
+                                    'Book Now',
+                                    style: TextStyle(fontSize: 14),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      // Skills/Categories chips (MOVED HERE)
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children:
+                            categories
+                                .take(3) // Limit to first 3 categories
+                                .map(
+                                  (cat) => Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[200],
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: Text(
+                                      cat,
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                      ),
+                      const SizedBox(height: 10), // Spacing before availability
+                      // Availability/Unavailable (MOVED HERE)
+                      Text(
+                        availableToday ? 'Available today' : 'Unavailable',
+                        style: TextStyle(
+                          color: availableToday ? Colors.green : Colors.red,
+                          fontWeight: FontWeight.w600,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               );
