@@ -223,13 +223,13 @@ class _ServiceProviderDashboardScreenState
                 children: [
                   _buildStatusItem(
                     Icons.star,
-                    '4.8',
+                    '0',
                     'Avg. Rating',
                     Colors.amber,
                   ),
                   _buildStatusItem(
                     Icons.work,
-                    '150+',
+                    '0+',
                     'Jobs Completed',
                     Colors.lightBlueAccent,
                   ),
@@ -297,26 +297,20 @@ class _ServiceProviderDashboardScreenState
                 _buildStatRow(
                   Icons.check_circle_outline,
                   'Completed Jobs',
-                  '150',
+                  '0',
                   Colors.green,
                 ),
                 _buildStatRow(
                   Icons.calendar_today_outlined,
                   'Upcoming Jobs',
-                  '3',
+                  '0',
                   Colors.blue,
                 ),
                 _buildStatRow(
                   Icons.star_half,
                   'Avg. Rating',
-                  '4.8 (120 reviews)',
+                  '0 (0 reviews)',
                   Colors.amber,
-                ),
-                _buildStatRow(
-                  Icons.monetization_on,
-                  'Earnings (last 30 days)',
-                  'UGX 1,200,000',
-                  Colors.purple,
                 ),
               ],
             ),

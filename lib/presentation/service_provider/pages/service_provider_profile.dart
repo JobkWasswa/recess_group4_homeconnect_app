@@ -23,8 +23,8 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
   final List<String> _skills = [];
   List<String> _selectedCategories = [];
 
-  io.File? _profileImageFile; // for mobile & desktop
-  Uint8List? _webImageBytes; // for web
+  io.File? _profileImageFile;
+  Uint8List? _webImageBytes;
   double? _latitude;
   double? _longitude;
   final picker = ImagePicker();
@@ -118,7 +118,8 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
         if (placemarks.isNotEmpty) {
           Placemark place = placemarks.first;
           setState(() {
-            locationAddress = "${place.locality}, ${place.country}";
+            locationAddress =
+                "${place.street ?? ''}, ${place.locality ?? ''}, ${place.country ?? ''}";
           });
         } else {
           setState(() {
@@ -149,7 +150,6 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
         return;
       }
 
-      // ✅ Validate category selection
       if (_selectedCategories.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Please select at least one category.")),
@@ -160,7 +160,6 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
       final uid = user.uid;
       final imageUrl = await _uploadProfileImage();
 
-      // ✅ Build availability data
       Map<String, dynamic> availabilityData = {};
       _availability.forEach((day, isAvailable) {
         if (isAvailable) {
@@ -171,7 +170,6 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
         }
       });
 
-      // ✅ Save to service_providers collection
       await FirebaseFirestore.instance
           .collection('service_providers')
           .doc(uid)
@@ -181,20 +179,13 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
             'categories': _selectedCategories,
             'skills': _skills,
             'profilePhoto': imageUrl,
-            'location': {
-              'lat': _latitude,
-              'lng': _longitude,
-              'address': locationAddress,
-            },
+            'location': GeoPoint(_latitude!, _longitude!),
             'availability': availabilityData,
             'createdAt': Timestamp.now(),
-            // --- Add initial rating and review fields ---
-            'averageRating': 0.0, // Initial rating
-            'numberOfReviews': 0, // Initial number of reviews
-            // ------------------------------------------
+            'averageRating': 0.0,
+            'numberOfReviews': 0,
           });
 
-      // ✅ Save user reference under each selected category
       for (final category in _selectedCategories) {
         await FirebaseFirestore.instance
             .collection('categories')
@@ -204,15 +195,9 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
             .set({
               'name': _nameController.text,
               'profilePhoto': imageUrl,
-              'location': {
-                'lat': _latitude,
-                'lng': _longitude,
-                'address': locationAddress,
-              },
+              'location': GeoPoint(_latitude!, _longitude!),
+              'address': locationAddress,
               'timestamp': Timestamp.now(),
-              // You might want to add rating/review info here too,
-              // depending on how you plan to query providers by category.
-              // For now, I'll keep it consistent with the service_providers collection.
               'averageRating': 0.0,
               'numberOfReviews': 0,
             });
@@ -223,7 +208,6 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
         const SnackBar(content: Text("Profile saved successfully!")),
       );
 
-      // ✅ Navigate to dashboard
       Navigator.pushReplacementNamed(
         context,
         AppRoutes.serviceProviderDashboard,
