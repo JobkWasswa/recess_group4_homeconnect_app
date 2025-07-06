@@ -198,10 +198,11 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                       child: IconButton(
                         onPressed: () async {
                           await FirebaseAuth.instance.signOut();
-                          if (mounted)
+                          if (mounted) {
                             Navigator.of(
                               context,
                             ).pushReplacementNamed(AppRoutes.auth);
+                          }
                         },
                         icon: const Icon(Icons.logout, color: Colors.white),
                       ),
