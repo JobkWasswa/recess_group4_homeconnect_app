@@ -406,29 +406,6 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                           ),
                         );
 
-                        // ✅ 1. Show dialog and wait for it to close
-                        await showDialog(
-                          context: context,
-                          builder:
-                              (_) => AlertDialog(
-                                title: const Text('Your Location'),
-                                content: Text(
-                                  'Latitude: ${pos.latitude.toStringAsFixed(6)}\n'
-                                  'Longitude: ${pos.longitude.toStringAsFixed(6)}',
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed:
-                                        () =>
-                                            Navigator.of(
-                                              context,
-                                            ).pop(), // closes dialog
-                                    child: const Text('OK'),
-                                  ),
-                                ],
-                              ),
-                        );
-
                         // Step 5: Save location in Firestore
                         final userId = FirebaseAuth.instance.currentUser!.uid;
                         final docRef = FirebaseFirestore.instance
