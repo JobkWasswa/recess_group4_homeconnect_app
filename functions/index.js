@@ -29,7 +29,7 @@ exports.getRecommendedProviders = functions.https.onCall(
       serviceCategory,
       homeownerLatitude,
       homeownerLongitude,
-      desiredDateTime,
+      desiredDateTime, // This will be used for availability filtering
     } = data;
 
     if (
@@ -56,11 +56,11 @@ exports.getRecommendedProviders = functions.https.onCall(
     let providersSnapshot;
     try {
       // Step 1: Initial query from Firestore based on serviceCategory
-      // This will fetch all providers offering this service, before further filtering.
       providersSnapshot = await admin
         .firestore()
         .collection("service_providers")
-        .where("servicesOffered", "array-contains", serviceCategory)
+        // Ensure this field name 'categories' or 'servicesOffered' matches your Firestore schema
+        .where("categories", "array-contains", serviceCategory)
         .get();
 
       if (providersSnapshot.empty) {
@@ -84,10 +84,10 @@ exports.getRecommendedProviders = functions.https.onCall(
       const providerId = doc.id;
       console.log(`Processing provider: ${providerId}`);
 
-      // Placeholder for filtering logic
-      let meetsAllCriteria = true; // Assume true initially, set to false if any criteria fails
+      let meetsAllCriteria = true;
 
-      // --- Start of Geospatial Filtering Logic ---
+      // --- Geospatial Filtering Logic ---
+      let distance = null;
       if (
         !providerData.location ||
         typeof providerData.location.latitude === "undefined" ||
@@ -103,14 +103,14 @@ exports.getRecommendedProviders = functions.https.onCall(
           longitude: providerData.location.longitude,
         };
 
-        const distance = calculateDistance(
+        distance = calculateDistance(
           homeownerLocation.latitude,
           homeownerLocation.longitude,
           providerBaseLocation.latitude,
           providerBaseLocation.longitude
         ); // Distance in kilometers
 
-        // Filter 1: Check if provider's base location is within the MAX_DISTANCE_KM (7km) from homeowner
+        // Filter: Check if provider's base location is within the MAX_DISTANCE_KM (7km) from homeowner
         if (distance > MAX_DISTANCE_KM) {
           console.log(
             `Provider ${providerId} too far (${distance.toFixed(
@@ -118,53 +118,64 @@ exports.getRecommendedProviders = functions.https.onCall(
             )} km). Skipping.`
           );
           meetsAllCriteria = false;
-        } else {
-          // Filter 2 (Optional but good): Check if homeowner's location is within provider's declared service radius
-          // This means the provider must *also* declare they cover the homeowner's area.
-          const providerServiceRadius = providerData.serviceRadius || 0; // Default to 0 if not set in Firestore
-          if (distance > providerServiceRadius && providerServiceRadius > 0) {
-            console.log(
-              `Provider ${providerId} (radius ${providerServiceRadius}km) doesn't cover this distance ${distance.toFixed(
-                2
-              )}km. Skipping.`
-            );
-            meetsAllCriteria = false;
-          }
         }
+        // Removed the providerServiceRadius check as requested
       }
       // --- End of Geospatial Filtering Logic ---
 
-      // --- Placeholder for Availability Filtering (Your next step) ---
-      // if (meetsAllCriteria && desiredDateTime) {
-      //     const isProviderAvailable = checkAvailability(providerData.availability, desiredDateTime);
-      //     if (!isProviderAvailable) {
-      //         meetsAllCriteria = false;
-      //     }
-      // }
+      // --- Availability Filtering Logic (Implement based on your Firestore structure) ---
+      // This is a crucial part and depends heavily on how you store availability.
+      // For now, let's use a simple 'availableToday' boolean if present.
+      // If you implement a complex schedule, this function needs to parse it.
+      if (meetsAllCriteria && desiredDateTime) {
+        const providerAvailableToday = providerData.availableToday ?? false; // Assuming a boolean field
+        // More sophisticated availability check would go here, e.g.,
+        // const requestedDate = new Date(desiredDateTime);
+        // if (!isAvailableOnDate(providerData.schedule, requestedDate)) {
+        //   meetsAllCriteria = false;
+        // }
+
+        // For this example, let's just use the 'availableToday' flag for simplicity
+        if (!providerAvailableToday) {
+          console.log(`Provider ${providerId} not available today. Skipping.`);
+          meetsAllCriteria = false;
+        }
+      } else if (meetsAllCriteria && desiredDateTime === undefined) {
+        // If no desiredDateTime is provided by client, and provider has availableToday field, filter by it.
+        // If a provider doesn't have an 'availableToday' field, assume they are available
+        const providerAvailableToday = providerData.availableToday ?? true;
+        if (!providerAvailableToday) {
+          console.log(`Provider ${providerId} not available today. Skipping.`);
+          meetsAllCriteria = false;
+        }
+      }
 
       // If all hard filters are met, add to eligible list for scoring/ranking
       if (meetsAllCriteria) {
-        // --- Placeholder for Rating & Review Scoring (Your next step) ---
+        // --- Rating & Review Scoring ---
         const rating = providerData.ratings?.average ?? 0;
         const reviewCount = providerData.ratings?.count ?? 0;
-        const score = calculateRatingScore(rating, reviewCount); // You'll implement this helper
+        const score = calculateRatingScore(rating, reviewCount, distance); // Pass distance for a proximity bonus
 
         eligibleProviders.push({
           id: providerId,
-          name: providerData.profileInfo?.name, // Assuming you have this structure
+          name: providerData.profileInfo?.name ?? "Unnamed Provider",
+          profilePhoto: providerData.profilePhoto ?? null,
+          categories: providerData.categories ?? [],
+          availableToday: providerData.availableToday ?? false,
           service: serviceCategory,
           rating: rating,
           reviewCount: reviewCount,
-          distance: parseFloat(distance.toFixed(2)), // Ensure distance is defined here
+          distance: distance ? parseFloat(distance.toFixed(2)) : null,
           score: score,
           // Add any other data needed by the Flutter UI here
+          // e.g., contactInfo, full address, etc.
         });
       }
     }
 
     // --- Overall Ranking Logic ---
     // Sort by the calculated score (highest score first).
-    // If scores are equal, you might add secondary sort criteria (e.g., jobs completed, creation date).
     eligibleProviders.sort((a, b) => b.score - a.score);
 
     console.log(`Found ${eligibleProviders.length} eligible providers.`);
@@ -173,7 +184,6 @@ exports.getRecommendedProviders = functions.https.onCall(
 );
 
 // Helper Function: Distance Calculation (Haversine Formula)
-// Place this function outside (below) the main Cloud Function or in a separate utility file.
 function calculateDistance(lat1, lon1, lat2, lon2) {
   const R = 6371; // Radius of Earth in kilometers
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -189,18 +199,44 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return distance;
 }
 
-// Helper Function: Rating Score Calculation (Implement this next)
-function calculateRatingScore(averageRating, reviewCount) {
-  // For now, a very simple score. You'll refine this.
-  // Consider using a Bayesian average for more robust scoring with few reviews.
-  if (reviewCount === 0) return 0; // Or some default low score
-  return averageRating * (1 + reviewCount / 100); // Example: more reviews gives a slight boost
+// Helper Function: Rating Score Calculation (Refined)
+function calculateRatingScore(averageRating, reviewCount, distanceKm) {
+  // A more refined scoring function:
+  // 1. Base score from average rating.
+  // 2. Bonus for more reviews (more reliable rating).
+  // 3. Penalty for distance (closer providers are preferred).
+
+  if (reviewCount === 0) return 0; // Providers with no reviews get a base score of 0, or some minimal value.
+
+  let score = averageRating;
+
+  // Add a bonus for review count. The more reviews, the more trustworthy the rating.
+  // This example gives a small boost for every 10 reviews, up to a certain point.
+  score += Math.min(reviewCount * 0.05, 1.0); // Max 1.0 point bonus for 20+ reviews
+
+  // Apply a distance penalty. Closer is better.
+  // Example: 0.1 point penalty per km, up to a maximum penalty.
+  if (distanceKm !== null && distanceKm !== undefined) {
+    score -= Math.min(distanceKm * 0.1, 2.0); // Max 2.0 point penalty for 20+ km
+  }
+
+  return Math.max(0, score); // Ensure score doesn't go below zero
 }
 
-// Helper Function: Availability Check (Implement this next)
-// function checkAvailability(providerAvailabilityData, desiredDateTime) {
-//     // This will be complex depending on your availability structure.
-//     // Parse desiredDateTime, check against provider's schedule (providerAvailabilityData).
-//     // Return true if available, false otherwise.
-//     return true; // Placeholder
-// }
+// Helper Function: Availability Check (This is a placeholder and needs real implementation)
+/*
+function isAvailableOnDate(providerSchedule, desiredDate) {
+    // providerSchedule: This would be the complex data structure from Firestore,
+    // e.g., { 'Monday': ['9:00-17:00'], 'holidays': ['2025-12-25'] }
+    // desiredDate: A JavaScript Date object derived from desiredDateTime ISO string.
+
+    // Example rudimentary logic:
+    // 1. Check if desiredDate falls on a holiday or blocked date.
+    // 2. Check if desiredDate's day of the week is in their schedule.
+    // 3. If desiredDateTime includes a specific time, check if that time slot is open.
+
+    // For simplicity, returning true. You will expand this significantly.
+    console.log(`Checking availability for a specific date/time for provider... (Not fully implemented yet)`);
+    return true;
+}
+*/
