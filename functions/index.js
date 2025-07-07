@@ -1,6 +1,6 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-admin.initializeApp(); // Initialize Firebase Admin SDK
+admin.initializeApp(); // Initialize Firebase Admin SDk
 
 /**
  * Callable Cloud Function to get recommended service providers.
