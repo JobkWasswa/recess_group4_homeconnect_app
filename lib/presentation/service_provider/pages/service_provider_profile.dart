@@ -9,7 +9,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:homeconnect/config/routes.dart';
 import 'package:homeconnect/data/models/services.dart';
-import 'package:homeconnect/data/models/service_providers.dart';
+import 'package:homeconnect/data/models/service_provider_modal.dart';
 
 class ProfileCreationScreen extends StatefulWidget {
   const ProfileCreationScreen({super.key});
