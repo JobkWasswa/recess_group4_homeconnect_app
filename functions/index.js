@@ -1,5 +1,8 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const name = providerData.profileInfo?.name ?? 'Unnamed Provider'; // Now correctly references the nested field
+const rating = providerData.ratings?.average ?? 0; // Correctly references the nested field
+const reviewCount = providerData.ratings?.count ?? 0; // Correctly references the nested field
 admin.initializeApp(); // Initialize Firebase Admin SDk
 
 /**
@@ -59,8 +62,7 @@ exports.getRecommendedProviders = functions.https.onCall(
       providersSnapshot = await admin
         .firestore()
         .collection("service_providers")
-        // Ensure this field name 'categories' or 'servicesOffered' matches your Firestore schema
-        .where("categories", "array-contains", serviceCategory)
+        .where("categories", "array-contains", serviceCategory) // This is correct based on your screenshot
         .get();
 
       if (providersSnapshot.empty) {
