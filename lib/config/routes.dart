@@ -6,7 +6,7 @@ import 'package:homeconnect/presentation/auth/register_page.dart';
 import 'package:homeconnect/presentation/auth/splash_screen.dart';
 import 'package:homeconnect/presentation/homeowner/pages/service_provider_list_page.dart';
 import 'package:homeconnect/presentation/homeowner/pages/service_provider_detail_page.dart';
-import 'package:homeconnect/presentation/service_provider/pages/service_provider_profile.dart';
+import 'package:homeconnect/presentation/service_provider/pages/service_provider_profile.dart'; // Assuming ProfileCreationScreen is here
 
 class AppRoutes {
   static const String splash = '/';
@@ -30,7 +30,9 @@ class AppRoutes {
       homeownerDashboard: (context) => const HomeownerDashboardScreen(),
       serviceProviderDashboard:
           (context) => const ServiceProviderDashboardScreen(),
-      serviceProviderCreateProfile: (context) => const ProfileCreationScreen(),
+      serviceProviderCreateProfile:
+          (context) =>
+              const ProfileCreationScreen(), // Assuming this is correct
       // Note: No need to add serviceProviderListPage and serviceProviderDetailPage here since they’ll be handled by onGenerateRoute
     };
   }
