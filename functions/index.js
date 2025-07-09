@@ -1,8 +1,6 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-const name = providerData.profileInfo?.name ?? 'Unnamed Provider'; // Now correctly references the nested field
-const rating = providerData.ratings?.average ?? 0; // Correctly references the nested field
-const reviewCount = providerData.ratings?.count ?? 0; // Correctly references the nested field
+
 admin.initializeApp(); // Initialize Firebase Admin SDk
 
 /**
