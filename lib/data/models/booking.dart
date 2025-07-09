@@ -7,7 +7,7 @@ class Booking {
   final String clientName;
   final String serviceProviderId;
   final String serviceProviderName;
-  final String serviceType;
+  final String categories;
   final DateTime bookingDate;
   final String status;
   final String? notes; // Optional field
@@ -20,7 +20,7 @@ class Booking {
     required this.clientName,
     required this.serviceProviderId,
     required this.serviceProviderName,
-    required this.serviceType,
+    required this.categories,
     required this.bookingDate,
     required this.status,
     this.notes,
@@ -37,7 +37,7 @@ class Booking {
       clientName: data['clientName'] ?? '',
       serviceProviderId: data['serviceProviderId'] ?? '',
       serviceProviderName: data['serviceProviderName'] ?? '',
-      serviceType: data['serviceType'] ?? '',
+      categories: data['categories'] ?? '',
       bookingDate: (data['bookingDate'] as Timestamp).toDate(),
       status: data['status'] ?? 'pending',
       notes: data['notes'],
@@ -53,7 +53,7 @@ class Booking {
       'clientName': clientName,
       'serviceProviderId': serviceProviderId,
       'serviceProviderName': serviceProviderName,
-      'serviceType': serviceType,
+      'categories': categories,
       'bookingDate': Timestamp.fromDate(bookingDate),
       'status': status,
       'notes': notes,
@@ -70,7 +70,7 @@ class Booking {
     String? clientName,
     String? serviceProviderId,
     String? serviceProviderName,
-    String? serviceType,
+    String? categories,
     DateTime? bookingDate,
     String? status,
     String? notes,
@@ -83,7 +83,7 @@ class Booking {
       clientName: clientName ?? this.clientName,
       serviceProviderId: serviceProviderId ?? this.serviceProviderId,
       serviceProviderName: serviceProviderName ?? this.serviceProviderName,
-      serviceType: serviceType ?? this.serviceType,
+      categories: categories ?? this.categories,
       bookingDate: bookingDate ?? this.bookingDate,
       status: status ?? this.status,
       notes: notes ?? this.notes,
