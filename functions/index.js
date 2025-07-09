@@ -1,8 +1,7 @@
+// functions/index.js
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-const name = providerData.profileInfo?.name ?? 'Unnamed Provider'; // Now correctly references the nested field
-const rating = providerData.ratings?.average ?? 0; // Correctly references the nested field
-const reviewCount = providerData.ratings?.count ?? 0; // Correctly references the nested field
+
 admin.initializeApp(); // Initialize Firebase Admin SDk
 
 /**
@@ -19,13 +18,11 @@ admin.initializeApp(); // Initialize Firebase Admin SDk
  */
 exports.getRecommendedProviders = functions.https.onCall(
   async (data, context) => {
-    // Basic Authentication Check: Ensure the user is authenticated.
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "The function must be called while authenticated."
-      );
-    }
+    // MODIFICATION: Removed strict authentication check.
+    // The function will now proceed whether or not context.auth is present.
+    // You can still access context.auth.uid if you need the user's ID for personalization
+    // const userId = context.auth ? context.auth.uid : null;
+    // console.log(`Invoking getRecommendedProviders for user: ${userId || 'Unauthenticated'}`);
 
     // Input Validation: Ensure required parameters are provided.
     const {
@@ -62,7 +59,7 @@ exports.getRecommendedProviders = functions.https.onCall(
       providersSnapshot = await admin
         .firestore()
         .collection("service_providers")
-        .where("categories", "array-contains", serviceCategory) // This is correct based on your screenshot
+        .where("categories", "array-contains", serviceCategory)
         .get();
 
       if (providersSnapshot.empty) {
@@ -90,6 +87,7 @@ exports.getRecommendedProviders = functions.https.onCall(
 
       // --- Geospatial Filtering Logic ---
       let distance = null;
+      // Accessing location correctly (assuming it's a GeoPoint field directly in Firestore)
       if (
         !providerData.location ||
         typeof providerData.location.latitude === "undefined" ||
@@ -121,57 +119,60 @@ exports.getRecommendedProviders = functions.https.onCall(
           );
           meetsAllCriteria = false;
         }
-        // Removed the providerServiceRadius check as requested
       }
       // --- End of Geospatial Filtering Logic ---
 
-      // --- Availability Filtering Logic (Implement based on your Firestore structure) ---
-      // This is a crucial part and depends heavily on how you store availability.
-      // For now, let's use a simple 'availableToday' boolean if present.
-      // If you implement a complex schedule, this function needs to parse it.
-      if (meetsAllCriteria && desiredDateTime) {
-        const providerAvailableToday = providerData.availableToday ?? false; // Assuming a boolean field
-        // More sophisticated availability check would go here, e.g.,
-        // const requestedDate = new Date(desiredDateTime);
-        // if (!isAvailableOnDate(providerData.schedule, requestedDate)) {
-        //   meetsAllCriteria = false;
-        // }
+      // --- Availability Filtering Logic ---
+      // This part assumes a simple 'availableToday' boolean in your Firestore document.
+      // If desiredDateTime is provided, we check against 'availableToday'.
+      // If desiredDateTime is NOT provided, and provider has 'availableToday' set to false, filter it out.
+      if (meetsAllCriteria) {
+        const providerAvailableToday = providerData.availableToday ?? true; // Default to true if field is missing
 
-        // For this example, let's just use the 'availableToday' flag for simplicity
-        if (!providerAvailableToday) {
-          console.log(`Provider ${providerId} not available today. Skipping.`);
-          meetsAllCriteria = false;
-        }
-      } else if (meetsAllCriteria && desiredDateTime === undefined) {
-        // If no desiredDateTime is provided by client, and provider has availableToday field, filter by it.
-        // If a provider doesn't have an 'availableToday' field, assume they are available
-        const providerAvailableToday = providerData.availableToday ?? true;
-        if (!providerAvailableToday) {
-          console.log(`Provider ${providerId} not available today. Skipping.`);
-          meetsAllCriteria = false;
+        if (desiredDateTime) {
+          // If a specific date/time is requested, enforce 'availableToday' or more complex logic
+          if (!providerAvailableToday) {
+            console.log(
+              `Provider ${providerId} not available on specified date. Skipping.`
+            );
+            meetsAllCriteria = false;
+          }
+          // TODO: Implement more sophisticated date/time availability parsing if needed
+          // e.g., using a library like 'luxon' or 'moment-timezone' to check against `providerData.availability` map
+          // based on `desiredDateTime`.
+        } else {
+          // If no specific date/time requested, just filter by 'availableToday' if it's explicitly false
+          if (!providerAvailableToday) {
+            console.log(
+              `Provider ${providerId} not generally available today. Skipping.`
+            );
+            meetsAllCriteria = false;
+          }
         }
       }
 
       // If all hard filters are met, add to eligible list for scoring/ranking
       if (meetsAllCriteria) {
         // --- Rating & Review Scoring ---
-        const rating = providerData.ratings?.average ?? 0;
-        const reviewCount = providerData.ratings?.count ?? 0;
+        // CORRECTED: Access averageRating and numberOfReviews directly from providerData
+        const rating = providerData.averageRating ?? 0;
+        const reviewCount = providerData.numberOfReviews ?? 0;
         const score = calculateRatingScore(rating, reviewCount, distance); // Pass distance for a proximity bonus
 
         eligibleProviders.push({
           id: providerId,
-          name: providerData.profileInfo?.name ?? "Unnamed Provider",
+          // CORRECTED: Access name directly from providerData (as per screenshot)
+          name: providerData.name ?? "Unnamed Provider",
           profilePhoto: providerData.profilePhoto ?? null,
           categories: providerData.categories ?? [],
           availableToday: providerData.availableToday ?? false,
-          service: serviceCategory,
+          service: serviceCategory, // Or the actual services offered by the provider
           rating: rating,
           reviewCount: reviewCount,
-          distance: distance ? parseFloat(distance.toFixed(2)) : null,
+          distanceKm:
+            distance !== null ? parseFloat(distance.toFixed(2)) : null, // Ensure 'distanceKm' matches model
           score: score,
           // Add any other data needed by the Flutter UI here
-          // e.g., contactInfo, full address, etc.
         });
       }
     }
