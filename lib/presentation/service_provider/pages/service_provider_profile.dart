@@ -21,7 +21,6 @@ class ProfileCreationScreen extends StatefulWidget {
 class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
   final _nameController = TextEditingController();
   final _descController = TextEditingController();
-  final List<String> _skills = [];
   List<String> _selectedCategories = [];
 
   io.File? _profileImageFile;
@@ -141,6 +140,7 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
   }
 
   Future<void> _saveProfile() async {
+    print("Save profile button pressed");
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
@@ -178,7 +178,6 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
             'name': _nameController.text,
             'description': _descController.text,
             'categories': _selectedCategories,
-            'skills': _skills,
             'profilePhoto': imageUrl,
             'location': GeoPoint(_latitude!, _longitude!),
             'availability': availabilityData,
@@ -535,13 +534,13 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
                       .toList(),
             ),
 
-            const SizedBox(height: 30), // Increased space before Location
+            const SizedBox(height: 10), // Increased space before Location
 
             const Text(
               'Location', // Section title
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 30),
 
             SizedBox(
               // Wrapped in SizedBox for consistent width
