@@ -1,6 +1,7 @@
 // functions/index.js
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 
 admin.initializeApp(); // Initialize Firebase Admin SDK
 
@@ -211,3 +212,48 @@ function isAvailableOnDate(providerSchedule, desiredDate) {
     return true;
 }
 */
+
+// 🔔 NEW FUNCTION: Send FCM notification when a new booking is created
+exports.sendBookingNotification = onDocumentCreated(
+  "bookings/{bookingId}",
+  async (event) => {
+    const booking = event.data;
+    const providerId = booking.serviceProviderId;
+
+    if (!providerId) {
+      console.log("No serviceProviderId in booking");
+      return;
+    }
+
+    const providerDoc = await admin
+      .firestore()
+      .collection("service_providers")
+      .doc(providerId)
+      .get();
+
+    const fcmToken = providerDoc.data()?.fcmToken;
+
+    if (!fcmToken) {
+      console.log(`No FCM token found for provider ${providerId}`);
+      return;
+    }
+
+    const payload = {
+      notification: {
+        title: "📢 New Booking Request",
+        body: `${booking.clientName} booked a ${booking.categories} service.`,
+      },
+      data: {
+        bookingId: event.params.bookingId,
+      },
+      token: fcmToken,
+    };
+
+    try {
+      await admin.messaging().send(payload);
+      console.log("Notification sent successfully to:", fcmToken);
+    } catch (error) {
+      console.error("Error sending notification:", error);
+    }
+  }
+);
