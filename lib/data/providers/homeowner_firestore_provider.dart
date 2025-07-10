@@ -1,12 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:homeconnect/data/models/service_provider_modal.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class HomeownerFirestoreProvider {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseFunctions _functions = FirebaseFunctions.instance;
+  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
+    region: 'us-central1',
+  ); // Match your function region
 
-  // This method will now call the Cloud Function
   Future<List<ServiceProviderModel>> fetchRecommendedProviders({
     required String serviceCategory,
     required double homeownerLatitude,
@@ -14,6 +15,11 @@ class HomeownerFirestoreProvider {
     DateTime? desiredDateTime, // Optional parameter for availability
   }) async {
     try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('User not authenticated. Please log in.');
+      }
+
       final HttpsCallable callable = _functions.httpsCallable(
         'getRecommendedProviders',
       );
@@ -33,7 +39,6 @@ class HomeownerFirestoreProvider {
       print(
         '❌ Cloud Function error: code: ${e.code}, message: ${e.message}, details: ${e.details}',
       );
-      // Handle specific error codes if needed, e.g., show a user-friendly message
       throw Exception('Failed to fetch providers: ${e.message}');
     } catch (e) {
       print('❌ General error calling Cloud Function: $e');
@@ -41,14 +46,13 @@ class HomeownerFirestoreProvider {
     }
   }
 
-  // You might still keep other Firestore direct access methods if needed for other parts of the app
-  // e.g., fetching a single provider's detailed profile
+  // Other methods (e.g., fetchServiceProviderDetails) remain unchanged
   Future<Map<String, dynamic>?> fetchServiceProviderDetails(
     String providerId,
   ) async {
     try {
       final doc =
-          await _firestore
+          await FirebaseFirestore.instance
               .collection('service_providers')
               .doc(providerId)
               .get();
