@@ -1,11 +1,9 @@
-
+// File: homeconnect/presentation/homeowner/pages/service_providers_list_widget.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/data/models/service_provider_modal.dart';
 import 'package:homeconnect/presentation/homeowner/pages/profile_display_for_client.dart';
-
 import 'package:homeconnect/data/providers/homeowner_firestore_provider.dart';
-
 
 class ServiceProvidersList extends StatefulWidget {
   final String category;
@@ -224,46 +222,14 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                               SizedBox(
                                 width: 120,
                                 child: OutlinedButton(
-                                  onPressed: () async {
-                                    final user =
-                                        FirebaseAuth.instance.currentUser;
-                                    if (user == null) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Please log in to book a provider.',
-                                          ),
-                                        ),
-                                      );
-                                      return;
-                                    }
-
-                                    final currentUserId = user.uid;
-                                    final currentUserName =
-                                        user.displayName ?? 'Unknown User';
-
-                                    final booking = Booking(
-                                      clientId: currentUserId,
-                                      clientName: currentUserName,
-                                      serviceProviderId: provider.id,
-                                      serviceProviderName: provider.name,
-                                      categories: provider.categories.join(
-                                        ', ',
-                                      ),
-                                      bookingDate: DateTime.now(),
-                                      status: 'pending',
-                                      notes: '',
-                                      createdAt: DateTime.now(),
-                                      updatedAt: DateTime.now(),
+                                  onPressed: () {
+                                    print(
+                                      'Book Now for ${provider.name} (ID: ${provider.id})',
                                     );
                                     // Implement your "Book Now" logic here
                                     // This is where you might pass widget.desiredDateTime
                                     // to a booking confirmation screen.
-
                                   },
-
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: Colors.purple,
                                     side: const BorderSide(
