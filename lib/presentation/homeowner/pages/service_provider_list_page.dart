@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:homeconnect/data/providers/homeowner_firestore_provider.dart';
-import 'package:homeconnect/config/routes.dart';
 import 'package:homeconnect/presentation/homeowner/pages/list_of _serviceproviders.dart'; // Import your ServiceProvidersList
 import 'package:geolocator/geolocator.dart'; // Needed for getting user location
 import 'package:cloud_firestore/cloud_firestore.dart'; // Needed for GeoPoint
