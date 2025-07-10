@@ -1,18 +1,20 @@
+// File: homeconnect/presentation/homeowner/pages/service_providers_list_widget.dart
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Still needed for GeoPoint or other Firestore related stuff if directly accessing
-// May still be useful for client-side location services
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/data/models/service_provider_modal.dart';
 import 'package:homeconnect/presentation/homeowner/pages/profile_display_for_client.dart';
-import 'package:homeconnect/data/providers/homeowner_firestore_provider.dart'; // Import the updated provider
+import 'package:homeconnect/data/providers/homeowner_firestore_provider.dart';
 
 class ServiceProvidersList extends StatefulWidget {
   final String category;
   final GeoPoint userLocation; // User's current location to pass to the CF
+  final DateTime? desiredDateTime; // Add this parameter
 
   const ServiceProvidersList({
     super.key,
     required this.category,
     required this.userLocation,
+    this.desiredDateTime, // Make it optional if you want to allow initial broad search
   });
 
   @override
@@ -28,20 +30,41 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
     _fetchProviders();
   }
 
+  @override
+  void didUpdateWidget(covariant ServiceProvidersList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Only re-fetch if relevant parameters have changed
+    if (oldWidget.category != widget.category ||
+        oldWidget.userLocation != widget.userLocation ||
+        oldWidget.desiredDateTime != widget.desiredDateTime) {
+      _fetchProviders();
+    }
+  }
+
   void _fetchProviders() {
     _providersFuture = HomeownerFirestoreProvider().fetchRecommendedProviders(
       serviceCategory: widget.category,
       homeownerLatitude: widget.userLocation.latitude,
       homeownerLongitude: widget.userLocation.longitude,
-      // You can add desiredDateTime here if you implement a date/time picker
-      // desiredDateTime: DateTime.now(), // Example
+      desiredDateTime:
+          widget.desiredDateTime, // Pass the desired date/time here
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Providers for ${widget.category}')),
+      appBar: AppBar(
+        title: Text('Providers for ${widget.category}'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(
+              context,
+            ); // This will navigate back to the previous screen
+          },
+        ),
+      ),
       body: FutureBuilder<List<ServiceProviderModel>>(
         future: _providersFuture,
         builder: (context, snapshot) {
@@ -56,7 +79,9 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
           }
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return const Center(
-              child: Text('No providers found matching your criteria.'),
+              child: Text(
+                'No providers found matching your criteria for the selected time.',
+              ),
             );
           }
 
@@ -166,11 +191,12 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                       context,
                                       MaterialPageRoute(
                                         builder:
-                                            (_) =>
-                                                ProfileDisplayScreenForClient(
-                                                  serviceProviderId:
-                                                      provider.id,
-                                                ),
+                                            (
+                                              _,
+                                            ) => ProfileDisplayScreenForClient(
+                                              serviceProviderId: provider.id,
+                                              // Pass desiredDateTime if needed on the profile screen
+                                            ),
                                       ),
                                     );
                                   },
@@ -201,6 +227,8 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                       'Book Now for ${provider.name} (ID: ${provider.id})',
                                     );
                                     // Implement your "Book Now" logic here
+                                    // This is where you might pass widget.desiredDateTime
+                                    // to a booking confirmation screen.
                                   },
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: Colors.purple,
@@ -248,19 +276,6 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                   ),
                                 )
                                 .toList(),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        provider.availableToday
-                            ? 'Available today'
-                            : 'Unavailable',
-                        style: TextStyle(
-                          color:
-                              provider.availableToday
-                                  ? Colors.green
-                                  : Colors.red,
-                          fontWeight: FontWeight.w600,
-                        ),
                       ),
                     ],
                   ),
