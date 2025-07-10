@@ -1,3 +1,4 @@
+// File: homeconnect/data/providers/homeowner_firestore_provider.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:homeconnect/data/models/service_provider_modal.dart';
@@ -24,22 +25,28 @@ class HomeownerFirestoreProvider {
         'getRecommendedProviders',
       );
 
-      // --- IMPORTANT: ADD THIS DEBUG PRINT ---
       final Map<String, dynamic> requestData = {
         'serviceCategory': serviceCategory,
         'homeownerLatitude': homeownerLatitude,
         'homeownerLongitude': homeownerLongitude,
-        'desiredDateTime':
-            desiredDateTime?.toIso8601String(), // Pass as ISO string
+        // Pass desiredDateTime as an ISO 8601 UTC string.
+        // It's important to use toUtc() to ensure consistency with the Cloud Function.
+        'desiredDateTime': desiredDateTime?.toUtc().toIso8601String(),
       };
       print('DEBUG: Sending data to Cloud Function: $requestData');
-      // --- END DEBUG PRINT ---
 
-      final result = await callable.call(requestData); // Use requestData here
+      final result = await callable.call(requestData);
 
       final List<dynamic> providersData = result.data['providers'] ?? [];
+
+      // Assuming ServiceProviderModel.fromJson expects a Map<String, dynamic>
+      // and the 'id' field is already included within the map from the Cloud Function.
+      // If your fromMap requires 'data' and a separate 'id', you'll need to adapt this.
       return providersData
-          .map((data) => ServiceProviderModel.fromMap(data, data['id']))
+          .map(
+            (data) =>
+                ServiceProviderModel.fromJson(data as Map<String, dynamic>),
+          )
           .toList();
     } on FirebaseFunctionsException catch (e) {
       print(
@@ -48,7 +55,9 @@ class HomeownerFirestoreProvider {
       throw Exception('Failed to fetch providers: ${e.message}');
     } catch (e) {
       print('❌ General error calling Cloud Function: $e');
-      throw Exception('An unexpected error occurred while fetching providers.');
+      throw Exception(
+        'An unexpected error occurred while fetching providers: $e',
+      );
     }
   }
 
