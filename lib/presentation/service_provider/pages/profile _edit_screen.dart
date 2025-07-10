@@ -9,6 +9,7 @@ import 'package:homeconnect/data/models/services.dart'; // Assuming Selection() 
 
 // Import the new RatingReview model
 import 'package:homeconnect/data/models/rating_review.dart'; // Make sure this path is correct
+import 'package:geolocator/geolocator.dart'; // Import geolocator for location services
 
 class ProfileEditScreen extends StatefulWidget {
   const ProfileEditScreen({super.key});
@@ -28,6 +29,11 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   Map<String, dynamic> _availability = {};
   List<String> _selectedCategories = [];
 
+  // New state variables for location
+  GeoPoint? _currentLocation;
+  String _locationStatus =
+      'Loading location...'; // To display status to the user
+
   final picker = ImagePicker();
 
   double _averageRating = 0.0;
@@ -38,8 +44,68 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     super.initState();
     _loadProfile();
     _loadRatings(); // Load ratings when the screen initializes
+    _getCurrentLocation(); // Load current location when the screen initializes
   }
 
+  // --- Location Logic ---
+  Future<void> _getCurrentLocation() async {
+    setState(() {
+      _locationStatus = 'Getting current location...';
+    });
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // Test if location services are enabled.
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      setState(() {
+        _locationStatus = 'Location services are disabled.';
+      });
+      // Consider showing a dialog to the user to enable services
+      return;
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        setState(() {
+          _locationStatus = 'Location permissions are denied.';
+        });
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      setState(() {
+        _locationStatus =
+            'Location permissions are permanently denied, we cannot request permissions.';
+      });
+      // Open app settings for the user to change permissions
+      await Geolocator.openAppSettings();
+      return;
+    }
+
+    // When we reach here, permissions are granted and we can
+    // continue accessing the position of the device.
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      setState(() {
+        _currentLocation = GeoPoint(position.latitude, position.longitude);
+        _locationStatus =
+            'Location updated: ${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
+      });
+    } catch (e) {
+      setState(() {
+        _locationStatus = 'Error getting location: ${e.toString()}';
+      });
+      print('Error getting location: $e'); // For debugging
+    }
+  }
+
+  // --- Existing Profile Load Logic (updated to include location) ---
   Future<void> _loadProfile() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -54,9 +120,23 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     if (data == null) return;
 
     setState(() {
-      _nameController.text = data['name'] ?? '';
+      // Update from 'name' to 'profileInfo.name' as per the desired Firestore structure
+      _nameController.text =
+          data['profileInfo']?['name'] ?? ''; // Access nested name
       _descController.text = data['description'] ?? '';
       _imageUrl = data['profilePhoto'];
+
+      // Load location if it exists
+      if (data['location'] is GeoPoint) {
+        _currentLocation = data['location'] as GeoPoint;
+        _locationStatus =
+            'Current saved location: ${_currentLocation!.latitude.toStringAsFixed(4)}, ${_currentLocation!.longitude.toStringAsFixed(4)}';
+      } else {
+        // If location is not a GeoPoint or missing, try to get current location
+        _locationStatus = 'Location not set in profile. Getting current...';
+        _getCurrentLocation();
+      }
+
       _availability =
           (data['availability'] as Map<String, dynamic>?)?.map((key, value) {
             final startString = value['start'];
@@ -103,8 +183,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         final ratingReview = RatingReview.fromFirestore(doc);
         sumRatings += ratingReview.rating;
       } catch (e) {
-        print('Error parsing rating review document: $e');
-        // Handle malformed documents gracefully, e.g., log error, skip document
+        print('Error parsing rating review document: $e'); // For debugging
       }
     }
 
@@ -159,6 +238,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       return;
     }
 
+    if (_currentLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please set your current location.")),
+      );
+      return;
+    }
+
     final updatedImageUrl = await _uploadProfileImage();
 
     Map<String, dynamic> availabilityDataForFirestore = {};
@@ -173,11 +259,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         .collection('service_providers')
         .doc(user.uid)
         .update({
-          'name': _nameController.text,
+          // Update to profileInfo.name as per desired Firestore structure
+          'profileInfo': {'name': _nameController.text},
           'description': _descController.text,
           'profilePhoto': updatedImageUrl,
           'availability': availabilityDataForFirestore,
           'categories': _selectedCategories,
+          'location': _currentLocation, // Save the GeoPoint location
         });
 
     if (!mounted) return;
@@ -336,6 +424,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.stretch, // Use stretch for buttons
           children: [
             Center(
               child: Stack(
@@ -382,7 +472,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.star, color: Colors.amber, size: 24),
+                const Icon(Icons.star, color: Colors.amber, size: 24),
                 const SizedBox(width: 5),
                 Text(
                   _averageRating.toStringAsFixed(
@@ -443,6 +533,37 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 fillColor: Colors.white,
               ),
               maxLines: 3,
+            ),
+            const SizedBox(height: 20),
+
+            // --- Location Update Section ---
+            Align(
+              alignment: Alignment.centerLeft,
+              child: const Text(
+                'Current Location',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(_locationStatus), // Display location status/coordinates
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _getCurrentLocation, // Button to update location
+                icon: const Icon(Icons.location_on, color: Colors.white),
+                label: const Text(
+                  "Update My Location",
+                  style: TextStyle(color: Colors.white),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6B4EEF),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
             ),
             const SizedBox(height: 20),
 

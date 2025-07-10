@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:geolocator/geolocator.dart'; // Make sure geolocator is added to your pubspec.yaml
+import 'package:cloud_firestore/cloud_firestore.dart'; // Still needed for GeoPoint or other Firestore related stuff if directly accessing
+import 'package:geolocator/geolocator.dart'; // May still be useful for client-side location services
+import 'package:homeconnect/data/models/service_provider_modal.dart';
 import 'package:homeconnect/presentation/homeowner/pages/profile_display_for_client.dart';
+import 'package:homeconnect/data/providers/homeowner_firestore_provider.dart'; // Import the updated provider
 
-class ServiceProvidersList extends StatelessWidget {
+class ServiceProvidersList extends StatefulWidget {
   final String category;
-  final GeoPoint userLocation;
+  final GeoPoint userLocation; // User's current location to pass to the CF
 
   const ServiceProvidersList({
     super.key,
@@ -13,75 +15,49 @@ class ServiceProvidersList extends StatelessWidget {
     required this.userLocation,
   });
 
-  // Safely handle mixed GeoPoint / Map input
-  static GeoPoint? _extractGeoPoint(dynamic locationData) {
-    if (locationData is GeoPoint) {
-      return locationData;
-    } else if (locationData is Map<String, dynamic> &&
-        locationData.containsKey('latitude') &&
-        locationData.containsKey('longitude')) {
-      return GeoPoint(
-        (locationData['latitude'] as num).toDouble(),
-        (locationData['longitude'] as num).toDouble(),
-      );
-    }
-    return null;
+  @override
+  State<ServiceProvidersList> createState() => _ServiceProvidersListState();
+}
+
+class _ServiceProvidersListState extends State<ServiceProvidersList> {
+  late Future<List<ServiceProviderModel>> _providersFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchProviders();
   }
 
-  Future<List<DocumentSnapshot>> _fetchProviders(GeoPoint userLocation) async {
-    try {
-      final snapshot =
-          await FirebaseFirestore.instance
-              .collection('service_providers')
-              .where('categories', arrayContains: category)
-              .get();
-
-      final providers = snapshot.docs;
-
-      // Sort by distance
-      providers.sort((a, b) {
-        GeoPoint? locA = _extractGeoPoint(a['location']);
-        GeoPoint? locB = _extractGeoPoint(b['location']);
-
-        if (locA == null || locB == null) return 0;
-
-        final distanceA = Geolocator.distanceBetween(
-          userLocation.latitude,
-          userLocation.longitude,
-          locA.latitude,
-          locA.longitude,
-        );
-        final distanceB = Geolocator.distanceBetween(
-          userLocation.latitude,
-          userLocation.longitude,
-          locB.latitude,
-          locB.longitude,
-        );
-
-        return distanceA.compareTo(distanceB);
-      });
-
-      return providers;
-    } catch (e) {
-      print('❌ Firestore fetch error: $e');
-      return [];
-    }
+  void _fetchProviders() {
+    _providersFuture = HomeownerFirestoreProvider().fetchRecommendedProviders(
+      serviceCategory: widget.category,
+      homeownerLatitude: widget.userLocation.latitude,
+      homeownerLongitude: widget.userLocation.longitude,
+      // You can add desiredDateTime here if you implement a date/time picker
+      // desiredDateTime: DateTime.now(), // Example
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Providers for $category')),
-      body: FutureBuilder<List<DocumentSnapshot>>(
-        future: _fetchProviders(userLocation),
+      appBar: AppBar(title: Text('Providers for ${widget.category}')),
+      body: FutureBuilder<List<ServiceProviderModel>>(
+        future: _providersFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (snapshot.hasError ||
-              !snapshot.hasData ||
-              snapshot.data!.isEmpty) {
-            return const Center(child: Text('No providers found.'));
+          if (snapshot.hasError) {
+            print('Error in FutureBuilder: ${snapshot.error}');
+            return Center(
+              child: Text('Error: ${snapshot.error}. Please try again.'),
+            );
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(
+              child: Text('No providers found matching your criteria.'),
+            );
           }
 
           final providers = snapshot.data!;
@@ -89,27 +65,7 @@ class ServiceProvidersList extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             itemCount: providers.length,
             itemBuilder: (context, index) {
-              final data = providers[index].data() as Map<String, dynamic>;
-              final docId = providers[index].id;
-
-              final name = data['name'] ?? 'Unnamed';
-              final availableToday = data['availableToday'] ?? false;
-              final categories = List<String>.from(data['categories'] ?? []);
-              final profilePhoto = data['profilePhoto'];
-              final providerLocation = _extractGeoPoint(data['location']);
-              final double rating = (data['rating'] as num?)?.toDouble() ?? 0.0;
-              final int reviewCount = data['reviewCount'] ?? 0;
-
-              double? distanceKm;
-              if (providerLocation != null) {
-                final distanceInMeters = Geolocator.distanceBetween(
-                  userLocation.latitude,
-                  userLocation.longitude,
-                  providerLocation.latitude,
-                  providerLocation.longitude,
-                );
-                distanceKm = distanceInMeters / 1000;
-              }
+              final provider = providers[index];
 
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -123,17 +79,16 @@ class ServiceProvidersList extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start, // Align items to the top
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           CircleAvatar(
                             radius: 30,
                             backgroundColor: Colors.grey[200],
                             child:
-                                profilePhoto != null
+                                provider.profilePhoto != null
                                     ? ClipOval(
                                       child: Image.network(
-                                        profilePhoto,
+                                        provider.profilePhoto!,
                                         width: 60,
                                         height: 60,
                                         fit: BoxFit.cover,
@@ -153,7 +108,7 @@ class ServiceProvidersList extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  name,
+                                  provider.name,
                                   style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
@@ -169,8 +124,8 @@ class ServiceProvidersList extends StatelessWidget {
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      distanceKm != null
-                                          ? '${distanceKm.toStringAsFixed(1)} km away'
+                                      provider.distanceKm != null
+                                          ? '${provider.distanceKm!.toStringAsFixed(1)} km away'
                                           : 'Distance unknown',
                                       style: const TextStyle(
                                         color: Colors.grey,
@@ -178,18 +133,15 @@ class ServiceProvidersList extends StatelessWidget {
                                     ),
                                   ],
                                 ),
-                                // Moved available/unavailable to the bottom
                               ],
                             ),
                           ),
-                          // Right-aligned section for rating and buttons
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               const SizedBox(height: 4),
                               Row(
-                                mainAxisSize:
-                                    MainAxisSize.min, // To keep the row compact
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   const Icon(
                                     Icons.star,
@@ -197,7 +149,7 @@ class ServiceProvidersList extends StatelessWidget {
                                     size: 16,
                                   ),
                                   Text(
-                                    '$rating (${reviewCount} reviews)',
+                                    '${provider.rating} (${provider.reviewCount} reviews)',
                                     style: const TextStyle(
                                       fontSize: 14,
                                       color: Colors.grey,
@@ -207,7 +159,7 @@ class ServiceProvidersList extends StatelessWidget {
                               ),
                               const SizedBox(height: 8),
                               SizedBox(
-                                width: 120, // Consistent width for buttons
+                                width: 120,
                                 child: ElevatedButton(
                                   onPressed: () {
                                     Navigator.push(
@@ -216,7 +168,8 @@ class ServiceProvidersList extends StatelessWidget {
                                         builder:
                                             (_) =>
                                                 ProfileDisplayScreenForClient(
-                                                  serviceProviderId: docId,
+                                                  serviceProviderId:
+                                                      provider.id,
                                                 ),
                                       ),
                                     );
@@ -228,7 +181,7 @@ class ServiceProvidersList extends StatelessWidget {
                                     ),
                                     padding: const EdgeInsets.symmetric(
                                       vertical: 8,
-                                    ), // Adjust padding
+                                    ),
                                   ),
                                   child: const Text(
                                     'View Profile',
@@ -239,29 +192,27 @@ class ServiceProvidersList extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              const SizedBox(
-                                height: 8,
-                              ), // Spacing between buttons
+                              const SizedBox(height: 8),
                               SizedBox(
-                                width: 120, // Consistent width for buttons
+                                width: 120,
                                 child: OutlinedButton(
                                   onPressed: () {
+                                    print(
+                                      'Book Now for ${provider.name} (ID: ${provider.id})',
+                                    );
                                     // Implement your "Book Now" logic here
-                                    print('Book Now for $name (ID: $docId)');
-                                    // You might navigate to a booking screen, show a dialog, etc.
                                   },
                                   style: OutlinedButton.styleFrom(
-                                    foregroundColor:
-                                        Colors.purple, // Text color
+                                    foregroundColor: Colors.purple,
                                     side: const BorderSide(
                                       color: Colors.purple,
-                                    ), // Border color
+                                    ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     padding: const EdgeInsets.symmetric(
                                       vertical: 8,
-                                    ), // Adjust padding
+                                    ),
                                   ),
                                   child: const Text(
                                     'Book Now',
@@ -274,13 +225,12 @@ class ServiceProvidersList extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 10),
-                      // Skills/Categories chips (MOVED HERE)
                       Wrap(
                         spacing: 8,
                         runSpacing: 4,
                         children:
-                            categories
-                                .take(3) // Limit to first 3 categories
+                            provider.categories
+                                .take(3)
                                 .map(
                                   (cat) => Container(
                                     padding: const EdgeInsets.symmetric(
@@ -299,12 +249,16 @@ class ServiceProvidersList extends StatelessWidget {
                                 )
                                 .toList(),
                       ),
-                      const SizedBox(height: 10), // Spacing before availability
-                      // Availability/Unavailable (MOVED HERE)
+                      const SizedBox(height: 10),
                       Text(
-                        availableToday ? 'Available today' : 'Unavailable',
+                        provider.availableToday
+                            ? 'Available today'
+                            : 'Unavailable',
                         style: TextStyle(
-                          color: availableToday ? Colors.green : Colors.red,
+                          color:
+                              provider.availableToday
+                                  ? Colors.green
+                                  : Colors.red,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
