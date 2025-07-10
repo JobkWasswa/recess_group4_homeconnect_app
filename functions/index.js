@@ -2,41 +2,45 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 
-admin.initializeApp(); // Initialize Firebase Admin SDk
+admin.initializeApp(); // Initialize Firebase Admin SDK
 
-/**
- * Callable Cloud Function to get recommended service providers.
- *
- * @param {object} data - The data passed from the client (Flutter app).
- * @param {string} data.serviceCategory - The category of service requested.
- * @param {number} data.homeownerLatitude - Latitude of the homeowner's job location.
- * @param {number} data.homeownerLongitude - Longitude of the homeowner's job location.
- * @param {string} [data.desiredDateTime] - Optional: ISO string of the desired date and time for service.
- *
- * @param {object} context - The context of the function call (includes auth info).
- * @returns {object} An object containing a 'providers' array of recommended service providers.
- */
 exports.getRecommendedProviders = functions.https.onCall(
-  async (data, context) => {
-    // MODIFICATION: Removed strict authentication check.
-    // The function will now proceed whether or not context.auth is present.
-    // You can still access context.auth.uid if you need the user's ID for personalization
-    // const userId = context.auth ? context.auth.uid : null;
-    // console.log(`Invoking getRecommendedProviders for user: ${userId || 'Unauthenticated'}`);
+  async (requestData, context) => {
+    console.log("CF received raw requestData:", requestData);
+    console.log(
+      "CF received serviceCategory:",
+      requestData.data?.serviceCategory
+    );
+    console.log(
+      "CF received homeownerLatitude:",
+      requestData.data?.homeownerLatitude
+    );
+    console.log(
+      "CF received homeownerLongitude:",
+      requestData.data?.homeownerLongitude
+    );
 
-    // Input Validation: Ensure required parameters are provided.
     const {
       serviceCategory,
       homeownerLatitude,
       homeownerLongitude,
-      desiredDateTime, // This will be used for availability filtering
-    } = data;
+      desiredDateTime,
+    } = requestData.data;
 
     if (
       !serviceCategory ||
+      typeof serviceCategory !== "string" ||
       typeof homeownerLatitude !== "number" ||
-      typeof homeownerLongitude !== "number"
+      !Number.isFinite(homeownerLatitude) ||
+      typeof homeownerLongitude !== "number" ||
+      !Number.isFinite(homeownerLongitude)
     ) {
+      console.error("Validation failed for incoming data:", {
+        serviceCategory,
+        homeownerLatitude,
+        homeownerLongitude,
+      });
+
       throw new functions.https.HttpsError(
         "invalid-argument",
         "Missing or invalid required parameters (serviceCategory, homeownerLatitude, homeownerLongitude)."
@@ -47,7 +51,7 @@ exports.getRecommendedProviders = functions.https.onCall(
       latitude: homeownerLatitude,
       longitude: homeownerLongitude,
     };
-    const MAX_DISTANCE_KM = 7; // Your defined maximum radius for matching
+    const MAX_DISTANCE_KM = 7;
 
     console.log(
       `Searching for '${serviceCategory}' providers near (${homeownerLatitude}, ${homeownerLongitude})`
@@ -55,7 +59,6 @@ exports.getRecommendedProviders = functions.https.onCall(
 
     let providersSnapshot;
     try {
-      // Step 1: Initial query from Firestore based on serviceCategory
       providersSnapshot = await admin
         .firestore()
         .collection("service_providers")
@@ -71,13 +74,12 @@ exports.getRecommendedProviders = functions.https.onCall(
       throw new functions.https.HttpsError(
         "internal",
         "Failed to retrieve service providers data.",
-        error.message
+        error
       );
     }
 
     const eligibleProviders = [];
 
-    // Loop through each provider to apply filtering and scoring
     for (const doc of providersSnapshot.docs) {
       const providerData = doc.data();
       const providerId = doc.id;
@@ -85,17 +87,13 @@ exports.getRecommendedProviders = functions.https.onCall(
 
       let meetsAllCriteria = true;
 
-      // --- Geospatial Filtering Logic ---
       let distance = null;
-      // Accessing location correctly (assuming it's a GeoPoint field directly in Firestore)
       if (
         !providerData.location ||
         typeof providerData.location.latitude === "undefined" ||
         typeof providerData.location.longitude === "undefined"
       ) {
-        console.warn(
-          `Provider ${providerId} is missing complete location data. Skipping.`
-        );
+        console.warn(`Provider ${providerId} missing location. Skipping.`);
         meetsAllCriteria = false;
       } else {
         const providerBaseLocation = {
@@ -108,9 +106,8 @@ exports.getRecommendedProviders = functions.https.onCall(
           homeownerLocation.longitude,
           providerBaseLocation.latitude,
           providerBaseLocation.longitude
-        ); // Distance in kilometers
+        );
 
-        // Filter: Check if provider's base location is within the MAX_DISTANCE_KM (7km) from homeowner
         if (distance > MAX_DISTANCE_KM) {
           console.log(
             `Provider ${providerId} too far (${distance.toFixed(
@@ -120,28 +117,18 @@ exports.getRecommendedProviders = functions.https.onCall(
           meetsAllCriteria = false;
         }
       }
-      // --- End of Geospatial Filtering Logic ---
 
-      // --- Availability Filtering Logic ---
-      // This part assumes a simple 'availableToday' boolean in your Firestore document.
-      // If desiredDateTime is provided, we check against 'availableToday'.
-      // If desiredDateTime is NOT provided, and provider has 'availableToday' set to false, filter it out.
       if (meetsAllCriteria) {
-        const providerAvailableToday = providerData.availableToday ?? true; // Default to true if field is missing
+        const providerAvailableToday = providerData.availableToday ?? true;
 
         if (desiredDateTime) {
-          // If a specific date/time is requested, enforce 'availableToday' or more complex logic
           if (!providerAvailableToday) {
             console.log(
               `Provider ${providerId} not available on specified date. Skipping.`
             );
             meetsAllCriteria = false;
           }
-          // TODO: Implement more sophisticated date/time availability parsing if needed
-          // e.g., using a library like 'luxon' or 'moment-timezone' to check against `providerData.availability` map
-          // based on `desiredDateTime`.
         } else {
-          // If no specific date/time requested, just filter by 'availableToday' if it's explicitly false
           if (!providerAvailableToday) {
             console.log(
               `Provider ${providerId} not generally available today. Skipping.`
@@ -151,34 +138,27 @@ exports.getRecommendedProviders = functions.https.onCall(
         }
       }
 
-      // If all hard filters are met, add to eligible list for scoring/ranking
       if (meetsAllCriteria) {
-        // --- Rating & Review Scoring ---
-        // CORRECTED: Access averageRating and numberOfReviews directly from providerData
         const rating = providerData.averageRating ?? 0;
         const reviewCount = providerData.numberOfReviews ?? 0;
-        const score = calculateRatingScore(rating, reviewCount, distance); // Pass distance for a proximity bonus
+        const score = calculateRatingScore(rating, reviewCount, distance);
 
         eligibleProviders.push({
           id: providerId,
-          // CORRECTED: Access name directly from providerData (as per screenshot)
           name: providerData.name ?? "Unnamed Provider",
           profilePhoto: providerData.profilePhoto ?? null,
           categories: providerData.categories ?? [],
           availableToday: providerData.availableToday ?? false,
-          service: serviceCategory, // Or the actual services offered by the provider
+          service: serviceCategory,
           rating: rating,
           reviewCount: reviewCount,
           distanceKm:
-            distance !== null ? parseFloat(distance.toFixed(2)) : null, // Ensure 'distanceKm' matches model
+            distance !== null ? parseFloat(distance.toFixed(2)) : null,
           score: score,
-          // Add any other data needed by the Flutter UI here
         });
       }
     }
 
-    // --- Overall Ranking Logic ---
-    // Sort by the calculated score (highest score first).
     eligibleProviders.sort((a, b) => b.score - a.score);
 
     console.log(`Found ${eligibleProviders.length} eligible providers.`);
@@ -186,44 +166,32 @@ exports.getRecommendedProviders = functions.https.onCall(
   }
 );
 
-// Helper Function: Distance Calculation (Haversine Formula)
+// Helper Function: Distance Calculation (Haversine)
 function calculateDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371; // Radius of Earth in kilometers
+  const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) *
       Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+      Math.sin(dLon / 2) ** 2;
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distance = R * c; // Distance in km
-  return distance;
+  return R * c;
 }
 
-// Helper Function: Rating Score Calculation (Refined)
+// Helper Function: Rating Score
 function calculateRatingScore(averageRating, reviewCount, distanceKm) {
-  // A more refined scoring function:
-  // 1. Base score from average rating.
-  // 2. Bonus for more reviews (more reliable rating).
-  // 3. Penalty for distance (closer providers are preferred).
-
-  if (reviewCount === 0) return 0; // Providers with no reviews get a base score of 0, or some minimal value.
+  if (reviewCount === 0) return 0;
 
   let score = averageRating;
+  score += Math.min(reviewCount * 0.05, 1.0);
 
-  // Add a bonus for review count. The more reviews, the more trustworthy the rating.
-  // This example gives a small boost for every 10 reviews, up to a certain point.
-  score += Math.min(reviewCount * 0.05, 1.0); // Max 1.0 point bonus for 20+ reviews
-
-  // Apply a distance penalty. Closer is better.
-  // Example: 0.1 point penalty per km, up to a maximum penalty.
   if (distanceKm !== null && distanceKm !== undefined) {
-    score -= Math.min(distanceKm * 0.1, 2.0); // Max 2.0 point penalty for 20+ km
+    score -= Math.min(distanceKm * 0.1, 2.0);
   }
 
-  return Math.max(0, score); // Ensure score doesn't go below zero
+  return Math.max(0, score);
 }
 
 // Helper Function: Availability Check (This is a placeholder and needs real implementation)
