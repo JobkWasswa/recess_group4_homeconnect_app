@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Still needed for GeoPoint or other Firestore related stuff if directly accessing
-import 'package:geolocator/geolocator.dart'; // May still be useful for client-side location services
+// May still be useful for client-side location services
 import 'package:homeconnect/data/models/service_provider_modal.dart';
 import 'package:homeconnect/presentation/homeowner/pages/profile_display_for_client.dart';
 import 'package:homeconnect/data/providers/homeowner_firestore_provider.dart'; // Import the updated provider
