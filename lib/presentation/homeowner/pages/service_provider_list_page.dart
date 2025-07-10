@@ -1,7 +1,9 @@
+// File: homeconnect/presentation/homeowner/pages/list_of_serviceproviders.dart
 import 'package:flutter/material.dart';
-import 'package:homeconnect/presentation/homeowner/pages/list_of _serviceproviders.dart'; // Import your ServiceProvidersList
+import 'package:homeconnect/presentation/homeowner/pages/list_of _serviceproviders.dart';
 import 'package:geolocator/geolocator.dart'; // Needed for getting user location
 import 'package:cloud_firestore/cloud_firestore.dart'; // Needed for GeoPoint
+import 'package:intl/intl.dart'; // Import for date formatting in UI
 
 class ServiceProviderListPage extends StatefulWidget {
   final String? searchQuery;
@@ -18,18 +20,25 @@ class _ServiceProviderListPageState extends State<ServiceProviderListPage> {
   GeoPoint? _userCurrentLocation;
   bool _isLoadingLocation = true;
   String? _locationError;
+  DateTime?
+  _selectedDateTime; // Add this state variable for the desired date/time
 
   @override
   void initState() {
     super.initState();
-    _determinePosition();
+    _determinePosition().then((_) {
+      // Initialize _selectedDateTime after location is determined
+      if (_userCurrentLocation != null) {
+        // Default to an hour from now, ensuring it's not in the past
+        _selectedDateTime = DateTime.now().add(const Duration(hours: 1));
+      }
+    });
   }
 
   Future<void> _determinePosition() async {
     bool serviceEnabled;
     LocationPermission permission;
 
-    // Test if location services are enabled.
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       setState(() {
@@ -77,6 +86,40 @@ class _ServiceProviderListPageState extends State<ServiceProviderListPage> {
     }
   }
 
+  // Function to show date and time picker
+  Future<void> _selectDateTime(BuildContext context) async {
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _selectedDateTime ?? DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(
+        const Duration(days: 365),
+      ), // 1 year from now
+    );
+
+    if (pickedDate != null) {
+      final TimeOfDay? pickedTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(
+          _selectedDateTime ?? DateTime.now(),
+        ),
+      );
+
+      if (pickedTime != null) {
+        setState(() {
+          _selectedDateTime = DateTime(
+            pickedDate.year,
+            pickedDate.month,
+            pickedDate.day,
+            pickedTime.hour,
+            pickedTime.minute,
+          );
+          // The ValueKey on ServiceProvidersList will handle the rebuild
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final args =
@@ -94,14 +137,17 @@ class _ServiceProviderListPageState extends State<ServiceProviderListPage> {
 
     if (_isLoadingLocation) {
       return Scaffold(
-        appBar: AppBar(title: Text('Available Professionals')),
+        appBar: AppBar(title: const Text('Available Professionals')),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 10),
-              Text('Getting your location to find nearby providers...'),
+              const CircularProgressIndicator(),
+              const SizedBox(height: 10),
+              Text(
+                _locationError ??
+                    'Getting your location to find nearby providers...',
+              ),
             ],
           ),
         ),
@@ -117,8 +163,8 @@ class _ServiceProviderListPageState extends State<ServiceProviderListPage> {
 
     if (_userCurrentLocation == null) {
       return Scaffold(
-        appBar: AppBar(title: Text('Available Professionals')),
-        body: Center(
+        appBar: AppBar(title: const Text('Available Professionals')),
+        body: const Center(
           child: Text(
             'Could not determine your location. Cannot find nearby providers.',
           ),
@@ -126,10 +172,40 @@ class _ServiceProviderListPageState extends State<ServiceProviderListPage> {
       );
     }
 
-    // Now navigate to ServiceProvidersList, passing the category and GeoPoint
-    return ServiceProvidersList(
-      category: searchValue,
-      userLocation: _userCurrentLocation!,
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Providers for $searchValue'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_today),
+            onPressed: () => _selectDateTime(context),
+            tooltip: 'Select Booking Date & Time',
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              _selectedDateTime == null
+                  ? 'Please select a date and time to filter availability.'
+                  : 'Searching for: $searchValue on ${DateFormat('dd/MM/yyyy h:mm a').format(_selectedDateTime!.toLocal())}', // Display selected time
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          Expanded(
+            child: ServiceProvidersList(
+              // Using ValueKey to force rebuild of ServiceProvidersList when _selectedDateTime changes
+              key: ValueKey(_selectedDateTime),
+              category: searchValue,
+              userLocation: _userCurrentLocation!,
+              desiredDateTime: _selectedDateTime, // Pass the desired date/time
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
