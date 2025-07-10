@@ -5,8 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class HomeownerFirestoreProvider {
   final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
-    region: 'us-central1',
-  ); // Match your function region
+    region: 'us-central1', // Match your function region
+  );
 
   Future<List<ServiceProviderModel>> fetchRecommendedProviders({
     required String serviceCategory,
@@ -23,13 +23,19 @@ class HomeownerFirestoreProvider {
       final HttpsCallable callable = _functions.httpsCallable(
         'getRecommendedProviders',
       );
-      final result = await callable.call(<String, dynamic>{
+
+      // --- IMPORTANT: ADD THIS DEBUG PRINT ---
+      final Map<String, dynamic> requestData = {
         'serviceCategory': serviceCategory,
         'homeownerLatitude': homeownerLatitude,
         'homeownerLongitude': homeownerLongitude,
         'desiredDateTime':
             desiredDateTime?.toIso8601String(), // Pass as ISO string
-      });
+      };
+      print('DEBUG: Sending data to Cloud Function: $requestData');
+      // --- END DEBUG PRINT ---
+
+      final result = await callable.call(requestData); // Use requestData here
 
       final List<dynamic> providersData = result.data['providers'] ?? [];
       return providersData
