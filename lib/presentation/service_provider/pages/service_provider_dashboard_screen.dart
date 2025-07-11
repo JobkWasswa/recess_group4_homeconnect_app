@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:homeconnect/config/routes.dart'; // Import routes for logout navigation
+import 'package:homeconnect/config/routes.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/presentation/service_provider/pages/service_provider_savedprofile.dart';
@@ -35,55 +35,63 @@ class _ServiceProviderDashboardScreenState
   void initState() {
     super.initState();
     _fetchProviderName();
-    _updateProviderFCMToken(); // Ensure provider FCM token is saved on dashboard load
-  }
-
-  // Fetch and format provider's name from Firestore
-  String _formatNameFromEmail(String email) {
-    final username = email.split('@').first;
-    final withSpaces = username.replaceAll(RegExp(r'[._-]'), ' ');
-    final words = withSpaces.split(' ');
-    return words
-        .map(
-          (word) =>
-              word.isNotEmpty ? word[0].toUpperCase() + word.substring(1) : '',
-        )
-        .join(' ')
-        .trim();
+    _updateProviderFCMToken();
   }
 
   Future<void> _fetchProviderName() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
+        // If no user is logged in, default to 'Provider' and stop loading
         setState(() {
-          providerName =
-              user != null && user.email != null
-                  ? formatNameFromEmail(user.email!)
-                  : 'User';
-
+          providerName = 'Provider';
           isLoading = false;
         });
         return;
       }
+
+      // Attempt to fetch provider data from Firestore
       final doc =
           await FirebaseFirestore.instance
-              .collection('service_providers') // your provider collection
+              .collection('service_providers')
               .doc(user.uid)
               .get();
 
-      final data = doc.data();
-      final email = data?['email']?.toString();
-      final generatedName =
-          email != null ? _formatNameFromEmail(email) : 'Provider';
+      String? emailFromFirestore = doc.data()?['email']?.toString();
+      String? nameFromFirestore =
+          doc
+              .data()?['fullName']
+              ?.toString(); // Assuming you store a 'fullName' field
 
-      setState(() {
-        providerName = generatedName;
-        isLoading = false;
-      });
+      if (nameFromFirestore != null && nameFromFirestore.isNotEmpty) {
+        // Use the 'fullName' from Firestore if available
+        setState(() {
+          providerName = nameFromFirestore;
+          isLoading = false;
+        });
+      } else if (emailFromFirestore != null && emailFromFirestore.isNotEmpty) {
+        // If 'fullName' is not available, try to format from the email stored in Firestore
+        setState(() {
+          providerName = formatNameFromEmail(emailFromFirestore);
+          isLoading = false;
+        });
+      } else if (user.email != null) {
+        // Fallback to formatting from the authenticated user's email
+        setState(() {
+          providerName = formatNameFromEmail(user.email!);
+          isLoading = false;
+        });
+      } else {
+        // Last resort: default to 'Provider'
+        setState(() {
+          providerName = 'Provider';
+          isLoading = false;
+        });
+      }
     } catch (e) {
+      print('Error fetching provider name: $e');
       setState(() {
-        providerName = 'Provider';
+        providerName = 'Provider'; // Fallback in case of any error
         isLoading = false;
       });
     }
@@ -99,7 +107,10 @@ class _ServiceProviderDashboardScreenState
         await FirebaseFirestore.instance
             .collection('service_providers')
             .doc(user.uid)
-            .update({'fcmToken': token});
+            .set(
+              {'fcmToken': token},
+              SetOptions(merge: true),
+            ); // Use set with merge to avoid overwriting
       }
     } catch (e) {
       print('Error updating FCM token: $e');
