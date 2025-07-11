@@ -1,1 +1,38 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"homeconnect-a9d5c","appId":"1:279318295980:android:4fcf9376f7b3a33a3e7609","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"homeconnect-a9d5c","configurations":{"android":"1:279318295980:android:4fcf9376f7b3a33a3e7609","ios":"1:279318295980:ios:d859df32ed3b04653e7609","macos":"1:279318295980:ios:d859df32ed3b04653e7609","web":"1:279318295980:web:6e81cfbc35297a783e7609","windows":"1:279318295980:web:155c474592de53d53e7609"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "homeconnect-a9d5c",
+          "appId": "1:279318295980:android:4fcf9376f7b3a33a3e7609",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "homeconnect-a9d5c",
+          "configurations": {
+            "android": "1:279318295980:android:4fcf9376f7b3a33a3e7609",
+            "ios": "1:279318295980:ios:d859df32ed3b04653e7609",
+            "macos": "1:279318295980:ios:d859df32ed3b04653e7609",
+            "web": "1:279318295980:web:6e81cfbc35297a783e7609",
+            "windows": "1:279318295980:web:155c474592de53d53e7609"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ]
+}
