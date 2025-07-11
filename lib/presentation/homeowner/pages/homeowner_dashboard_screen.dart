@@ -130,7 +130,6 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                 _buildSearchAndFilter(),
                 _buildCategorySection(context),
                 _buildPopularServicesSection(context),
-                _buildRecommendedProfessionalsSection(context),
                 _buildBookingStatusSection(context),
                 const SizedBox(height: 20),
               ],
@@ -761,111 +760,6 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
     );
   }
 
-  Widget _buildRecommendedProfessionalsSection(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Recommended Professionals',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          Column(
-            children: [
-              _buildProfessionalCard(
-                context: context,
-                name: 'Grace Nakato',
-                service: 'Plumbing Expert',
-                rating: '4.9',
-                jobsCompleted: '150+',
-                imageUrl: 'https://via.placeholder.com/150',
-              ),
-              const SizedBox(height: 10),
-              _buildProfessionalCard(
-                context: context,
-                name: 'David Ssenyonga',
-                service: 'Electrical & AC Repair',
-                rating: '4.7',
-                jobsCompleted: '120+',
-                imageUrl: 'https://via.placeholder.com/150',
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProfessionalCard({
-    required BuildContext context,
-    required String name,
-    required String service,
-    required String rating,
-    required String jobsCompleted,
-    required String imageUrl,
-  }) {
-    return Card(
-      elevation: 5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(15),
-        onTap: () {
-          print('Professional tapped: \$name');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Tapped on \$name\'s profile!')),
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Row(
-            children: [
-              CircleAvatar(radius: 30, backgroundImage: NetworkImage(imageUrl)),
-              const SizedBox(width: 15),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      service,
-                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 5),
-                    Row(
-                      children: [
-                        Icon(Icons.star, color: Colors.amber[700], size: 16),
-                        Text(
-                          '\$rating (\$jobsCompleted jobs)',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[700],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: Colors.grey),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildBookingStatusSection(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -891,9 +785,9 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
             stream:
                 FirebaseFirestore.instance
                     .collection('bookings')
-                    //.where('clientId', isEqualTo: currentUserId)
+                    .where('clientId', isEqualTo: currentUserId)
                     //.orderBy('createdAt', descending: true)
-                    //.limit(3)
+                    .limit(3)
                     .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {

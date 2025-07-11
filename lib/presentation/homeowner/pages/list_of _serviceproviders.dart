@@ -1,4 +1,3 @@
-// File: homeconnect/presentation/homeowner/pages/service_providers_list_widget.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/data/models/service_provider_modal.dart';
@@ -9,14 +8,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class ServiceProvidersList extends StatefulWidget {
   final String category;
-  final GeoPoint userLocation; // User's current location to pass to the CF
-  final DateTime? desiredDateTime; // Add this parameter
+  final GeoPoint userLocation;
+  final DateTime? desiredDateTime;
 
   const ServiceProvidersList({
     super.key,
     required this.category,
     required this.userLocation,
-    this.desiredDateTime, // Make it optional if you want to allow initial broad search
+    this.desiredDateTime,
   });
 
   @override
@@ -35,7 +34,6 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
   @override
   void didUpdateWidget(covariant ServiceProvidersList oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Only re-fetch if relevant parameters have changed
     if (oldWidget.category != widget.category ||
         oldWidget.userLocation != widget.userLocation ||
         oldWidget.desiredDateTime != widget.desiredDateTime) {
@@ -48,8 +46,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
       serviceCategory: widget.category,
       homeownerLatitude: widget.userLocation.latitude,
       homeownerLongitude: widget.userLocation.longitude,
-      desiredDateTime:
-          widget.desiredDateTime, // Pass the desired date/time here
+      desiredDateTime: widget.desiredDateTime,
     );
   }
 
@@ -61,9 +58,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Navigator.pop(
-              context,
-            ); // This will navigate back to the previous screen
+            Navigator.pop(context);
           },
         ),
       ),
@@ -74,7 +69,6 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            print('Error in FutureBuilder: ${snapshot.error}');
             return Center(
               child: Text('Error: ${snapshot.error}. Please try again.'),
             );
@@ -193,12 +187,11 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                       context,
                                       MaterialPageRoute(
                                         builder:
-                                            (
-                                              _,
-                                            ) => ProfileDisplayScreenForClient(
-                                              serviceProviderId: provider.id,
-                                              // Pass desiredDateTime if needed on the profile screen
-                                            ),
+                                            (_) =>
+                                                ProfileDisplayScreenForClient(
+                                                  serviceProviderId:
+                                                      provider.id,
+                                                ),
                                       ),
                                     );
                                   },
@@ -249,9 +242,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                       clientName: currentUserName,
                                       serviceProviderId: provider.id,
                                       serviceProviderName: provider.name,
-                                      categories:
-                                          provider.categories, // no .join()
-
+                                      categories: provider.categories,
                                       bookingDate: DateTime.now(),
                                       status: 'pending',
                                       notes: '',
@@ -260,9 +251,16 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                     );
 
                                     try {
+                                      // ✅ Save only once, with Firestore timestamps
                                       await FirebaseFirestore.instance
                                           .collection('bookings')
-                                          .add(booking.toFirestore());
+                                          .add(<String, dynamic>{
+                                            ...booking.toFirestore(),
+                                            'createdAt':
+                                                FieldValue.serverTimestamp(),
+                                            'updatedAt':
+                                                FieldValue.serverTimestamp(),
+                                          });
 
                                       ScaffoldMessenger.of(
                                         context,
@@ -283,7 +281,6 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                       );
                                     }
                                   },
-
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: Colors.purple,
                                     side: const BorderSide(
