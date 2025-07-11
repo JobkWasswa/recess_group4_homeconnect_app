@@ -891,9 +891,9 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
             stream:
                 FirebaseFirestore.instance
                     .collection('bookings')
-                    .where('clientId', isEqualTo: currentUserId)
-                    .orderBy('createdAt', descending: true)
-                    .limit(3)
+                    //.where('clientId', isEqualTo: currentUserId)
+                    //.orderBy('createdAt', descending: true)
+                    //.limit(3)
                     .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
@@ -920,7 +920,10 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                           children: [
                             _buildBookingStatusCard(
                               context: context,
-                              service: booking.categories.join(', '),
+                              service:
+                                  booking.categories.isNotEmpty
+                                      ? booking.categories.first
+                                      : 'No category',
                               provider: booking.serviceProviderName,
                               status: capitalize(booking.status.toString()),
                               date: _formatDate(booking.bookingDate),
@@ -984,7 +987,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
 
   Widget _buildBookingStatusCard({
     required BuildContext context,
-    required String service,
+    required String service, // this should now be a single category string
     required String provider,
     required String status,
     required String date,
@@ -996,9 +999,9 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
       child: InkWell(
         borderRadius: BorderRadius.circular(15),
         onTap: () {
-          print('Booking tapped: \$service with \$provider');
+          print('Booking tapped: $service with $provider');
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Tapped on booking for \$service!')),
+            SnackBar(content: Text('Tapped on booking for $service!')),
           );
         },
         child: Padding(
@@ -1006,19 +1009,23 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Category Title (e.g., "Plumbing")
               Text(
                 service,
                 style: const TextStyle(
-                  fontSize: 16,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
+                  color: Colors.black87,
                 ),
               ),
-              const SizedBox(height: 5),
+              const SizedBox(height: 6),
+              // Service Provider Name
               Text(
-                'With: \$provider',
+                'Provider: $provider',
                 style: TextStyle(fontSize: 14, color: Colors.grey[700]),
               ),
-              const SizedBox(height: 5),
+              const SizedBox(height: 6),
+              // Booking Date and Status Badge
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
