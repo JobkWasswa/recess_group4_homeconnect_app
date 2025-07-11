@@ -6,6 +6,7 @@ import 'package:homeconnect/data/models/users.dart'; // CHANGE: Import UserProfi
 import 'package:geolocator/geolocator.dart';
 import 'package:homeconnect/presentation/homeowner/pages/list_of _serviceproviders.dart';
 //import 'package:geolocator/geolocator.dart';
+import 'package:homeconnect/data/models/booking.dart';
 
 // Helper – convert something like “john_doe99@example.com” → “John Doe99”
 String nameFromEmail(String email) {
@@ -50,6 +51,53 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
     return await Geolocator.getCurrentPosition(
       locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    // Format like: Tomorrow, 10:00 AM or Monday, 3:00 PM
+    final now = DateTime.now();
+    final isTomorrow = date.difference(now).inDays == 1;
+    final isToday = date.day == now.day;
+
+    final time = TimeOfDay.fromDateTime(date).format(context); // ✅ correct here
+
+    if (isToday) return 'Today, $time';
+    if (isTomorrow) return 'Tomorrow, $time';
+
+    return '${_weekdayName(date.weekday)}, $time';
+  }
+
+  String _weekdayName(int weekday) {
+    const days = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+    return days[weekday - 1];
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return Colors.orange;
+      case 'accepted':
+      case 'confirmed':
+        return Colors.green;
+      case 'denied':
+      case 'cancelled':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String capitalize(String input) {
+    if (input.isEmpty) return input;
+    return input[0].toUpperCase() + input.substring(1).toLowerCase();
   }
 
   @override
@@ -819,6 +867,16 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
   }
 
   Widget _buildBookingStatusSection(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return const Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Text('Please log in to view your bookings.'),
+      );
+    }
+
+    final currentUserId = user.uid;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
       child: Column(
@@ -829,29 +887,93 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-          _buildBookingStatusCard(
-            context: context,
-            service: 'Plumbing Repair',
-            provider: 'Grace Nakato',
-            status: 'Pending',
-            date: 'Tomorrow, 10:00 AM',
-            statusColor: Colors.orange,
-          ),
-          const SizedBox(height: 10),
-          _buildBookingStatusCard(
-            context: context,
-            service: 'House Cleaning',
-            provider: 'CleanSweep Ltd.',
-            status: 'Confirmed',
-            date: 'Today, 2:00 PM',
-            statusColor: Colors.green,
+          StreamBuilder<QuerySnapshot>(
+            stream:
+                FirebaseFirestore.instance
+                    .collection('bookings')
+                    .where('clientId', isEqualTo: currentUserId)
+                    .orderBy('createdAt', descending: true)
+                    .limit(3)
+                    .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return const Text('You have no bookings yet.');
+              }
+
+              final bookings =
+                  snapshot.data!.docs
+                      .map((doc) => Booking.fromFirestore(doc))
+                      .toList();
+
+              return Column(
+                children:
+                    bookings.map((booking) {
+                      final statusColor = _getStatusColor(booking.status);
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Column(
+                          children: [
+                            _buildBookingStatusCard(
+                              context: context,
+                              service: booking.categories.join(', '),
+                              provider: booking.serviceProviderName,
+                              status: capitalize(booking.status.toString()),
+                              date: _formatDate(booking.bookingDate),
+                              statusColor: statusColor,
+                            ),
+                            if (booking.status.toLowerCase() == 'denied')
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(top: 4.0),
+                                  child: TextButton(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (_) => ServiceProvidersList(
+                                                category:
+                                                    booking
+                                                            .categories
+                                                            .isNotEmpty
+                                                        ? booking.categories[0]
+                                                        : '',
+
+                                                userLocation: const GeoPoint(
+                                                  0,
+                                                  0,
+                                                ), // Replace with actual location
+                                              ),
+                                        ),
+                                      );
+                                    },
+                                    child: const Text(
+                                      'Book Another',
+                                      style: TextStyle(
+                                        color: Colors.purple,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+              );
+            },
           ),
           const SizedBox(height: 10),
           Center(
             child: TextButton(
-              onPressed: () {
-                print('View All Bookings pressed');
-              },
+              onPressed: () {},
               child: const Text('View All My Bookings'),
             ),
           ),

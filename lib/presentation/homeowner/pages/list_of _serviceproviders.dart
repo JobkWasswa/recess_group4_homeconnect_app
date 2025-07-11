@@ -223,9 +223,9 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                       clientName: currentUserName,
                                       serviceProviderId: provider.id,
                                       serviceProviderName: provider.name,
-                                      categories: provider.categories.join(
-                                        ', ',
-                                      ),
+                                      categories:
+                                          provider.categories, // no .join()
+
                                       bookingDate: DateTime.now(),
                                       status: 'pending',
                                       notes: '',
