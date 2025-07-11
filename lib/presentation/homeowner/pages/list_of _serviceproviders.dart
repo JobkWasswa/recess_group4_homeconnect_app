@@ -1,4 +1,5 @@
 // File: homeconnect/presentation/homeowner/pages/service_providers_list_widget.dart
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/data/models/service_provider_modal.dart';
@@ -9,14 +10,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class ServiceProvidersList extends StatefulWidget {
   final String category;
-  final GeoPoint userLocation; // User's current location to pass to the CF
-  final DateTime? desiredDateTime; // Add this parameter
+  final GeoPoint userLocation;
+  final DateTime? desiredDateTime;
 
   const ServiceProvidersList({
     super.key,
     required this.category,
     required this.userLocation,
-    this.desiredDateTime, // Make it optional if you want to allow initial broad search
+    this.desiredDateTime,
   });
 
   @override
@@ -35,7 +36,6 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
   @override
   void didUpdateWidget(covariant ServiceProvidersList oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Only re-fetch if relevant parameters have changed
     if (oldWidget.category != widget.category ||
         oldWidget.userLocation != widget.userLocation ||
         oldWidget.desiredDateTime != widget.desiredDateTime) {
@@ -48,8 +48,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
       serviceCategory: widget.category,
       homeownerLatitude: widget.userLocation.latitude,
       homeownerLongitude: widget.userLocation.longitude,
-      desiredDateTime:
-          widget.desiredDateTime, // Pass the desired date/time here
+      desiredDateTime: widget.desiredDateTime,
     );
   }
 
@@ -60,11 +59,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
         title: Text('Providers for ${widget.category}'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(
-              context,
-            ); // This will navigate back to the previous screen
-          },
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: FutureBuilder<List<ServiceProviderModel>>(
@@ -82,8 +77,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return const Center(
               child: Text(
-                'No providers found matching your criteria for the selected time.',
-              ),
+                  'No providers found matching your criteria for the selected time.'),
             );
           }
 
@@ -111,23 +105,19 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                           CircleAvatar(
                             radius: 30,
                             backgroundColor: Colors.grey[200],
-                            child:
-                                provider.profilePhoto != null
-                                    ? ClipOval(
-                                      child: Image.network(
-                                        provider.profilePhoto!,
-                                        width: 60,
-                                        height: 60,
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stack) =>
-                                                const Icon(
-                                                  Icons.person,
-                                                  size: 30,
-                                                ),
-                                      ),
-                                    )
-                                    : const Icon(Icons.person, size: 30),
+                            child: provider.profilePhoto != null
+                                ? ClipOval(
+                                    child: Image.network(
+                                      provider.profilePhoto!,
+                                      width: 60,
+                                      height: 60,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stack) =>
+                                              const Icon(Icons.person, size: 30),
+                                    ),
+                                  )
+                                : const Icon(Icons.person, size: 30),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -154,8 +144,26 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                       provider.distanceKm != null
                                           ? '${provider.distanceKm!.toStringAsFixed(1)} km away'
                                           : 'Distance unknown',
+                                      style: const TextStyle(color: Colors.grey),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+
+                                // ✅ NEW Completed Jobs display
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.check_circle,
+                                      size: 16,
+                                      color: Colors.green,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${provider.completedJobs} completed jobs',
                                       style: const TextStyle(
-                                        color: Colors.grey,
+                                        fontSize: 14,
+                                        color: Colors.black87,
                                       ),
                                     ),
                                   ],
@@ -170,17 +178,12 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(
-                                    Icons.star,
-                                    color: Colors.amber,
-                                    size: 16,
-                                  ),
+                                  const Icon(Icons.star,
+                                      color: Colors.amber, size: 16),
                                   Text(
                                     '${provider.rating} (${provider.reviewCount} reviews)',
                                     style: const TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey,
-                                    ),
+                                        fontSize: 14, color: Colors.grey),
                                   ),
                                 ],
                               ),
@@ -192,13 +195,9 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder:
-                                            (
-                                              _,
-                                            ) => ProfileDisplayScreenForClient(
-                                              serviceProviderId: provider.id,
-                                              // Pass desiredDateTime if needed on the profile screen
-                                            ),
+                                        builder: (_) =>
+                                            ProfileDisplayScreenForClient(
+                                                serviceProviderId: provider.id),
                                       ),
                                     );
                                   },
@@ -207,16 +206,13 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8),
                                     ),
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 8,
-                                    ),
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 8),
                                   ),
                                   child: const Text(
                                     'View Profile',
                                     style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.white,
-                                    ),
+                                        fontSize: 14, color: Colors.white),
                                   ),
                                 ),
                               ),
@@ -228,30 +224,22 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                     final user =
                                         FirebaseAuth.instance.currentUser;
                                     if (user == null) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
+                                      ScaffoldMessenger.of(context).showSnackBar(
                                         const SnackBar(
                                           content: Text(
-                                            'Please log in to book a provider.',
-                                          ),
+                                              'Please log in to book a provider.'),
                                         ),
                                       );
                                       return;
                                     }
 
-                                    final currentUserId = user.uid;
-                                    final currentUserName =
-                                        user.displayName ?? 'Unknown User';
-
                                     final booking = Booking(
-                                      clientId: currentUserId,
-                                      clientName: currentUserName,
+                                      clientId: user.uid,
+                                      clientName:
+                                          user.displayName ?? 'Unknown User',
                                       serviceProviderId: provider.id,
                                       serviceProviderName: provider.name,
-                                      categories:
-                                          provider.categories, // no .join()
-
+                                      categories: provider.categories,
                                       bookingDate: DateTime.now(),
                                       status: 'pending',
                                       notes: '',
@@ -264,37 +252,25 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                           .collection('bookings')
                                           .add(booking.toFirestore());
 
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Booking sent! Waiting for confirmation.',
-                                          ),
-                                        ),
-                                      );
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(const SnackBar(
+                                              content: Text(
+                                                  'Booking sent! Waiting for confirmation.')));
                                     } catch (e) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Failed to book: $e'),
-                                        ),
-                                      );
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(SnackBar(
+                                              content:
+                                                  Text('Failed to book: $e')));
                                     }
                                   },
-
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: Colors.purple,
-                                    side: const BorderSide(
-                                      color: Colors.purple,
-                                    ),
+                                    side: const BorderSide(color: Colors.purple),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8),
                                     ),
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 8,
-                                    ),
+                                    padding:
+                                        const EdgeInsets.symmetric(vertical: 8),
                                   ),
                                   child: const Text(
                                     'Book Now',
@@ -310,26 +286,23 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                       Wrap(
                         spacing: 8,
                         runSpacing: 4,
-                        children:
-                            provider.categories
-                                .take(3)
-                                .map(
-                                  (cat) => Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[200],
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: Text(
-                                      cat,
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
-                                  ),
-                                )
-                                .toList(),
+                        children: provider.categories
+                            .take(3)
+                            .map(
+                              (cat) => Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[200],
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Text(
+                                  cat,
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ),
+                            )
+                            .toList(),
                       ),
                     ],
                   ),
