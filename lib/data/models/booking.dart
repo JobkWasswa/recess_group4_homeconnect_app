@@ -1,9 +1,13 @@
+// File: lib/data/models/booking.dart
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Booking {
   final String? bookingId;
   final String clientId;
   final String clientName;
+  final String? clientEmail; // ✅ New field
+  final GeoPoint? clientLocation; // ✅ New field
   final String serviceProviderId;
   final String serviceProviderName;
   final List<String> categories;
@@ -17,6 +21,8 @@ class Booking {
     this.bookingId,
     required this.clientId,
     required this.clientName,
+    this.clientEmail, // Initialize new field
+    this.clientLocation, // Initialize new field
     required this.serviceProviderId,
     required this.serviceProviderName,
     required this.categories,
@@ -33,6 +39,8 @@ class Booking {
       bookingId: doc.id,
       clientId: data['clientId'] ?? '',
       clientName: data['clientName'] ?? '',
+      clientEmail: data['clientEmail'], // Fetch new field
+      clientLocation: data['clientLocation'] as GeoPoint?, // Fetch new field
       serviceProviderId: data['serviceProviderId'] ?? '',
       serviceProviderName: data['serviceProviderName'] ?? '',
       categories: List<String>.from(data['categories'] ?? []),
@@ -48,6 +56,8 @@ class Booking {
     return {
       'clientId': clientId,
       'clientName': clientName,
+      'clientEmail': clientEmail, // Add new field
+      'clientLocation': clientLocation, // Add new field
       'serviceProviderId': serviceProviderId,
       'serviceProviderName': serviceProviderName,
       'categories': categories,
@@ -63,6 +73,8 @@ class Booking {
     String? bookingId,
     String? clientId,
     String? clientName,
+    String? clientEmail, // Add to copyWith
+    GeoPoint? clientLocation, // Add to copyWith
     String? serviceProviderId,
     String? serviceProviderName,
     List<String>? categories,
@@ -76,6 +88,8 @@ class Booking {
       bookingId: bookingId ?? this.bookingId,
       clientId: clientId ?? this.clientId,
       clientName: clientName ?? this.clientName,
+      clientEmail: clientEmail ?? this.clientEmail, // Update copyWith
+      clientLocation: clientLocation ?? this.clientLocation, // Update copyWith
       serviceProviderId: serviceProviderId ?? this.serviceProviderId,
       serviceProviderName: serviceProviderName ?? this.serviceProviderName,
       categories: categories ?? this.categories,
