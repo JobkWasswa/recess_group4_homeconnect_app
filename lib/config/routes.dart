@@ -10,7 +10,7 @@ import 'package:homeconnect/presentation/service_provider/pages/service_provider
 
 class AppRoutes {
   static const String splash = '/';
-  static const String auth = '/auth';
+  static const String auth = '/auth'; // This is the route name
   static const String login = '/login';
   static const String register = '/register';
   static const String homeownerDashboard = '/homeowner_dashboard';
@@ -25,6 +25,10 @@ class AppRoutes {
   static Map<String, WidgetBuilder> get routes {
     return {
       splash: (context) => const SplashScreen(),
+      // ★ ADD THIS LINE ★
+      auth:
+          (context) =>
+              const LoginPage(), // When /auth is called, show LoginPage
       login: (context) => const LoginPage(),
       register: (context) => const RegisterPage(),
       homeownerDashboard: (context) => const HomeownerDashboardScreen(),
@@ -42,13 +46,22 @@ class AppRoutes {
     switch (settings.name) {
       case serviceProviderListPage:
         final args = settings.arguments as Map<String, dynamic>;
+        // Assuming userLocation is passed as a GeoPoint, but ServiceProviderListPage expects it as GeoPoint
+        // You might need to cast or convert args['location'] to GeoPoint if it's coming from outside this route definition
+        // For now, let's assume 'category' is the primary argument based on your previous code
         final category = args['category'] as String;
+        // If userLocation is also a required argument, you'll need to retrieve it:
+        // final userLocation = args['userLocation'] as GeoPoint; // Make sure to import cloud_firestore for GeoPoint
         return MaterialPageRoute(
-          builder: (_) => ServiceProviderListPage(category: category),
+          builder:
+              (_) => ServiceProviderListPage(
+                category: category,
+                // If userLocation is mandatory for this page's constructor:
+                // userLocation: userLocation, // Pass it here
+              ),
         );
 
       case serviceProviderDetailPage:
-        // Example — you can add arguments handling here if needed later
         return MaterialPageRoute(
           builder: (_) => const ServiceProviderDetailPage(),
         );
