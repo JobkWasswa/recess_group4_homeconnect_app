@@ -1,4 +1,3 @@
-// File: homeconnect/presentation/homeowner/pages/service_providers_list_widget.dart
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -59,7 +58,9 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
         title: Text('Providers for ${widget.category}'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            Navigator.pop(context);
+          },
         ),
       ),
       body: FutureBuilder<List<ServiceProviderModel>>(
@@ -69,7 +70,6 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            print('Error in FutureBuilder: ${snapshot.error}');
             return Center(
               child: Text('Error: ${snapshot.error}. Please try again.'),
             );
@@ -195,9 +195,12 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (_) =>
-                                            ProfileDisplayScreenForClient(
-                                                serviceProviderId: provider.id),
+                                        builder:
+                                            (_) =>
+                                                ProfileDisplayScreenForClient(
+                                                  serviceProviderId:
+                                                      provider.id,
+                                                ),
                                       ),
                                     );
                                   },
@@ -248,14 +251,20 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                     );
 
                                     try {
+                                      // ✅ Save only once, with Firestore timestamps
                                       await FirebaseFirestore.instance
                                           .collection('bookings')
                                           .add(booking.toFirestore());
 
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(const SnackBar(
-                                              content: Text(
-                                                  'Booking sent! Waiting for confirmation.')));
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Booking sent! Waiting for confirmation.',
+                                          ),
+                                        ),
+                                      );
                                     } catch (e) {
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(SnackBar(
