@@ -5,7 +5,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/presentation/service_provider/pages/service_provider_savedprofile.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
-// Moved formatNameFromEmail outside the class as a top-level function
 String formatNameFromEmail(String email) {
   final username = email.split('@').first;
   final withSpaces = username.replaceAll(RegExp(r'[._-]'), ' ');
