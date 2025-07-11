@@ -62,14 +62,11 @@ class AppRoutes {
         );
 
       case serviceProviderDetailPage:
-        // Example — you can add arguments handling here if needed later
         return MaterialPageRoute(
           builder: (_) => const ServiceProviderDetailPage(),
         );
 
       default:
-        // This is important: if a route is not found in `routes` map AND not in `onGenerateRoute`, it will be null.
-        // It means any route you try to navigate to must be handled by one of these.
         return null; // If route not found here, fallback to static routes map or show error
     }
   }
