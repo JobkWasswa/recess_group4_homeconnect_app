@@ -1,21 +1,20 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Booking {
-  final String?
-  bookingId; // Made nullable as Firestore generates this on first add
+  final String? bookingId;
   final String clientId;
   final String clientName;
   final String serviceProviderId;
   final String serviceProviderName;
-  final String categories;
+  final List<String> categories;
   final DateTime bookingDate;
   final String status;
-  final String? notes; // Optional field
+  final String? notes;
   final DateTime createdAt;
   final DateTime updatedAt;
 
   Booking({
-    this.bookingId, // Nullable for new bookings before they get an ID from Firestore
+    this.bookingId,
     required this.clientId,
     required this.clientName,
     required this.serviceProviderId,
@@ -28,16 +27,15 @@ class Booking {
     required this.updatedAt,
   });
 
-  // Factory constructor to create a Booking object from a Firestore DocumentSnapshot
   factory Booking.fromFirestore(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    final data = doc.data() as Map<String, dynamic>;
     return Booking(
-      bookingId: doc.id, // The document ID is the bookingId
+      bookingId: doc.id,
       clientId: data['clientId'] ?? '',
       clientName: data['clientName'] ?? '',
       serviceProviderId: data['serviceProviderId'] ?? '',
       serviceProviderName: data['serviceProviderName'] ?? '',
-      categories: data['categories'] ?? '',
+      categories: List<String>.from(data['categories'] ?? []),
       bookingDate: (data['bookingDate'] as Timestamp).toDate(),
       status: data['status'] ?? 'pending',
       notes: data['notes'],
@@ -46,7 +44,6 @@ class Booking {
     );
   }
 
-  // Method to convert a Booking object to a Map for Firestore storage
   Map<String, dynamic> toFirestore() {
     return {
       'clientId': clientId,
@@ -62,15 +59,13 @@ class Booking {
     };
   }
 
-  // Optional: Add a copyWith method for immutability if you need to create
-  // modified copies of existing bookings (e.g., to change status)
   Booking copyWith({
     String? bookingId,
     String? clientId,
     String? clientName,
     String? serviceProviderId,
     String? serviceProviderName,
-    String? categories,
+    List<String>? categories,
     DateTime? bookingDate,
     String? status,
     String? notes,

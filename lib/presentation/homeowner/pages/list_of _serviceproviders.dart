@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/data/models/service_provider_modal.dart';
 import 'package:homeconnect/presentation/homeowner/pages/profile_display_for_client.dart';
 import 'package:homeconnect/data/providers/homeowner_firestore_provider.dart';
+import 'package:homeconnect/data/models/booking.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ServiceProvidersList extends StatefulWidget {
   final String category;
@@ -222,14 +224,66 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                               SizedBox(
                                 width: 120,
                                 child: OutlinedButton(
-                                  onPressed: () {
-                                    print(
-                                      'Book Now for ${provider.name} (ID: ${provider.id})',
+                                  onPressed: () async {
+                                    final user =
+                                        FirebaseAuth.instance.currentUser;
+                                    if (user == null) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Please log in to book a provider.',
+                                          ),
+                                        ),
+                                      );
+                                      return;
+                                    }
+
+                                    final currentUserId = user.uid;
+                                    final currentUserName =
+                                        user.displayName ?? 'Unknown User';
+
+                                    final booking = Booking(
+                                      clientId: currentUserId,
+                                      clientName: currentUserName,
+                                      serviceProviderId: provider.id,
+                                      serviceProviderName: provider.name,
+                                      categories:
+                                          provider.categories, // no .join()
+
+                                      bookingDate: DateTime.now(),
+                                      status: 'pending',
+                                      notes: '',
+                                      createdAt: DateTime.now(),
+                                      updatedAt: DateTime.now(),
                                     );
-                                    // Implement your "Book Now" logic here
-                                    // This is where you might pass widget.desiredDateTime
-                                    // to a booking confirmation screen.
+
+                                    try {
+                                      await FirebaseFirestore.instance
+                                          .collection('bookings')
+                                          .add(booking.toFirestore());
+
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Booking sent! Waiting for confirmation.',
+                                          ),
+                                        ),
+                                      );
+                                    } catch (e) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Failed to book: $e'),
+                                        ),
+                                      );
+                                    }
                                   },
+
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: Colors.purple,
                                     side: const BorderSide(
