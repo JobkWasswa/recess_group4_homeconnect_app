@@ -30,6 +30,17 @@ class HomeownerDashboardScreen extends StatefulWidget {
 
 class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
   final TextEditingController _searchController = TextEditingController();
+  // Add to _HomeownerDashboardScreenState
+Stream<QuerySnapshot> _getCompletableJobs() {
+  final userId = FirebaseAuth.instance.currentUser?.uid;
+  if (userId == null) return const Stream.empty();
+
+  return FirebaseFirestore.instance
+      .collection('bookings')
+      .where('clientId', isEqualTo: userId)
+      .where('status', isEqualTo: 'completed_by_provider')
+      .snapshots();
+}
 
   // ★ ADDED: Request permission and fetch GPS coordinates
   Future<Position?> _determinePosition() async {
@@ -106,7 +117,97 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
     _searchController.dispose();
     super.dispose();
   }
+  // Add this widget method
+  Widget _buildVerificationCard(BuildContext context, Booking booking) {
+    return Card(
+      elevation: 8,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              booking.categories.isNotEmpty ? booking.categories[0] : 'Service',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.person, size: 18, color: Colors.grey),
+                const SizedBox(width: 8),
+                Text(
+                  booking.serviceProviderName,
+                  style: TextStyle(color: Colors.grey[700]),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
+                const SizedBox(width: 8),
+                Text(
+                  _formatDate(booking.bookingDate),
+                  style: TextStyle(color: Colors.grey[700]),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () async {
+                  try {
+                    // Update booking status
+                    await FirebaseFirestore.instance
+                        .collection('bookings')
+                        .doc(booking.bookingId)
+                        .update({
+                          'status': 'completed',
+                          'completedAt': FieldValue.serverTimestamp(),
+                        });
 
+                    // Increment provider's completed jobs count
+                    await FirebaseFirestore.instance
+                        .collection('service_providers')
+                        .doc(booking.serviceProviderId)
+                        .update({
+                          'completedJobs': FieldValue.increment(1),
+                        });
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Job verified successfully!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[600],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: const Text('Verify Job Completion'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -760,137 +861,155 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
       ),
     );
   }
-
-  Widget _buildBookingStatusSection(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return const Padding(
-        padding: EdgeInsets.all(16.0),
-        child: Text('Please log in to view your bookings.'),
-      );
-    }
-
-    final currentUserId = user.uid;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'My Bookings',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          StreamBuilder<QuerySnapshot>(
-            stream:
-                FirebaseFirestore.instance
-                    .collection('bookings')
-                    .where('clientId', isEqualTo: currentUserId)
-                    //.orderBy('createdAt', descending: true)
-                    .limit(3)
-                    .snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                return const Text('You have no bookings yet.');
-              }
-
-              // ✅ ADD THIS DEBUG PRINT HERE
-              final docs = snapshot.data!.docs;
-              for (var doc in docs) {
-                print('🔥 Booking doc: ${doc.data()}');
-              }
-
-              final bookings =
-                  snapshot.data!.docs
-                      .map((doc) => Booking.fromFirestore(doc))
-                      .toList();
-
-              return Column(
-                children:
-                    bookings.map((booking) {
-                      final statusColor = _getStatusColor(booking.status);
-
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: Column(
-                          children: [
-                            _buildBookingStatusCard(
-                              context: context,
-                              service:
-                                  booking.categories.isNotEmpty
-                                      ? booking.categories.first
-                                      : 'No category',
-                              provider: booking.serviceProviderName,
-                              status: capitalize(booking.status.toString()),
-                              date: _formatDate(booking.bookingDate),
-                              statusColor: statusColor,
-                            ),
-                            if (booking.status.toLowerCase() == 'denied')
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: Padding(
-                                  padding: const EdgeInsets.only(top: 4.0),
-                                  child: TextButton(
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder:
-                                              (_) => ServiceProvidersList(
-                                                category:
-                                                    booking
-                                                            .categories
-                                                            .isNotEmpty
-                                                        ? booking.categories[0]
-                                                        : '',
-
-                                                userLocation: const GeoPoint(
-                                                  0,
-                                                  0,
-                                                ), // Replace with actual location
-                                              ),
-                                        ),
-                                      );
-                                    },
-                                    child: const Text(
-                                      'Book Another',
-                                      style: TextStyle(
-                                        color: Colors.purple,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-              );
-            },
-          ),
-          const SizedBox(height: 10),
-          Center(
-            child: TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => AllBookingsScreen()),
-                );
-              },
-              child: const Text('View All My Bookings'),
-            ),
-          ),
-        ],
-      ),
+// Replace _buildBookingStatusSection with this
+Widget _buildBookingStatusSection(BuildContext context) {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) {
+    return const Padding(
+      padding: EdgeInsets.all(16.0),
+      child: Text('Please log in to view your bookings.'),
     );
   }
 
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'My Bookings',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 16),
+        
+        // Verification Requests Section
+        StreamBuilder<QuerySnapshot>(
+          stream: _getCompletableJobs(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final docs = snapshot.data?.docs ?? [];
+            if (docs.isNotEmpty) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Pending Verification',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Column(
+                    children: docs.map((doc) {
+                      return _buildVerificationCard(
+                        context,
+                        Booking.fromFirestore(doc),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              );
+            }
+            return const SizedBox();
+          },
+        ),
+
+        // Regular Bookings Section
+        StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('bookings')
+              .where('clientId', isEqualTo: user.uid)
+              .where('status', whereNotIn: ['completed_by_provider'])
+              .limit(3)
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return const Text('You have no bookings yet.');
+            }
+
+            final bookings = snapshot.data!.docs
+                .map((doc) => Booking.fromFirestore(doc))
+                .toList();
+
+            return Column(
+              children: bookings.map((booking) {
+                final statusColor = _getStatusColor(booking.status);
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Column(
+                    children: [
+                      _buildBookingStatusCard(
+                        context: context,
+                        service: booking.categories.isNotEmpty
+                            ? booking.categories.first
+                            : 'No category',
+                        provider: booking.serviceProviderName,
+                        status: capitalize(booking.status.toString()),
+                        date: _formatDate(booking.bookingDate),
+                        statusColor: statusColor,
+                      ),
+                      if (booking.status.toLowerCase() == 'denied')
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 4.0),
+                            child: TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ServiceProvidersList(
+                                      category: booking.categories.isNotEmpty
+                                          ? booking.categories[0]
+                                          : '',
+                                      userLocation: const GeoPoint(0, 0),
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: const Text(
+                                'Book Another',
+                                style: TextStyle(
+                                  color: Colors.purple,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            );
+          },
+        ),
+        const SizedBox(height: 10),
+        Center(
+          child: TextButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => AllBookingsScreen()),
+              );
+            },
+            child: const Text('View All My Bookings'),
+          ),
+        ),
+      ],
+    ),
+  );
+}
   Widget _buildBookingStatusCard({
     required BuildContext context,
     required String service, // this should now be a single category string
