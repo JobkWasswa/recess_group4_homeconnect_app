@@ -286,7 +286,10 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
 
                                     final currentUserId = user.uid;
                                     final currentUserName =
-                                        user.displayName ?? 'Unknown User';
+                                        user.displayName ??
+                                        (user.email != null
+                                            ? user.email!.split('@')[0]
+                                            : 'Homeowner');
 
                                     final providerCategory =
                                         provider.categories.isNotEmpty
@@ -331,8 +334,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
 
                                     final booking = Booking(
                                       clientId: user.uid,
-                                      clientName:
-                                          user.displayName ?? 'Unknown User',
+                                      clientName: currentUserName,
                                       serviceProviderId: provider.id,
                                       serviceProviderName: provider.name,
                                       categories: provider.categories,
