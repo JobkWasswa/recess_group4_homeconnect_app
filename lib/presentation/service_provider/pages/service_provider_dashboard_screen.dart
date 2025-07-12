@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/presentation/service_provider/pages/service_provider_savedprofile.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:homeconnect/presentation/service_provider/pages/sp_new_job_requests_screen.dart';
 
 String formatNameFromEmail(String email) {
   final username = email.split('@').first;
@@ -30,10 +31,26 @@ class _ServiceProviderDashboardScreenState
     extends State<ServiceProviderDashboardScreen> {
   String providerName = '';
   bool isLoading = true;
+  int _selectedIndex = 0;
+
+  late final List<Widget> _widgetOptions;
 
   @override
   void initState() {
     super.initState();
+    _widgetOptions = <Widget>[
+      _DashboardContent(providerName: providerName),
+      const SpNewJobRequestsScreen(),
+      const Center(
+        child: Text(
+          'Calendar Screen Placeholder',
+          style: TextStyle(fontSize: 24),
+        ),
+      ),
+      const Center(
+        child: Text('Inbox Screen Placeholder', style: TextStyle(fontSize: 24)),
+      ),
+    ];
     _fetchProviderName();
     _updateProviderFCMToken();
   }
@@ -42,15 +59,14 @@ class _ServiceProviderDashboardScreenState
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        // If no user is logged in, default to 'Provider' and stop loading
         setState(() {
           providerName = 'Provider';
           isLoading = false;
         });
+        _updateDashboardContentWithName();
         return;
       }
 
-      // Attempt to fetch provider data from Firestore
       final doc =
           await FirebaseFirestore.instance
               .collection('service_providers')
@@ -58,46 +74,46 @@ class _ServiceProviderDashboardScreenState
               .get();
 
       String? emailFromFirestore = doc.data()?['email']?.toString();
-      String? nameFromFirestore =
-          doc
-              .data()?['fullName']
-              ?.toString(); // Assuming you store a 'fullName' field
+      String? nameFromFirestore = doc.data()?['fullName']?.toString();
 
       if (nameFromFirestore != null && nameFromFirestore.isNotEmpty) {
-        // Use the 'fullName' from Firestore if available
         setState(() {
           providerName = nameFromFirestore;
           isLoading = false;
         });
       } else if (emailFromFirestore != null && emailFromFirestore.isNotEmpty) {
-        // If 'fullName' is not available, try to format from the email stored in Firestore
         setState(() {
           providerName = formatNameFromEmail(emailFromFirestore);
           isLoading = false;
         });
       } else if (user.email != null) {
-        // Fallback to formatting from the authenticated user's email
         setState(() {
           providerName = formatNameFromEmail(user.email!);
           isLoading = false;
         });
       } else {
-        // Last resort: default to 'Provider'
         setState(() {
           providerName = 'Provider';
           isLoading = false;
         });
       }
+      _updateDashboardContentWithName();
     } catch (e) {
       print('Error fetching provider name: $e');
       setState(() {
-        providerName = 'Provider'; // Fallback in case of any error
+        providerName = 'Provider';
         isLoading = false;
       });
+      _updateDashboardContentWithName();
     }
   }
 
-  // Save or update FCM token in provider's Firestore document
+  void _updateDashboardContentWithName() {
+    setState(() {
+      _widgetOptions[0] = _DashboardContent(providerName: providerName);
+    });
+  }
+
   Future<void> _updateProviderFCMToken() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -107,57 +123,86 @@ class _ServiceProviderDashboardScreenState
         await FirebaseFirestore.instance
             .collection('service_providers')
             .doc(user.uid)
-            .set(
-              {'fcmToken': token},
-              SetOptions(merge: true),
-            ); // Use set with merge to avoid overwriting
+            .set({'fcmToken': token}, SetOptions(merge: true));
       }
     } catch (e) {
       print('Error updating FCM token: $e');
     }
   }
 
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  // Removed _onFabPressed() as the FAB is being removed
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFF3E8FF), // purple-50
-              Color(0xFFFFFFFF), // white
-              Color(0xFFE0F2FE), // blue-50
+      body:
+          isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _widgetOptions.elementAt(_selectedIndex),
+      // Removed floatingActionButton
+      // Removed floatingActionButtonLocation
+      bottomNavigationBar: BottomNavigationBar(
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.work), label: 'Requests'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.calendar_today),
+            label: 'Calendar',
+          ),
+          BottomNavigationBarItem(icon: Icon(Icons.message), label: 'Inbox'),
+        ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: const Color(0xFF9333EA),
+        unselectedItemColor: Colors.grey,
+        onTap: _onItemTapped,
+        type: BottomNavigationBarType.fixed,
+      ),
+    );
+  }
+}
+
+class _DashboardContent extends StatelessWidget {
+  final String providerName;
+
+  const _DashboardContent({super.key, required this.providerName});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFF3E8FF), Color(0xFFFFFFFF), Color(0xFFE0F2FE)],
+        ),
+      ),
+      child: SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              _buildHeader(context, providerName),
+              _buildStatsSummary(),
+              _buildProfileManagementSection(context),
             ],
           ),
-        ),
-        child: SafeArea(
-          child:
-              isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        _buildHeader(context),
-                        _buildStatsSummary(),
-                        _buildJobRequestsSection(context),
-                        _buildProfileManagementSection(context),
-                      ],
-                    ),
-                  ),
         ),
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, String providerName) {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
-          colors: [Color(0xFF9333EA), Color(0xFFEC4899)], // Purple to Pink
+          colors: [Color(0xFF9333EA), Color(0xFFEC4899)],
         ),
       ),
       child: Padding(
@@ -186,7 +231,6 @@ class _ServiceProviderDashboardScreenState
                 ),
                 Row(
                   children: [
-                    // Notification icon
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
@@ -196,7 +240,6 @@ class _ServiceProviderDashboardScreenState
                         children: [
                           IconButton(
                             onPressed: () {
-                              // TODO: Navigate to Notifications
                               print('Provider Notifications pressed');
                             },
                             icon: const Icon(
@@ -220,7 +263,6 @@ class _ServiceProviderDashboardScreenState
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // Profile settings icon
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
@@ -228,14 +270,12 @@ class _ServiceProviderDashboardScreenState
                       ),
                       child: IconButton(
                         onPressed: () {
-                          // TODO: Navigate to Profile Settings
                           print('Provider Profile pressed');
                         },
                         icon: const Icon(Icons.settings, color: Colors.white),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // Logout icon
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
@@ -255,7 +295,6 @@ class _ServiceProviderDashboardScreenState
               ],
             ),
             const SizedBox(height: 24),
-            // Quick Status Summary
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -320,7 +359,7 @@ class _ServiceProviderDashboardScreenState
 
   Widget _buildStatsSummary() {
     return Transform.translate(
-      offset: const Offset(0, -32), // Pull up into the header gradient
+      offset: const Offset(0, -32),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Card(
@@ -382,197 +421,6 @@ class _ServiceProviderDashboardScreenState
     );
   }
 
-  Widget _buildJobRequestsSection(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'New Job Requests',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              TextButton(
-                onPressed: () {
-                  // TODO: Navigate to All Job Requests
-                },
-                child: const Text('View All'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          StreamBuilder<QuerySnapshot>(
-            stream:
-                FirebaseFirestore.instance
-                    .collection('bookings')
-                    .where(
-                      'serviceProviderId',
-                      isEqualTo: FirebaseAuth.instance.currentUser!.uid,
-                    )
-                    .orderBy('createdAt', descending: true)
-                    .snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final docs = snapshot.data?.docs ?? [];
-              if (docs.isEmpty) {
-                return Center(
-                  child: Text(
-                    'No new requests at the moment.',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                );
-              }
-              return Column(
-                children:
-                    docs.map((doc) {
-                      final data = doc.data()! as Map<String, dynamic>;
-                      return _buildJobRequestCard(
-                        context: context,
-                        jobType: data['categories'] ?? 'Unknown',
-                        homeownerName: data['clientName'] ?? 'Unknown',
-                        date:
-                            (data['bookingDate'] as Timestamp)
-                                .toDate()
-                                .toLocal()
-                                .toString(),
-                        location: '',
-                        price: '',
-                      );
-                    }).toList(),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildJobRequestCard({
-    required BuildContext context,
-    required String jobType,
-    required String homeownerName,
-    required String date,
-    required String location,
-    required String price,
-  }) {
-    return Card(
-      elevation: 8,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              jobType,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF6B7280),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.person, size: 18, color: Colors.grey),
-                const SizedBox(width: 8),
-                Text(homeownerName, style: TextStyle(color: Colors.grey[700])),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
-                const SizedBox(width: 8),
-                Text(date, style: TextStyle(color: Colors.grey[700])),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.location_on, size: 18, color: Colors.grey),
-                const SizedBox(width: 8),
-                Text(location, style: TextStyle(color: Colors.grey[700])),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  price,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  ),
-                ),
-                Row(
-                  children: [
-                    ElevatedButton(
-                      onPressed: () {
-                        print(
-                          'Accept button pressed for $jobType from $homeownerName',
-                        );
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Accepted $jobType from $homeownerName!',
-                            ),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green[600],
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text('Accept'),
-                    ),
-                    const SizedBox(width: 8),
-                    OutlinedButton(
-                      onPressed: () {
-                        print(
-                          'Reject button pressed for $jobType from $homeownerName',
-                        );
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Rejected $jobType from $homeownerName.',
-                            ),
-                          ),
-                        );
-                      },
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.red[400]!),
-                        foregroundColor: Colors.red[400],
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text('Reject'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildProfileManagementSection(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
@@ -595,7 +443,7 @@ class _ServiceProviderDashboardScreenState
                 MaterialPageRoute(builder: (context) => ProfileDisplayScreen()),
               );
             },
-            colors: [Color(0xFFFBBF24), Color(0xFFEAB308)], // Yellow
+            colors: const [Color(0xFFFBBF24), Color(0xFFEAB308)],
           ),
           const SizedBox(height: 12),
           _buildManagementCard(
@@ -606,7 +454,7 @@ class _ServiceProviderDashboardScreenState
             onTap: () {
               // TODO: Navigate to Set Availability screen
             },
-            colors: [Color(0xFF22C55E), Color(0xFF16A34A)], // Green
+            colors: const [Color(0xFF22C55E), Color(0xFF16A34A)],
           ),
           const SizedBox(height: 12),
           _buildManagementCard(
@@ -617,7 +465,7 @@ class _ServiceProviderDashboardScreenState
             onTap: () {
               // TODO: Navigate to Job History screen
             },
-            colors: [Color(0xFFA855F7), Color(0xFF9333EA)], // Purple
+            colors: const [Color(0xFFA855F7), Color(0xFF9333EA)],
           ),
         ],
       ),
