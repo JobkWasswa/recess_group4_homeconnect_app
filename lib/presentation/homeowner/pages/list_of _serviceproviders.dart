@@ -330,8 +330,9 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                     }
 
                                     final booking = Booking(
-                                      clientId: currentUserId,
-                                      clientName: currentUserName,
+                                      clientId: user.uid,
+                                      clientName:
+                                          user.displayName ?? 'Unknown User',
                                       serviceProviderId: provider.id,
                                       serviceProviderName: provider.name,
                                       categories: provider.categories,
@@ -353,13 +354,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                       // ✅ Save only once, with Firestore timestamps
                                       await FirebaseFirestore.instance
                                           .collection('bookings')
-                                          .add(<String, dynamic>{
-                                            ...booking.toFirestore(),
-                                            'createdAt':
-                                                FieldValue.serverTimestamp(),
-                                            'updatedAt':
-                                                FieldValue.serverTimestamp(),
-                                          });
+                                          .add(booking.toFirestore());
 
                                       ScaffoldMessenger.of(
                                         context,
