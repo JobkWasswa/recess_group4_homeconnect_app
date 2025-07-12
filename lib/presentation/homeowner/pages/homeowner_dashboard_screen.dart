@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:homeconnect/presentation/homeowner/pages/list_of _serviceproviders.dart';
 //import 'package:geolocator/geolocator.dart';
 import 'package:homeconnect/data/models/booking.dart';
+import 'package:homeconnect/presentation/homeowner/pages/view_all_bookings.dart';
 
 // Helper – convert something like “john_doe99@example.com” → “John Doe99”
 String nameFromEmail(String email) {
@@ -798,6 +799,12 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                 return const Text('You have no bookings yet.');
               }
 
+              // ✅ ADD THIS DEBUG PRINT HERE
+              final docs = snapshot.data!.docs;
+              for (var doc in docs) {
+                print('🔥 Booking doc: ${doc.data()}');
+              }
+
               final bookings =
                   snapshot.data!.docs
                       .map((doc) => Booking.fromFirestore(doc))
@@ -870,7 +877,12 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
           const SizedBox(height: 10),
           Center(
             child: TextButton(
-              onPressed: () {},
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => AllBookingsScreen()),
+                );
+              },
               child: const Text('View All My Bookings'),
             ),
           ),

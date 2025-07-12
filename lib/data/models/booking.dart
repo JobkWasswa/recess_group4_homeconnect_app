@@ -7,11 +7,13 @@ class Booking {
   final String serviceProviderId;
   final String serviceProviderName;
   final List<String> categories;
+  final String selectedCategory; // ✅ NEW
   final DateTime bookingDate;
   final String status;
   final String? notes;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final GeoPoint location;
 
   Booking({
     this.bookingId,
@@ -20,11 +22,13 @@ class Booking {
     required this.serviceProviderId,
     required this.serviceProviderName,
     required this.categories,
+    required this.selectedCategory, // ✅ NEW
     required this.bookingDate,
     required this.status,
     this.notes,
     required this.createdAt,
     required this.updatedAt,
+    required this.location,
   });
 
   factory Booking.fromFirestore(DocumentSnapshot doc) {
@@ -36,11 +40,13 @@ class Booking {
       serviceProviderId: data['serviceProviderId'] ?? '',
       serviceProviderName: data['serviceProviderName'] ?? '',
       categories: List<String>.from(data['categories'] ?? []),
+      selectedCategory: data['selectedCategory'] ?? '', // ✅ NEW
       bookingDate: (data['bookingDate'] as Timestamp).toDate(),
       status: data['status'] ?? 'pending',
       notes: data['notes'],
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       updatedAt: (data['updatedAt'] as Timestamp).toDate(),
+      location: data['location'] as GeoPoint,
     );
   }
 
@@ -51,11 +57,13 @@ class Booking {
       'serviceProviderId': serviceProviderId,
       'serviceProviderName': serviceProviderName,
       'categories': categories,
+      'selectedCategory': selectedCategory, // ✅ NEW
       'bookingDate': Timestamp.fromDate(bookingDate),
       'status': status,
       'notes': notes,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
+      'location': location,
     };
   }
 
@@ -66,11 +74,13 @@ class Booking {
     String? serviceProviderId,
     String? serviceProviderName,
     List<String>? categories,
+    String? selectedCategory, // ✅ NEW
     DateTime? bookingDate,
     String? status,
     String? notes,
     DateTime? createdAt,
     DateTime? updatedAt,
+    GeoPoint? location,
   }) {
     return Booking(
       bookingId: bookingId ?? this.bookingId,
@@ -79,11 +89,13 @@ class Booking {
       serviceProviderId: serviceProviderId ?? this.serviceProviderId,
       serviceProviderName: serviceProviderName ?? this.serviceProviderName,
       categories: categories ?? this.categories,
+      selectedCategory: selectedCategory ?? this.selectedCategory, // ✅ NEW
       bookingDate: bookingDate ?? this.bookingDate,
       status: status ?? this.status,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      location: location ?? this.location,
     );
   }
 }
