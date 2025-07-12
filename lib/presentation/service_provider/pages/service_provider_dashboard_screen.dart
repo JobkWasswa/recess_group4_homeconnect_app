@@ -411,15 +411,21 @@ class _ServiceProviderDashboardScreenState
                     .collection('bookings')
                     .where(
                       'serviceProviderId',
-                      isEqualTo: FirebaseAuth.instance.currentUser!.uid,
+                      isEqualTo: FirebaseAuth.instance.currentUser?.uid,
                     )
-                    .orderBy('createdAt', descending: true)
+                    .where('status', isEqualTo: 'pending')
                     .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
+
+              if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              }
+
               final docs = snapshot.data?.docs ?? [];
+
               if (docs.isEmpty) {
                 return Center(
                   child: Text(
@@ -431,21 +437,32 @@ class _ServiceProviderDashboardScreenState
                   ),
                 );
               }
+
               return Column(
                 children:
                     docs.map((doc) {
-                      final data = doc.data()! as Map<String, dynamic>;
+                      final data = doc.data() as Map<String, dynamic>;
+
+                      final categories = data['categories'];
+                      final jobType =
+                          categories is List
+                              ? categories.join(', ')
+                              : (categories?.toString() ?? 'Unknown');
+
+                      final bookingDate = data['bookingDate'];
+                      final formattedDate =
+                          bookingDate is Timestamp
+                              ? bookingDate.toDate().toLocal().toString()
+                              : 'Unknown date';
+
                       return _buildJobRequestCard(
                         context: context,
-                        jobType: data['categories'] ?? 'Unknown',
+                        jobType: jobType,
                         homeownerName: data['clientName'] ?? 'Unknown',
-                        date:
-                            (data['bookingDate'] as Timestamp)
-                                .toDate()
-                                .toLocal()
-                                .toString(),
-                        location: '',
-                        price: '',
+                        date: formattedDate,
+                        location:
+                            '', // You can update this from data['location'] if needed
+                        price: '', // Add pricing logic if needed
                       );
                     }).toList(),
               );
