@@ -5,19 +5,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/presentation/service_provider/pages/service_provider_savedprofile.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
-String formatNameFromEmail(String email) {
-  final username = email.split('@').first;
-  final withSpaces = username.replaceAll(RegExp(r'[._-]'), ' ');
-  final words = withSpaces.split(' ');
-  return words
-      .map(
-        (word) =>
-            word.isNotEmpty ? word[0].toUpperCase() + word.substring(1) : '',
-      )
-      .join(' ')
-      .trim();
-}
-
 class ServiceProviderDashboardScreen extends StatefulWidget {
   const ServiceProviderDashboardScreen({super.key});
 
@@ -48,6 +35,20 @@ class _ServiceProviderDashboardScreenState
           isLoading = false;
         });
         return;
+      }
+
+      String formatNameFromEmail(String email) {
+        final namePart = email.split('@').first;
+        return namePart
+            .replaceAll('.', ' ')
+            .split(' ')
+            .map(
+              (word) =>
+                  word.isNotEmpty
+                      ? '${word[0].toUpperCase()}${word.substring(1)}'
+                      : '',
+            )
+            .join(' ');
       }
 
       // Attempt to fetch provider data from Firestore

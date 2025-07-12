@@ -102,7 +102,7 @@ exports.getRecommendedProviders = functions.https.onCall(
       latitude: homeownerLatitude,
       longitude: homeownerLongitude,
     };
-    const MAX_DISTANCE_KM = 7;
+    const MAX_DISTANCE_KM = 10;
 
     console.log(
       `Searching for '${serviceCategory}' providers near (${homeownerLatitude}, ${homeownerLongitude})`
