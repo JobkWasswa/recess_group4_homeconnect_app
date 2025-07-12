@@ -197,7 +197,9 @@ class _RegisterPageState extends State<RegisterPage> {
             if (_userType == 'homeowner') ...[
               TextField(
                 controller: _locationCtrl,
-                decoration: const InputDecoration(labelText: 'Location (e.g. Kampala)'),
+                decoration: const InputDecoration(
+                  labelText: 'Location (e.g. Kampala)',
+                ),
               ),
               const SizedBox(height: 16),
             ],
@@ -255,7 +257,10 @@ class _RegisterPageState extends State<RegisterPage> {
                 const Text("Already have an account?"),
                 TextButton(
                   onPressed:
-                      () => Navigator.pushReplacementNamed(context, AppRoutes.login),
+                      () => Navigator.pushReplacementNamed(
+                        context,
+                        AppRoutes.login,
+                      ),
                   child: const Text('Sign In'),
                 ),
               ],

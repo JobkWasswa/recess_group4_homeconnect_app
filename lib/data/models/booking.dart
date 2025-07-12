@@ -1,88 +1,89 @@
-class JobRequest {
-  final String id;
-  final String homeownerId;
-  final String? serviceProviderId;
-  final String serviceType;
-  final String description;
-  final String location;
-  final double budget;
-  final String status; // 'pending', 'accepted', 'completed', 'rejected'
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+class Booking {
+  final String? bookingId;
+  final String clientId;
+  final String clientName;
+  final String serviceProviderId;
+  final String serviceProviderName;
+  final List<String> categories;
+  final DateTime bookingDate;
+  final String status;
+  final String? notes;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final String? homeownerName;
-  final String? serviceProviderName;
-  final DateTime? completionDate;
-  final double? finalPrice;
-  final double? homeownerRating;
-  final String? rejectionReason;
 
-  JobRequest({
-    required this.id,
-    required this.homeownerId,
-    this.serviceProviderId,
-    required this.serviceType,
-    required this.description,
-    required this.location,
-    required this.budget,
+  Booking({
+    this.bookingId,
+    required this.clientId,
+    required this.clientName,
+    required this.serviceProviderId,
+    required this.serviceProviderName,
+    required this.categories,
+    required this.bookingDate,
     required this.status,
+    this.notes,
     required this.createdAt,
     required this.updatedAt,
-    this.homeownerName,
-    this.serviceProviderName,
-    this.completionDate,
-    this.finalPrice,
-    this.homeownerRating,
-    this.rejectionReason,
   });
 
-  factory JobRequest.fromJson(Map<String, dynamic> json) {
-    return JobRequest(
-      id: json['id'] as String,
-      homeownerId: json['homeownerId'] as String,
-      serviceProviderId: json['serviceProviderId'] as String?,
-      serviceType: json['serviceType'] as String,
-      description: json['description'] as String,
-      location: json['location'] as String,
-      budget: (json['budget'] as num).toDouble(),
-      status: json['status'] as String,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
-      homeownerName: json['homeownerName'] as String?,
-      serviceProviderName: json['serviceProviderName'] as String?,
-      completionDate:
-          json['completionDate'] != null
-              ? DateTime.parse(json['completionDate'] as String)
-              : null,
-      finalPrice:
-          json['finalPrice'] != null
-              ? (json['finalPrice'] as num).toDouble()
-              : null,
-      homeownerRating:
-          json['homeownerRating'] != null
-              ? (json['homeownerRating'] as num).toDouble()
-              : null,
-      rejectionReason: json['rejectionReason'] as String?,
+  factory Booking.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Booking(
+      bookingId: doc.id,
+      clientId: data['clientId'] ?? '',
+      clientName: data['clientName'] ?? '',
+      serviceProviderId: data['serviceProviderId'] ?? '',
+      serviceProviderName: data['serviceProviderName'] ?? '',
+      categories: List<String>.from(data['categories'] ?? []),
+      bookingDate: (data['bookingDate'] as Timestamp).toDate(),
+      status: data['status'] ?? 'pending',
+      notes: data['notes'],
+      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      updatedAt: (data['updatedAt'] as Timestamp).toDate(),
     );
   }
 
-  Map<String, dynamic> toJson() {
+  Map<String, dynamic> toFirestore() {
     return {
-      'id': id,
-      'homeownerId': homeownerId,
+      'clientId': clientId,
+      'clientName': clientName,
       'serviceProviderId': serviceProviderId,
-      'serviceType': serviceType,
-      'description': description,
-      'location': location,
-      'budget': budget,
-      'status': status,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
-      'homeownerName': homeownerName,
       'serviceProviderName': serviceProviderName,
-      'completionDate': completionDate?.toIso8601String(),
-      'finalPrice': finalPrice,
-      'homeownerRating': homeownerRating,
-      'rejectionReason': rejectionReason,
+      'categories': categories,
+      'bookingDate': Timestamp.fromDate(bookingDate),
+      'status': status,
+      'notes': notes,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
     };
+  }
+
+  Booking copyWith({
+    String? bookingId,
+    String? clientId,
+    String? clientName,
+    String? serviceProviderId,
+    String? serviceProviderName,
+    List<String>? categories,
+    DateTime? bookingDate,
+    String? status,
+    String? notes,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return Booking(
+      bookingId: bookingId ?? this.bookingId,
+      clientId: clientId ?? this.clientId,
+      clientName: clientName ?? this.clientName,
+      serviceProviderId: serviceProviderId ?? this.serviceProviderId,
+      serviceProviderName: serviceProviderName ?? this.serviceProviderName,
+      categories: categories ?? this.categories,
+      bookingDate: bookingDate ?? this.bookingDate,
+      status: status ?? this.status,
+      notes: notes ?? this.notes,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
   }
 }

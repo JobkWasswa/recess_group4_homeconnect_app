@@ -5,6 +5,7 @@ import 'package:homeconnect/data/models/users.dart'; // CHANGE: Import UserProfi
 import 'package:geolocator/geolocator.dart';
 import 'package:homeconnect/presentation/homeowner/pages/list_of _serviceproviders.dart';
 //import 'package:geolocator/geolocator.dart';
+import 'package:homeconnect/data/models/booking.dart';
 
 // Helper – convert something like “john_doe99@example.com” → “John Doe99”
 String nameFromEmail(String email) {
@@ -52,29 +53,51 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
     );
   }
 
-  void _fetchBookings() {
-    setState(() {
-      _pendingBookings = [
-        Booking(
-          id: 'b1',
-          serviceName: 'Plumbing Repair',
-          providerName: 'Grace Nakato',
-          status: 'Pending',
-          date: 'Tomorrow, 10:00 AM',
-          providerId: 'sp1',
-        ),
-      ];
-      _confirmedBookings = [
-        Booking(
-          id: 'b2',
-          serviceName: 'House Cleaning',
-          providerName: 'CleanSweep Ltd.',
-          status: 'Confirmed',
-          date: 'Today, 2:00 PM',
-          providerId: 'sp2',
-        ),
-      ];
-    });
+  String _formatDate(DateTime date) {
+    // Format like: Tomorrow, 10:00 AM or Monday, 3:00 PM
+    final now = DateTime.now();
+    final isTomorrow = date.difference(now).inDays == 1;
+    final isToday = date.day == now.day;
+
+    final time = TimeOfDay.fromDateTime(date).format(context); // ✅ correct here
+
+    if (isToday) return 'Today, $time';
+    if (isTomorrow) return 'Tomorrow, $time';
+
+    return '${_weekdayName(date.weekday)}, $time';
+  }
+
+  String _weekdayName(int weekday) {
+    const days = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+    return days[weekday - 1];
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return Colors.orange;
+      case 'accepted':
+      case 'confirmed':
+        return Colors.green;
+      case 'denied':
+      case 'cancelled':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String capitalize(String input) {
+    if (input.isEmpty) return input;
+    return input[0].toUpperCase() + input.substring(1).toLowerCase();
   }
 
   @override
@@ -481,29 +504,6 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                           ),
                         );
 
-                        // ✅ 1. Show dialog and wait for it to close
-                        await showDialog(
-                          context: context,
-                          builder:
-                              (_) => AlertDialog(
-                                title: const Text('Your Location'),
-                                content: Text(
-                                  'Latitude: ${pos.latitude.toStringAsFixed(6)}\n'
-                                  'Longitude: ${pos.longitude.toStringAsFixed(6)}',
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed:
-                                        () =>
-                                            Navigator.of(
-                                              context,
-                                            ).pop(), // closes dialog
-                                    child: const Text('OK'),
-                                  ),
-                                ],
-                              ),
-                        );
-
                         // Step 5: Save location in Firestore
                         final userId = FirebaseAuth.instance.currentUser!.uid;
                         final docRef = FirebaseFirestore.instance
@@ -823,61 +823,134 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-          if (_pendingBookings.isEmpty && _confirmedBookings.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(20.0),
-                child: Text(
-                  'You have no active bookings yet.',
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
+          Column(
+            children: [
+              _buildProfessionalCard(
+                context: context,
+                name: 'Grace Nakato',
+                service: 'Plumbing Expert',
+                rating: '4.9',
+                jobsCompleted: '150+',
+                imageUrl: 'https://via.placeholder.com/150',
+              ),
+              const SizedBox(height: 10),
+              _buildProfessionalCard(
+                context: context,
+                name: 'David Ssenyonga',
+                service: 'Electrical & AC Repair',
+                rating: '4.7',
+                jobsCompleted: '120+',
+                imageUrl: 'https://via.placeholder.com/150',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfessionalCard({
+    required BuildContext context,
+    required String name,
+    required String service,
+    required String rating,
+    required String jobsCompleted,
+    required String imageUrl,
+  }) {
+    return Card(
+      elevation: 5,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(15),
+        onTap: () {
+          print('Professional tapped: \$name');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Tapped on \$name\'s profile!')),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Row(
+            children: [
+              CircleAvatar(radius: 30, backgroundImage: NetworkImage(imageUrl)),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      service,
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 5),
+                    Row(
+                      children: [
+                        Icon(Icons.star, color: Colors.amber[700], size: 16),
+                        Text(
+                          '\$rating (\$jobsCompleted jobs)',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-            ),
-          if (_pendingBookings.isNotEmpty) ...[
-            const Text(
-              'Pending Services',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            ..._pendingBookings.map(
-              (booking) => _buildBookingStatusCard(
-                context: context,
-                service: booking.serviceName,
-                provider: booking.providerName,
-                status: booking.status,
-                date: booking.date,
-                statusColor: Colors.orange,
-                isCompleted: false,
-                bookingId: booking.id,
-                providerId: booking.providerId,
-              ),
-            ),
-            const SizedBox(height: 20),
-          ],
-          if (_confirmedBookings.isNotEmpty) ...[
-            const Text(
-              'Confirmed Services',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            ..._confirmedBookings.map(
-              (booking) => _buildBookingStatusCard(
-                context: context,
-                service: booking.serviceName,
-                provider: booking.providerName,
-                status: booking.status,
-                date: booking.date,
-                statusColor: Colors.green,
-                isCompleted: true,
-                bookingId: booking.id,
-                providerId: booking.providerId,
-              ),
-            ),
-            const SizedBox(height: 10),
-          ],
+              const Icon(Icons.chevron_right, color: Colors.grey),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBookingStatusSection(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'My Bookings',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          _buildBookingStatusCard(
+            context: context,
+            service: 'Plumbing Repair',
+            provider: 'Grace Nakato',
+            status: 'Pending',
+            date: 'Tomorrow, 10:00 AM',
+            statusColor: Colors.orange,
+          ),
+          const SizedBox(height: 10),
+          _buildBookingStatusCard(
+            context: context,
+            service: 'House Cleaning',
+            provider: 'CleanSweep Ltd.',
+            status: 'Confirmed',
+            date: 'Today, 2:00 PM',
+            statusColor: Colors.green,
+          ),
+          const SizedBox(height: 10),
           Center(
             child: TextButton(
-              onPressed: () => debugPrint('View All Bookings pressed'),
+              onPressed: () {
+                print('View All Bookings pressed');
+              },
               child: const Text('View All My Bookings'),
             ),
           ),
@@ -888,7 +961,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
 
   Widget _buildBookingStatusCard({
     required BuildContext context,
-    required String service,
+    required String service, // this should now be a single category string
     required String provider,
     required String status,
     required String date,
@@ -903,7 +976,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
       child: InkWell(
         borderRadius: BorderRadius.circular(15),
         onTap: () {
-          debugPrint('Booking tapped: $service with $provider');
+          print('Booking tapped: \$service with \$provider');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Tapped on booking for $service!')),
           );
@@ -913,19 +986,23 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Category Title (e.g., "Plumbing")
               Text(
                 service,
                 style: const TextStyle(
-                  fontSize: 16,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
+                  color: Colors.black87,
                 ),
               ),
-              const SizedBox(height: 5),
+              const SizedBox(height: 6),
+              // Service Provider Name
               Text(
-                'With: $provider',
+                'With: \$provider',
                 style: TextStyle(fontSize: 14, color: Colors.grey[700]),
               ),
-              const SizedBox(height: 5),
+              const SizedBox(height: 6),
+              // Booking Date and Status Badge
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [

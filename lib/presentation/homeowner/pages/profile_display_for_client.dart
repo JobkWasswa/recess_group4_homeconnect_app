@@ -1,17 +1,70 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:homeconnect/data/models/rating_review.dart'; // Needed for RatingReview model to calculate average
 
-class ProfileDisplayScreenForClient extends StatelessWidget {
-  final String userId;
+// Removed firebase_auth as no review submission is happening here
 
-  const ProfileDisplayScreenForClient({super.key, required this.userId});
+class ProfileDisplayScreenForClient extends StatefulWidget {
+  final String serviceProviderId;
 
-  Future<DocumentSnapshot<Map<String, dynamic>>> _fetchProfileData() {
-    return FirebaseFirestore.instance
-        .collection('service_providers')
-        .doc(userId)
-        .get();
+  const ProfileDisplayScreenForClient({
+    super.key,
+    required this.serviceProviderId,
+  });
+
+  @override
+  State<ProfileDisplayScreenForClient> createState() =>
+      _ProfileDisplayScreenForClientState();
+}
+
+class _ProfileDisplayScreenForClientState
+    extends State<ProfileDisplayScreenForClient> {
+  double _averageRating = 0.0;
+  int _totalReviews = 0;
+  // Removed List<RatingReview> _reviews; as individual reviews are not displayed
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRatingsAndReviews(); // Reinstated to fetch data for average rating
   }
+
+  // Reinstated to calculate average rating and total reviews
+  Future<void> _loadRatingsAndReviews() async {
+    if (!mounted) return;
+
+    // No need to fetch profile data again here, it's handled by the FutureBuilder in build().
+
+    // Fetch all ratings and reviews for this service provider
+    final querySnapshot =
+        await FirebaseFirestore.instance
+            .collection('ratings_reviews')
+            .where('serviceProviderId', isEqualTo: widget.serviceProviderId)
+            .get(); // No need to order by timestamp if only calculating average/total
+
+    if (!mounted) return; // Check again after await
+
+    double sumRatings = 0;
+    // List<RatingReview> fetchedReviews = []; // No longer needed
+
+    for (var doc in querySnapshot.docs) {
+      try {
+        final ratingReview = RatingReview.fromFirestore(doc);
+        sumRatings += ratingReview.rating;
+        // fetchedReviews.add(ratingReview); // No longer needed
+      } catch (e) {
+        print('Error parsing rating review document: $e');
+      }
+    }
+
+    setState(() {
+      _totalReviews = querySnapshot.docs.length;
+      _averageRating = _totalReviews > 0 ? sumRatings / _totalReviews : 0.0;
+      // _reviews = fetchedReviews; // No longer needed
+    });
+  }
+
+  // Removed _submitReview method as reviews are not submitted from here
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +78,11 @@ class ProfileDisplayScreenForClient extends StatelessWidget {
         elevation: 0,
       ),
       body: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        future: _fetchProfileData(),
+        future:
+            FirebaseFirestore.instance
+                .collection('service_providers')
+                .doc(widget.serviceProviderId)
+                .get(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -43,7 +100,9 @@ class ProfileDisplayScreenForClient extends StatelessWidget {
           }
 
           final data = snapshot.data!.data()!;
-          final location = data['location'] ?? {};
+          final GeoPoint? location =
+              data['location'] is GeoPoint ? data['location'] : null;
+          final String address = data['address'] ?? 'N/A';
           final availability = data['availability'] ?? {};
           final categories = data['categories'] ?? [];
 
@@ -89,6 +148,35 @@ class ProfileDisplayScreenForClient extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 15),
+
+                // Reinstated Ratings Display Section (summary only)
+                Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.star, color: Colors.amber, size: 28),
+                      const SizedBox(width: 8),
+                      Text(
+                        _averageRating.toStringAsFixed(1),
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '($_totalReviews reviews)',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 15),
+
                 Container(
                   padding: const EdgeInsets.all(15),
                   decoration: BoxDecoration(
@@ -127,19 +215,15 @@ class ProfileDisplayScreenForClient extends StatelessWidget {
                 const Divider(height: 40, thickness: 1.5, color: Colors.grey),
                 _buildSectionTitle(context, "Location", Icons.location_on),
                 const SizedBox(height: 10),
-                _buildProfileDetailRow(
-                  "Address",
-                  location['address'] ?? 'N/A',
-                  Icons.pin_drop,
-                ),
+                _buildProfileDetailRow("Address", address, Icons.pin_drop),
                 _buildProfileDetailRow(
                   "Latitude",
-                  location['lat']?.toString() ?? 'N/A',
+                  location?.latitude.toString() ?? 'N/A',
                   Icons.map,
                 ),
                 _buildProfileDetailRow(
                   "Longitude",
-                  location['lng']?.toString() ?? 'N/A',
+                  location?.longitude.toString() ?? 'N/A',
                   Icons.map,
                 ),
                 const Divider(height: 40, thickness: 1.5, color: Colors.grey),
@@ -175,15 +259,17 @@ class ProfileDisplayScreenForClient extends StatelessWidget {
                     "No availability set.",
                     style: TextStyle(color: Colors.grey),
                   ),
+                // The individual reviews section (ListView.builder) remains removed.
               ],
             ),
           );
         },
       ),
+      // The FloatingActionButton for "Rate & Review" remains removed.
     );
   }
 
-  // Section Title Widget
+  // Section Title Widget (unchanged)
   Widget _buildSectionTitle(BuildContext context, String title, IconData icon) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 5.0),
@@ -204,7 +290,7 @@ class ProfileDisplayScreenForClient extends StatelessWidget {
     );
   }
 
-  // Profile Detail Row
+  // Profile Detail Row (unchanged)
   Widget _buildProfileDetailRow(String label, String value, IconData icon) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),

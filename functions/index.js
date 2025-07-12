@@ -1,42 +1,97 @@
+// functions/index.js
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const dayjs = require("dayjs");
+const utc = require("dayjs/plugin/utc");
+const timezone = require("dayjs/plugin/timezone");
+const isBetween = require("dayjs/plugin/isBetween"); // Add this plugin for range checks
+dayjs.extend(utc);
+dayjs.extend(timezone);
+dayjs.extend(isBetween); // Extend dayjs with isBetween
+
 admin.initializeApp(); // Initialize Firebase Admin SDK
 
-/**
- * Callable Cloud Function to get recommended service providers.
- *
- * @param {object} data - The data passed from the client (Flutter app).
- * @param {string} data.serviceCategory - The category of service requested.
- * @param {number} data.homeownerLatitude - Latitude of the homeowner's job location.
- * @param {number} data.homeownerLongitude - Longitude of the homeowner's job location.
- * @param {string} [data.desiredDateTime] - Optional: ISO string of the desired date and time for service.
- *
- * @param {object} context - The context of the function call (includes auth info).
- * @returns {object} An object containing a 'providers' array of recommended service providers.
- */
 exports.getRecommendedProviders = functions.https.onCall(
-  async (data, context) => {
-    // Basic Authentication Check: Ensure the user is authenticated.
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "The function must be called while authenticated."
-      );
-    }
+  async (requestData, context) => {
+    // Authenticate the user (optional, but good practice for any function needing user context)
+    // if (!context.auth) {
+    //     throw new functions.https.HttpsError(
+    //         'unauthenticated',
+    //         'The function must be called while authenticated.'
+    //     );
+    // }
 
-    // Input Validation: Ensure required parameters are provided.
+    console.log("CF received raw requestData:", requestData);
+    console.log(
+      "CF received serviceCategory:",
+      requestData.data?.serviceCategory
+    );
+    console.log(
+      "CF received homeownerLatitude:",
+      requestData.data?.homeownerLatitude
+    );
+    console.log(
+      "CF received homeownerLongitude:",
+      requestData.data?.homeownerLongitude
+    );
+    console.log(
+      "CF received desiredDateTime:",
+      requestData.data?.desiredDateTime
+    );
+
     const {
       serviceCategory,
       homeownerLatitude,
       homeownerLongitude,
-      desiredDateTime,
-    } = data;
+      desiredDateTime, // This will now be used for availability filtering
+    } = requestData.data;
+
+    // Convert desiredDateTime to a Day.js object if provided
+    let parsedDesiredDateTime = null;
+    if (desiredDateTime) {
+      try {
+        // Assume desiredDateTime is an ISO 8601 string, parse it as UTC
+        parsedDesiredDateTime = dayjs.utc(desiredDateTime);
+        if (!parsedDesiredDateTime.isValid()) {
+          throw new Error("Invalid desiredDateTime format");
+        }
+        // Ensure the desired time is not in the past relative to function execution time
+        // We use a small buffer (e.g., 5 minutes) to account for network latency/clock differences
+        if (
+          parsedDesiredDateTime.isBefore(dayjs.utc().subtract(5, "minutes"))
+        ) {
+          throw new functions.https.HttpsError(
+            "invalid-argument",
+            "Desired date and time cannot be in the past."
+          );
+        }
+      } catch (e) {
+        console.error(
+          "Invalid desiredDateTime received:",
+          desiredDateTime,
+          e.message
+        );
+        throw new functions.https.HttpsError(
+          "invalid-argument",
+          `Invalid desiredDateTime format: ${e.message}`
+        );
+      }
+    }
 
     if (
       !serviceCategory ||
+      typeof serviceCategory !== "string" ||
       typeof homeownerLatitude !== "number" ||
-      typeof homeownerLongitude !== "number"
+      !Number.isFinite(homeownerLatitude) ||
+      typeof homeownerLongitude !== "number" ||
+      !Number.isFinite(homeownerLongitude)
     ) {
+      console.error("Validation failed for incoming data:", {
+        serviceCategory,
+        homeownerLatitude,
+        homeownerLongitude,
+      });
+
       throw new functions.https.HttpsError(
         "invalid-argument",
         "Missing or invalid required parameters (serviceCategory, homeownerLatitude, homeownerLongitude)."
@@ -47,7 +102,7 @@ exports.getRecommendedProviders = functions.https.onCall(
       latitude: homeownerLatitude,
       longitude: homeownerLongitude,
     };
-    const MAX_DISTANCE_KM = 7; // Your defined maximum radius for matching
+    const MAX_DISTANCE_KM = 7;
 
     console.log(
       `Searching for '${serviceCategory}' providers near (${homeownerLatitude}, ${homeownerLongitude})`
@@ -55,12 +110,10 @@ exports.getRecommendedProviders = functions.https.onCall(
 
     let providersSnapshot;
     try {
-      // Step 1: Initial query from Firestore based on serviceCategory
-      // This will fetch all providers offering this service, before further filtering.
       providersSnapshot = await admin
         .firestore()
         .collection("service_providers")
-        .where("servicesOffered", "array-contains", serviceCategory)
+        .where("categories", "array-contains", serviceCategory)
         .get();
 
       if (providersSnapshot.empty) {
@@ -78,24 +131,21 @@ exports.getRecommendedProviders = functions.https.onCall(
 
     const eligibleProviders = [];
 
-    // Loop through each provider to apply filtering and scoring
     for (const doc of providersSnapshot.docs) {
       const providerData = doc.data();
       const providerId = doc.id;
       console.log(`Processing provider: ${providerId}`);
 
-      // Placeholder for filtering logic
-      let meetsAllCriteria = true; // Assume true initially, set to false if any criteria fails
+      let meetsAllCriteria = true;
 
-      // --- Start of Geospatial Filtering Logic ---
+      // --- Geospatial Filtering ---
+      let distance = null;
       if (
         !providerData.location ||
         typeof providerData.location.latitude === "undefined" ||
         typeof providerData.location.longitude === "undefined"
       ) {
-        console.warn(
-          `Provider ${providerId} is missing complete location data. Skipping.`
-        );
+        console.warn(`Provider ${providerId} missing location. Skipping.`);
         meetsAllCriteria = false;
       } else {
         const providerBaseLocation = {
@@ -103,14 +153,13 @@ exports.getRecommendedProviders = functions.https.onCall(
           longitude: providerData.location.longitude,
         };
 
-        const distance = calculateDistance(
+        distance = calculateDistance(
           homeownerLocation.latitude,
           homeownerLocation.longitude,
           providerBaseLocation.latitude,
           providerBaseLocation.longitude
-        ); // Distance in kilometers
+        );
 
-        // Filter 1: Check if provider's base location is within the MAX_DISTANCE_KM (7km) from homeowner
         if (distance > MAX_DISTANCE_KM) {
           console.log(
             `Provider ${providerId} too far (${distance.toFixed(
@@ -118,53 +167,47 @@ exports.getRecommendedProviders = functions.https.onCall(
             )} km). Skipping.`
           );
           meetsAllCriteria = false;
-        } else {
-          // Filter 2 (Optional but good): Check if homeowner's location is within provider's declared service radius
-          // This means the provider must *also* declare they cover the homeowner's area.
-          const providerServiceRadius = providerData.serviceRadius || 0; // Default to 0 if not set in Firestore
-          if (distance > providerServiceRadius && providerServiceRadius > 0) {
-            console.log(
-              `Provider ${providerId} (radius ${providerServiceRadius}km) doesn't cover this distance ${distance.toFixed(
-                2
-              )}km. Skipping.`
-            );
-            meetsAllCriteria = false;
-          }
         }
       }
-      // --- End of Geospatial Filtering Logic ---
 
-      // --- Placeholder for Availability Filtering (Your next step) ---
-      // if (meetsAllCriteria && desiredDateTime) {
-      //     const isProviderAvailable = checkAvailability(providerData.availability, desiredDateTime);
-      //     if (!isProviderAvailable) {
-      //         meetsAllCriteria = false;
-      //     }
-      // }
+      // --- AVAILABILITY FILTERING based on desiredDateTime and provider's default working hours ---
+      // Only perform this check if a specific desiredDateTime was provided by the user.
+      if (meetsAllCriteria && parsedDesiredDateTime) {
+        const isProviderAvailable = checkProviderAvailability(
+          providerData,
+          parsedDesiredDateTime
+        );
 
-      // If all hard filters are met, add to eligible list for scoring/ranking
+        if (!isProviderAvailable) {
+          console.log(
+            `Provider ${providerId} not available at ${parsedDesiredDateTime.toISOString()} based on their schedule/blocked dates. Skipping.`
+          );
+          meetsAllCriteria = false;
+        }
+      }
+      // --- END AVAILABILITY FILTERING ---
+
       if (meetsAllCriteria) {
-        // --- Placeholder for Rating & Review Scoring (Your next step) ---
-        const rating = providerData.ratings?.average ?? 0;
-        const reviewCount = providerData.ratings?.count ?? 0;
-        const score = calculateRatingScore(rating, reviewCount); // You'll implement this helper
+        const rating = providerData.averageRating ?? 0;
+        const reviewCount = providerData.numberOfReviews ?? 0;
+        const score = calculateRatingScore(rating, reviewCount, distance);
 
         eligibleProviders.push({
           id: providerId,
-          name: providerData.profileInfo?.name, // Assuming you have this structure
+          name: providerData.name ?? "Unnamed Provider",
+          profilePhoto: providerData.profilePhoto ?? null,
+          categories: providerData.categories ?? [],
+          // availableToday is no longer directly pulled from Firestore for real-time availability
           service: serviceCategory,
           rating: rating,
           reviewCount: reviewCount,
-          distance: parseFloat(distance.toFixed(2)), // Ensure distance is defined here
+          distanceKm:
+            distance !== null ? parseFloat(distance.toFixed(2)) : null,
           score: score,
-          // Add any other data needed by the Flutter UI here
         });
       }
     }
 
-    // --- Overall Ranking Logic ---
-    // Sort by the calculated score (highest score first).
-    // If scores are equal, you might add secondary sort criteria (e.g., jobs completed, creation date).
     eligibleProviders.sort((a, b) => b.score - a.score);
 
     console.log(`Found ${eligibleProviders.length} eligible providers.`);
@@ -172,35 +215,148 @@ exports.getRecommendedProviders = functions.https.onCall(
   }
 );
 
-// Helper Function: Distance Calculation (Haversine Formula)
-// Place this function outside (below) the main Cloud Function or in a separate utility file.
+// Helper Function: Distance Calculation (Haversine) - UNCHANGED
 function calculateDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371; // Radius of Earth in kilometers
+  const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) *
       Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+      Math.sin(dLon / 2) ** 2;
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distance = R * c; // Distance in km
-  return distance;
+  return R * c;
 }
 
-// Helper Function: Rating Score Calculation (Implement this next)
-function calculateRatingScore(averageRating, reviewCount) {
-  // For now, a very simple score. You'll refine this.
-  // Consider using a Bayesian average for more robust scoring with few reviews.
-  if (reviewCount === 0) return 0; // Or some default low score
-  return averageRating * (1 + reviewCount / 100); // Example: more reviews gives a slight boost
+// Helper Function: Rating Score - UNCHANGED
+function calculateRatingScore(averageRating, reviewCount, distanceKm) {
+  if (reviewCount === 0) return 0;
+
+  let score = averageRating;
+  score += Math.min(reviewCount * 0.05, 1.0);
+
+  if (distanceKm !== null && distanceKm !== undefined) {
+    score -= Math.min(distanceKm * 0.1, 2.0);
+  }
+
+  return Math.max(0, score);
 }
 
-// Helper Function: Availability Check (Implement this next)
-// function checkAvailability(providerAvailabilityData, desiredDateTime) {
-//     // This will be complex depending on your availability structure.
-//     // Parse desiredDateTime, check against provider's schedule (providerAvailabilityData).
-//     // Return true if available, false otherwise.
-//     return true; // Placeholder
-// }
+// --- REVISED HELPER FUNCTION: checkProviderAvailability ---
+/**
+ * Checks if a provider is generally available at a specific desired date and time
+ * based on their default working hours and blocked dates.
+ * This function does NOT check for existing bookings. That will be part of the booking creation logic.
+ *
+ * @param {object} providerData - The full provider document data from Firestore.
+ * @param {dayjs.Dayjs} desiredDateTime - A Day.js object representing the desired booking time (in UTC).
+ * @returns {boolean} True if the provider is generally available (not blocked and within working hours), false otherwise.
+ */
+function checkProviderAvailability(providerData, desiredDateTime) {
+  // 1. Check for 'available' top-level boolean flag (manual override)
+  // If you have a simple boolean field for providers to mark themselves completely unavailable
+  // beyond their schedule, you would check it here. For now, assuming you might not.
+  // if (providerData.isGloballyUnavailable === true) {
+  //     console.log(`Provider is globally unavailable.`);
+  //     return false;
+  // }
+
+  // 1. Check for blocked dates (full day unavailability)
+  const desiredDateString = desiredDateTime.format("YYYY-MM-DD"); // e.g., "2025-07-10"
+  if (
+    providerData.blockedDates &&
+    providerData.blockedDates.includes(desiredDateString)
+  ) {
+    console.log(`Provider is blocked on ${desiredDateString}`);
+    return false;
+  }
+
+  // 2. Check general weekly working hours
+  const dayOfWeek = desiredDateTime.format("dddd"); // e.g., "Thursday"
+  const desiredTimeHourMin = desiredDateTime.format("HH:mm"); // e.g., "15:34"
+
+  // Ensure defaultWorkingHours exists and has entries for the day of the week
+  const workingHoursRanges = providerData.defaultWorkingHours?.[dayOfWeek];
+
+  if (!workingHoursRanges || workingHoursRanges.length === 0) {
+    console.log(`Provider has no default working hours on ${dayOfWeek}`);
+    return false; // Not working on this day
+  }
+
+  let isWithinWorkingHours = false;
+  for (const range of workingHoursRanges) {
+    // Example range: "09:00-12:00"
+    const [startTimeStr, endTimeStr] = range.split("-");
+
+    // Create Day.js objects for the start and end of the working range for *that specific desired date*.
+    // We use desiredDateString to ensure the date context is correct for the time comparison.
+    // Append 'Z' to treat as UTC, matching how desiredDateTime is parsed.
+    const rangeStart = dayjs.utc(`${desiredDateString}T${startTimeStr}:00Z`);
+    const rangeEnd = dayjs.utc(`${desiredDateString}T${endTimeStr}:00Z`);
+
+    // Check if the desired booking time is within this specific working range
+    // '[)' means inclusive of start, exclusive of end. This is common for time slots.
+    // So, 09:00 is available, but 12:00 (the end time) is not.
+    if (desiredDateTime.isBetween(rangeStart, rangeEnd, null, "[)")) {
+      isWithinWorkingHours = true;
+      break;
+    }
+  }
+
+  if (!isWithinWorkingHours) {
+    console.log(
+      `Desired time ${desiredTimeHourMin} not within default working hours on ${dayOfWeek}`
+    );
+    return false;
+  }
+
+  // If it passed all checks, the provider is generally available at that time
+  return true;
+}
+
+
+// 🔔 NEW FUNCTION: Send FCM notification when a new booking is created
+exports.sendBookingNotification = onDocumentCreated(
+  "bookings/{bookingId}",
+  async (event) => {
+    const booking = event.data;
+    const providerId = booking.serviceProviderId;
+
+    if (!providerId) {
+      console.log("No serviceProviderId in booking");
+      return;
+    }
+
+    const providerDoc = await admin
+      .firestore()
+      .collection("service_providers")
+      .doc(providerId)
+      .get();
+
+    const fcmToken = providerDoc.data()?.fcmToken;
+
+    if (!fcmToken) {
+      console.log(`No FCM token found for provider ${providerId}`);
+      return;
+    }
+
+    const payload = {
+      notification: {
+        title: "📢 New Booking Request",
+        body: `${booking.clientName} booked a ${booking.categories} service.`,
+      },
+      data: {
+        bookingId: event.params.bookingId,
+      },
+      token: fcmToken,
+    };
+
+    try {
+      await admin.messaging().send(payload);
+      console.log("Notification sent successfully to:", fcmToken);
+    } catch (error) {
+      console.error("Error sending notification:", error);
+    }
+  }
+);

@@ -3,6 +3,7 @@ import 'package:homeconnect/config/routes.dart'; // Import routes for logout nav
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/presentation/service_provider/pages/service_provider_savedprofile.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 class ServiceProviderDashboardScreen extends StatefulWidget {
   const ServiceProviderDashboardScreen({super.key});
@@ -25,22 +26,22 @@ class _ServiceProviderDashboardScreenState
   @override
   void initState() {
     super.initState();
-    _fetchProviderData();
+    _fetchProviderName();
+    _updateProviderFCMToken(); // Ensure provider FCM token is saved on dashboard load
   }
 
+  // Fetch and format provider's name from Firestore
   String _formatNameFromEmail(String email) {
     final username = email.split('@').first;
-    // Replace dots, underscores, and dashes with spaces
     final withSpaces = username.replaceAll(RegExp(r'[._-]'), ' ');
-    // Capitalize each word
     final words = withSpaces.split(' ');
-    final capitalizedWords = words
-        .map((word) {
-          if (word.isEmpty) return '';
-          return word[0].toUpperCase() + word.substring(1);
-        })
-        .join(' ');
-    return capitalizedWords.trim();
+    return words
+        .map(
+          (word) =>
+              word.isNotEmpty ? word[0].toUpperCase() + word.substring(1) : '',
+        )
+        .join(' ')
+        .trim();
   }
 
   Future<void> _fetchProviderData() async {
@@ -55,7 +56,7 @@ class _ServiceProviderDashboardScreenState
       }
       final doc =
           await FirebaseFirestore.instance
-              .collection('users')
+              .collection('service_providers') // your provider collection
               .doc(user.uid)
               .get();
 
@@ -102,6 +103,40 @@ class _ServiceProviderDashboardScreenState
     // FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser?.uid).update({
     //   'availabilityStatus': newStatus,
     // });
+  }
+
+  // Save or update FCM token in provider's Firestore document
+  Future<void> _updateProviderFCMToken() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        await FirebaseFirestore.instance
+            .collection('service_providers')
+            .doc(user.uid)
+            .update({'fcmToken': token});
+      }
+    } catch (e) {
+      print('Error updating FCM token: $e');
+    }
+  }
+
+  // Save or update FCM token in provider's Firestore document
+  Future<void> _updateProviderFCMToken() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        await FirebaseFirestore.instance
+            .collection('service_providers')
+            .doc(user.uid)
+            .update({'fcmToken': token});
+      }
+    } catch (e) {
+      print('Error updating FCM token: $e');
+    }
   }
 
   @override
@@ -173,6 +208,7 @@ class _ServiceProviderDashboardScreenState
                 ),
                 Row(
                   children: [
+                    // Notification icon
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
@@ -206,6 +242,7 @@ class _ServiceProviderDashboardScreenState
                       ),
                     ),
                     const SizedBox(width: 8),
+                    // Profile settings icon
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
@@ -220,6 +257,7 @@ class _ServiceProviderDashboardScreenState
                       ),
                     ),
                     const SizedBox(width: 8),
+                    // Logout icon
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
@@ -227,7 +265,6 @@ class _ServiceProviderDashboardScreenState
                       ),
                       child: IconButton(
                         onPressed: () {
-                          // Logout: Navigate back to Auth screen
                           Navigator.of(
                             context,
                           ).pushReplacementNamed(AppRoutes.auth);
@@ -240,7 +277,7 @@ class _ServiceProviderDashboardScreenState
               ],
             ),
             const SizedBox(height: 24),
-            // Quick Status
+            // Quick Status Summary
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -252,7 +289,7 @@ class _ServiceProviderDashboardScreenState
                 children: [
                   _buildStatusItem(
                     Icons.star,
-                    _starRating.toStringAsFixed(1), // Display dynamic rating
+                    '0',
                     'Avg. Rating',
                     Colors.amber,
                   ),
@@ -342,12 +379,6 @@ class _ServiceProviderDashboardScreenState
                   'Avg. Rating',
                   '${_starRating.toStringAsFixed(1)} (0 reviews)', // Use dynamic value
                   Colors.amber,
-                ),
-                _buildStatRow(
-                  Icons.monetization_on,
-                  'Earnings (last 30 days)',
-                  'UGX 0', // This should be dynamic
-                  Colors.purple,
                 ),
               ],
             ),
@@ -448,33 +479,52 @@ class _ServiceProviderDashboardScreenState
             ],
           ),
           const SizedBox(height: 16),
-          if (filteredJobs.isEmpty)
-            Center(
-              child: Text(
-                'No new requests for your profession ($_userProfession) at the moment.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            )
-          else
-            Column(
-              children:
-                  filteredJobs
-                      .map(
-                        (job) => _buildJobRequestCard(
-                          context: context,
-                          jobType: job['jobType']!,
-                          homeownerName: job['homeownerName']!,
-                          date: job['date']!,
-                          location: job['location']!,
-                          price: job['price']!,
-                        ),
-                      )
-                      .toList(),
-            ),
+          StreamBuilder<QuerySnapshot>(
+            stream:
+                FirebaseFirestore.instance
+                    .collection('bookings')
+                    .where(
+                      'serviceProviderId',
+                      isEqualTo: FirebaseAuth.instance.currentUser!.uid,
+                    )
+                    .orderBy('createdAt', descending: true)
+                    .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final docs = snapshot.data?.docs ?? [];
+              if (docs.isEmpty) {
+                return Center(
+                  child: Text(
+                    'No new requests at the moment.',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                );
+              }
+              return Column(
+                children:
+                    docs.map((doc) {
+                      final data = doc.data()! as Map<String, dynamic>;
+                      return _buildJobRequestCard(
+                        context: context,
+                        jobType: data['categories'] ?? 'Unknown',
+                        homeownerName: data['clientName'] ?? 'Unknown',
+                        date:
+                            (data['bookingDate'] as Timestamp)
+                                .toDate()
+                                .toLocal()
+                                .toString(),
+                        location: '',
+                        price: '',
+                      );
+                    }).toList(),
+              );
+            },
+          ),
         ],
       ),
     );
@@ -616,7 +666,7 @@ class _ServiceProviderDashboardScreenState
           _buildManagementCard(
             context: context,
             icon: Icons.edit,
-            title: 'View saved proflie',
+            title: 'View saved profile',
             subtitle: 'Like the skills, description, and contact info.',
             onTap: () {
               Navigator.push(
@@ -627,18 +677,17 @@ class _ServiceProviderDashboardScreenState
             colors: const [Color(0xFFFBBF24), Color(0xFFEAB308)], // Yellow
           ),
           const SizedBox(height: 12),
-          // Removed 'Set Availability' as per requirement 3
-          // _buildManagementCard(
-          //   context: context,
-          //   icon: Icons.calendar_month,
-          //   title: 'Set Availability',
-          //   subtitle: 'Manage your working hours and days off.',
-          //   onTap: () {
-          //     print('Set Availability pressed');
-          //   },
-          //   colors: const [Color(0xFF22C55E), Color(0xFF16A34A)], // Green
-          // ),
-          // const SizedBox(height: 12),
+          _buildManagementCard(
+            context: context,
+            icon: Icons.calendar_month,
+            title: 'Set Availability',
+            subtitle: 'Manage your working hours and days off.',
+            onTap: () {
+              // TODO: Navigate to Set Availability screen
+            },
+            colors: [Color(0xFF22C55E), Color(0xFF16A34A)], // Green
+          ),
+          const SizedBox(height: 12),
           _buildManagementCard(
             context: context,
             icon: Icons.history,
@@ -646,7 +695,6 @@ class _ServiceProviderDashboardScreenState
             subtitle: 'See all your past completed jobs and earnings.',
             onTap: () {
               // TODO: Navigate to Job History screen
-              print('View Job History pressed');
             },
             colors: const [Color(0xFFA855F7), Color(0xFF9333EA)], // Purple
           ),

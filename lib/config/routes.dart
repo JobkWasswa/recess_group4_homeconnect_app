@@ -6,11 +6,11 @@ import 'package:homeconnect/presentation/auth/register_page.dart';
 import 'package:homeconnect/presentation/auth/splash_screen.dart';
 import 'package:homeconnect/presentation/homeowner/pages/service_provider_list_page.dart';
 import 'package:homeconnect/presentation/homeowner/pages/service_provider_detail_page.dart';
-import 'package:homeconnect/presentation/service_provider/pages/service_provider_profile.dart';
+import 'package:homeconnect/presentation/service_provider/pages/service_provider_profile.dart'; // Assuming ProfileCreationScreen is here
 
 class AppRoutes {
   static const String splash = '/';
-  static const String auth = '/auth';
+  static const String auth = '/auth'; // This is the route name
   static const String login = '/login';
   static const String register = '/register';
   static const String homeownerDashboard = '/homeowner_dashboard';
@@ -25,12 +25,18 @@ class AppRoutes {
   static Map<String, WidgetBuilder> get routes {
     return {
       splash: (context) => const SplashScreen(),
+      // ★ ADD THIS LINE ★
+      auth:
+          (context) =>
+              const LoginPage(), // When /auth is called, show LoginPage
       login: (context) => const LoginPage(),
       register: (context) => const RegisterPage(),
       homeownerDashboard: (context) => const HomeownerDashboardScreen(),
       serviceProviderDashboard:
           (context) => const ServiceProviderDashboardScreen(),
-      serviceProviderCreateProfile: (context) => const ProfileCreationScreen(),
+      serviceProviderCreateProfile:
+          (context) =>
+              const ProfileCreationScreen(), // Assuming this is correct
       // Note: No need to add serviceProviderListPage and serviceProviderDetailPage here since they’ll be handled by onGenerateRoute
     };
   }
@@ -40,7 +46,12 @@ class AppRoutes {
     switch (settings.name) {
       case serviceProviderListPage:
         final args = settings.arguments as Map<String, dynamic>;
+        // Assuming userLocation is passed as a GeoPoint, but ServiceProviderListPage expects it as GeoPoint
+        // You might need to cast or convert args['location'] to GeoPoint if it's coming from outside this route definition
+        // For now, let's assume 'category' is the primary argument based on your previous code
         final category = args['category'] as String;
+        // If userLocation is also a required argument, you'll need to retrieve it:
+        // final userLocation = args['userLocation'] as GeoPoint; // Make sure to import cloud_firestore for GeoPoint
         return MaterialPageRoute(
           builder:
               (_) => ServiceProviderListScreen(
@@ -50,7 +61,6 @@ class AppRoutes {
         );
 
       case serviceProviderDetailPage:
-        // Example — you can add arguments handling here if needed later
         return MaterialPageRoute(
           builder: (_) => const ServiceProviderDetailPage(),
         );

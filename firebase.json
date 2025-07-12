@@ -32,7 +32,11 @@
         "firebase-debug.log",
         "firebase-debug.*.log",
         "*.local"
-      ]
+      ],
+      "gen": "2",
+      "getRecommendedProviders": {
+        "invoker": "public"
+      }
     }
   ]
 }

@@ -8,7 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:homeconnect/config/routes.dart';
-import 'package:homeconnect/data/models/services.dart'; // Assuming Selection() is here or imported elsewhere
+import 'package:homeconnect/data/models/services.dart';
 
 class ProfileCreationScreen extends StatefulWidget {
   const ProfileCreationScreen({super.key});
@@ -20,11 +20,10 @@ class ProfileCreationScreen extends StatefulWidget {
 class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
   final _nameController = TextEditingController();
   final _descController = TextEditingController();
-  final List<String> _skills = [];
   List<String> _selectedCategories = [];
 
-  io.File? _profileImageFile; // for mobile & desktop
-  Uint8List? _webImageBytes; // for web
+  io.File? _profileImageFile;
+  Uint8List? _webImageBytes;
   double? _latitude;
   double? _longitude;
   final picker = ImagePicker();
@@ -118,7 +117,8 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
         if (placemarks.isNotEmpty) {
           Placemark place = placemarks.first;
           setState(() {
-            locationAddress = "${place.locality}, ${place.country}";
+            locationAddress =
+                "${place.street ?? ''}, ${place.locality ?? ''}, ${place.country ?? ''}";
           });
         } else {
           setState(() {
@@ -139,6 +139,7 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
   }
 
   Future<void> _saveProfile() async {
+    print("Save profile button pressed");
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
@@ -149,7 +150,6 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
         return;
       }
 
-      // ✅ Validate category selection
       if (_selectedCategories.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Please select at least one category.")),
@@ -160,7 +160,6 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
       final uid = user.uid;
       final imageUrl = await _uploadProfileImage();
 
-      // ✅ Build availability data
       Map<String, dynamic> availabilityData = {};
       _availability.forEach((day, isAvailable) {
         if (isAvailable) {
@@ -171,7 +170,6 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
         }
       });
 
-      // ✅ Save to service_providers collection
       await FirebaseFirestore.instance
           .collection('service_providers')
           .doc(uid)
@@ -179,18 +177,14 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
             'name': _nameController.text,
             'description': _descController.text,
             'categories': _selectedCategories,
-            'skills': _skills,
             'profilePhoto': imageUrl,
-            'location': {
-              'lat': _latitude,
-              'lng': _longitude,
-              'address': locationAddress,
-            },
+            'location': GeoPoint(_latitude!, _longitude!),
             'availability': availabilityData,
             'createdAt': Timestamp.now(),
+            'averageRating': 0.0,
+            'numberOfReviews': 0,
           });
 
-      // ✅ Save user reference under each selected category
       for (final category in _selectedCategories) {
         await FirebaseFirestore.instance
             .collection('categories')
@@ -200,12 +194,11 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
             .set({
               'name': _nameController.text,
               'profilePhoto': imageUrl,
-              'location': {
-                'lat': _latitude,
-                'lng': _longitude,
-                'address': locationAddress,
-              },
+              'location': GeoPoint(_latitude!, _longitude!),
+              'address': locationAddress,
               'timestamp': Timestamp.now(),
+              'averageRating': 0.0,
+              'numberOfReviews': 0,
             });
       }
 
@@ -214,7 +207,6 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
         const SnackBar(content: Text("Profile saved successfully!")),
       );
 
-      // ✅ Navigate to dashboard
       Navigator.pushReplacementNamed(
         context,
         AppRoutes.serviceProviderDashboard,
@@ -541,13 +533,13 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
                       .toList(),
             ),
 
-            const SizedBox(height: 30), // Increased space before Location
+            const SizedBox(height: 10), // Increased space before Location
 
             const Text(
               'Location', // Section title
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 30),
 
             SizedBox(
               // Wrapped in SizedBox for consistent width

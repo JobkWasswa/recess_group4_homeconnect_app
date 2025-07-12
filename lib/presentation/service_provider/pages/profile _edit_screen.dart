@@ -7,6 +7,10 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:homeconnect/data/models/services.dart'; // Assuming Selection() is here or imported elsewhere
 
+// Import the new RatingReview model
+import 'package:homeconnect/data/models/rating_review.dart'; // Make sure this path is correct
+import 'package:geolocator/geolocator.dart'; // Import geolocator for location services
+
 class ProfileEditScreen extends StatefulWidget {
   const ProfileEditScreen({super.key});
 
@@ -22,18 +26,86 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   io.File? _imageFile;
   String? _imageUrl;
 
-  Map<String, dynamic> _availability =
-      {}; // This map should be structured to hold TimeOfDay for consistency
+  Map<String, dynamic> _availability = {};
   List<String> _selectedCategories = [];
 
+  // New state variables for location
+  GeoPoint? _currentLocation;
+  String _locationStatus =
+      'Loading location...'; // To display status to the user
+
   final picker = ImagePicker();
+
+  double _averageRating = 0.0;
+  int _totalReviews = 0;
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
+    _loadRatings(); // Load ratings when the screen initializes
+    _getCurrentLocation(); // Load current location when the screen initializes
   }
 
+  // --- Location Logic ---
+  Future<void> _getCurrentLocation() async {
+    setState(() {
+      _locationStatus = 'Getting current location...';
+    });
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // Test if location services are enabled.
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      setState(() {
+        _locationStatus = 'Location services are disabled.';
+      });
+      // Consider showing a dialog to the user to enable services
+      return;
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        setState(() {
+          _locationStatus = 'Location permissions are denied.';
+        });
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      setState(() {
+        _locationStatus =
+            'Location permissions are permanently denied, we cannot request permissions.';
+      });
+      // Open app settings for the user to change permissions
+      await Geolocator.openAppSettings();
+      return;
+    }
+
+    // When we reach here, permissions are granted and we can
+    // continue accessing the position of the device.
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      setState(() {
+        _currentLocation = GeoPoint(position.latitude, position.longitude);
+        _locationStatus =
+            'Location updated: ${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
+      });
+    } catch (e) {
+      setState(() {
+        _locationStatus = 'Error getting location: ${e.toString()}';
+      });
+      print('Error getting location: $e'); // For debugging
+    }
+  }
+
+  // --- Existing Profile Load Logic (updated to include location) ---
   Future<void> _loadProfile() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -48,16 +120,27 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     if (data == null) return;
 
     setState(() {
-      _nameController.text = data['name'] ?? '';
+      // Update from 'name' to 'profileInfo.name' as per the desired Firestore structure
+      _nameController.text =
+          data['profileInfo']?['name'] ?? ''; // Access nested name
       _descController.text = data['description'] ?? '';
       _imageUrl = data['profilePhoto'];
-      // Reconstruct availability map for TimeOfDay objects from string
+
+      // Load location if it exists
+      if (data['location'] is GeoPoint) {
+        _currentLocation = data['location'] as GeoPoint;
+        _locationStatus =
+            'Current saved location: ${_currentLocation!.latitude.toStringAsFixed(4)}, ${_currentLocation!.longitude.toStringAsFixed(4)}';
+      } else {
+        // If location is not a GeoPoint or missing, try to get current location
+        _locationStatus = 'Location not set in profile. Getting current...';
+        _getCurrentLocation();
+      }
+
       _availability =
           (data['availability'] as Map<String, dynamic>?)?.map((key, value) {
             final startString = value['start'];
             final endString = value['end'];
-            // You might need a helper to parse HH:mm AM/PM to TimeOfDay
-            // For now, assuming you store them in HH:mm format for direct parsing
             TimeOfDay? startTime;
             TimeOfDay? endTime;
 
@@ -80,6 +163,33 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           }) ??
           {};
       _selectedCategories = List<String>.from(data['categories'] ?? []);
+    });
+  }
+
+  Future<void> _loadRatings() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    // Fetch all ratings for the current service provider
+    final querySnapshot =
+        await FirebaseFirestore.instance
+            .collection('ratings_reviews')
+            .where('serviceProviderId', isEqualTo: user.uid)
+            .get();
+
+    double sumRatings = 0;
+    for (var doc in querySnapshot.docs) {
+      try {
+        final ratingReview = RatingReview.fromFirestore(doc);
+        sumRatings += ratingReview.rating;
+      } catch (e) {
+        print('Error parsing rating review document: $e'); // For debugging
+      }
+    }
+
+    setState(() {
+      _totalReviews = querySnapshot.docs.length;
+      _averageRating = _totalReviews > 0 ? sumRatings / _totalReviews : 0.0;
     });
   }
 
@@ -128,15 +238,19 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       return;
     }
 
+    if (_currentLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please set your current location.")),
+      );
+      return;
+    }
+
     final updatedImageUrl = await _uploadProfileImage();
 
-    // Prepare availability data for Firestore
     Map<String, dynamic> availabilityDataForFirestore = {};
     _availability.forEach((day, value) {
       availabilityDataForFirestore[day] = {
-        'start': value['start']?.format(
-          context,
-        ), // Convert TimeOfDay back to string
+        'start': value['start']?.format(context),
         'end': value['end']?.format(context),
       };
     });
@@ -145,11 +259,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         .collection('service_providers')
         .doc(user.uid)
         .update({
-          'name': _nameController.text,
+          // Update to profileInfo.name as per desired Firestore structure
+          'profileInfo': {'name': _nameController.text},
           'description': _descController.text,
           'profilePhoto': updatedImageUrl,
-          'availability': availabilityDataForFirestore, // Use the prepared map
+          'availability': availabilityDataForFirestore,
           'categories': _selectedCategories,
+          'location': _currentLocation, // Save the GeoPoint location
         });
 
     if (!mounted) return;
@@ -185,7 +301,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                   itemCount: days.length,
                   itemBuilder: (context, index) {
                     final day = days[index];
-                    // Check if day exists in _availability and has start/end times
                     final isAvailable =
                         _availability[day]?['start'] != null ||
                         _availability[day]?['end'] != null;
@@ -193,7 +308,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                     TimeOfDay? startTime = _availability[day]?['start'];
                     TimeOfDay? endTime = _availability[day]?['end'];
 
-                    // Helper to format TimeOfDay
                     String formatTime(TimeOfDay? time) {
                       if (time == null) return '--:--';
                       final now = DateTime.now();
@@ -204,9 +318,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                         time.hour,
                         time.minute,
                       );
-                      return TimeOfDay.fromDateTime(
-                        dt,
-                      ).format(context); // Use context for locale format
+                      return TimeOfDay.fromDateTime(dt).format(context);
                     }
 
                     return Column(
@@ -222,14 +334,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                                 setState(() {
                                   if (val) {
                                     _availability[day] = {
-                                      'start': TimeOfDay(
-                                        hour: 8,
-                                        minute: 0,
-                                      ), // Default start
-                                      'end': TimeOfDay(
-                                        hour: 17,
-                                        minute: 0,
-                                      ), // Default end
+                                      'start': TimeOfDay(hour: 8, minute: 0),
+                                      'end': TimeOfDay(hour: 17, minute: 0),
                                     };
                                   } else {
                                     _availability.remove(day);
@@ -273,7 +379,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                               ),
                             ],
                           ),
-                        const Divider(), // Added a divider
+                        const Divider(),
                       ],
                     );
                   },
@@ -312,12 +418,14 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         title: const Text(
           'Edit Profile',
           style: TextStyle(fontWeight: FontWeight.bold),
-        ), // Bold title
-        centerTitle: true, // Center app bar title
+        ),
+        centerTitle: true,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.stretch, // Use stretch for buttons
           children: [
             Center(
               child: Stack(
@@ -347,19 +455,43 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                       onTap: _pickImage,
                       child: const CircleAvatar(
                         radius: 18,
-                        backgroundColor: Color(0xFF6B4EEF), // Purple color
+                        backgroundColor: Color(0xFF6B4EEF),
                         child: Icon(
                           Icons.camera_alt,
                           color: Colors.white,
                           size: 18,
-                        ), // Camera icon
+                        ),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 30), // Increased space
+            const SizedBox(height: 10), // Space above rating
+            // Display Rating and Reviews here, below the profile picture and above the name field
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.star, color: Colors.amber, size: 24),
+                const SizedBox(width: 5),
+                Text(
+                  _averageRating.toStringAsFixed(
+                    1,
+                  ), // Format to one decimal place
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  '($_totalReviews reviews)',
+                  style: const TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20), // Space below rating
 
             TextField(
               controller: _nameController,
@@ -404,6 +536,37 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
             ),
             const SizedBox(height: 20),
 
+            // --- Location Update Section ---
+            Align(
+              alignment: Alignment.centerLeft,
+              child: const Text(
+                'Current Location',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(_locationStatus), // Display location status/coordinates
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _getCurrentLocation, // Button to update location
+                icon: const Icon(Icons.location_on, color: Colors.white),
+                label: const Text(
+                  "Update My Location",
+                  style: TextStyle(color: Colors.white),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6B4EEF),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -412,16 +575,12 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 TextButton.icon(
-                  // Keeping TextButton.icon as per your original for Edit
                   onPressed: _selectCategories,
-                  icon: const Icon(
-                    Icons.edit,
-                    color: Color(0xFF6B4EEF),
-                  ), // Purple icon
+                  icon: const Icon(Icons.edit, color: Color(0xFF6B4EEF)),
                   label: const Text(
                     "Edit",
                     style: TextStyle(color: Color(0xFF6B4EEF)),
-                  ), // Purple text
+                  ),
                 ),
               ],
             ),
@@ -454,7 +613,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
             const SizedBox(height: 20),
 
             Align(
-              // Align left for "Availability" text
               alignment: Alignment.centerLeft,
               child: const Text(
                 'Availability',
@@ -464,7 +622,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
             const SizedBox(height: 10),
 
             SizedBox(
-              // Wrapped in SizedBox for consistent width
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: _showAvailabilityEditor,
@@ -474,7 +631,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                   style: TextStyle(color: Colors.white),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6B4EEF), // Purple button
+                  backgroundColor: const Color(0xFF6B4EEF),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
@@ -489,7 +646,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               child: ElevatedButton(
                 onPressed: _saveChanges,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6B4EEF), // Purple button
+                  backgroundColor: const Color(0xFF6B4EEF),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
