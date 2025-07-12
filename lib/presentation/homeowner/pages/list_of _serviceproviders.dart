@@ -210,6 +210,27 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                   ),
                                 ],
                               ),
+                              // NEW: Completed jobs indicator
+                              const SizedBox(height: 4),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.check_circle,
+                                    color: Colors.green,
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '0 completed', // TODO: Add actual count functionality later
+                                    style: const TextStyle(
+                                      fontSize: 14, // Increased from 12
+                                      fontWeight: FontWeight.w600, // Added semi-bold weight
+                                      color: Colors.green, // Changed from grey to green
+                                    ),
+                                  ),
+                                ],
+                              ),
                               const SizedBox(height: 8),
                               SizedBox(
                                 width: 120,
@@ -287,9 +308,9 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                     final currentUserId = user.uid;
                                     final currentUserName =
                                         user.displayName ??
-                                        (user.email != null
-                                            ? user.email!.split('@')[0]
-                                            : 'Homeowner');
+                                            (user.email != null
+                                                ? user.email!.split('@')[0]
+                                                : 'Homeowner');
 
                                     final providerCategory =
                                         provider.categories.isNotEmpty
