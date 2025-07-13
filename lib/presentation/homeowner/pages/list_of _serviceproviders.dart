@@ -25,7 +25,7 @@ class ServiceProvidersList extends StatefulWidget {
 
 class _ServiceProvidersListState extends State<ServiceProvidersList> {
   late Future<List<ServiceProviderModel>> _providersFuture;
-  final Map<String, TextEditingController> _notesControllers = {};
+  // Removed _notesControllers as notes field is moved to dialog
 
   @override
   void initState() {
@@ -69,9 +69,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
 
   @override
   void dispose() {
-    for (final controller in _notesControllers.values) {
-      controller.dispose();
-    }
+    // No need to dispose notesControllers here anymore
     super.dispose();
   }
 
@@ -104,11 +102,6 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
             itemCount: providers.length,
             itemBuilder: (context, index) {
               final provider = providers[index];
-              _notesControllers.putIfAbsent(
-                provider.id,
-                () => TextEditingController(),
-              );
-              final notesController = _notesControllers[provider.id]!;
 
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -249,7 +242,8 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (_) => ProfileDisplayScreenForClient(
+                                        builder: (_) =>
+                                            ProfileDisplayScreenForClient(
                                           serviceProviderId: provider.id,
                                         ),
                                       ),
@@ -275,28 +269,9 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                               ),
                               const SizedBox(height: 4),
                               SizedBox(
-                                width: 240,
-                                child: TextField(
-                                  controller: notesController,
-                                  decoration: InputDecoration(
-                                    hintText: 'Add note for provider',
-                                    isDense: true,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 8,
-                                    ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                  maxLines: 2,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              SizedBox(
                                 width: 120,
                                 child: OutlinedButton(
-                                  onPressed: () => _handleBookNow(provider, notesController.text),
+                                  onPressed: () => _handleBookNow(provider), // No notes passed here initially
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: Colors.purple,
                                     side: const BorderSide(
@@ -353,7 +328,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
     );
   }
 
-  Future<void> _handleBookNow(ServiceProviderModel provider, String notes) async {
+  Future<void> _handleBookNow(ServiceProviderModel provider) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -363,12 +338,11 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
     }
 
     final currentUserId = user.uid;
-    final currentUserName = user.displayName ?? 
+    final currentUserName = user.displayName ??
         (user.email != null ? user.email!.split('@')[0] : 'Homeowner');
 
-    final providerCategory = provider.categories.isNotEmpty 
-        ? provider.categories[0] 
-        : '';
+    final providerCategory =
+        provider.categories.isNotEmpty ? provider.categories[0] : '';
 
     // Check for existing active booking
     final existingBookingQuery = await FirebaseFirestore.instance
@@ -388,34 +362,118 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
       return;
     }
 
-    final booking = Booking(
-      clientId: user.uid,
-      clientName: currentUserName,
-      serviceProviderId: provider.id,
-      serviceProviderName: provider.name,
-      categories: provider.categories,
-      bookingDate: DateTime.now(),
-      status: 'pending',
-      selectedCategory: providerCategory,
-      notes: notes,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-      location: widget.userLocation,
+    // Show confirmation dialog
+    final TextEditingController notesController = TextEditingController();
+    final bool? confirmBooking = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirm Booking'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Service: ${widget.category}',
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: Colors.grey[200],
+                    child: provider.profilePhoto != null
+                        ? ClipOval(
+                            child: Image.network(
+                              provider.profilePhoto!,
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stack) =>
+                                  const Icon(Icons.person, size: 20),
+                            ),
+                          )
+                        : const Icon(Icons.person, size: 20),
+                  ),
+                  const SizedBox(width: 8),
+                  Text('Provider: ${provider.name}',
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text('Add a note for the service provider (optional):'),
+              const SizedBox(height: 8),
+              TextField(
+                controller: notesController,
+                decoration: InputDecoration(
+                  hintText: 'e.g., specific instructions, preferred time',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  isDense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+                maxLines: 3,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              notesController.dispose();
+              Navigator.pop(context, false); // Cancel
+            },
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context, true); // Confirm
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.purple,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Confirm Booking'),
+          ),
+        ],
+      ),
     );
 
-    try {
-      await FirebaseFirestore.instance
-          .collection('bookings')
-          .add(booking.toFirestore());
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Booking sent! Waiting for confirmation'),
-        ),
+    if (confirmBooking == true) {
+      final booking = Booking(
+        clientId: user.uid,
+        clientName: currentUserName,
+        serviceProviderId: provider.id,
+        serviceProviderName: provider.name,
+        categories: provider.categories,
+        bookingDate: DateTime.now(),
+        status: 'pending',
+        selectedCategory: providerCategory,
+        notes: notesController.text, // Use the note from the dialog
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        location: widget.userLocation,
       );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to book: $e')),
-      );
+
+      try {
+        await FirebaseFirestore.instance
+            .collection('bookings')
+            .add(booking.toFirestore());
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Booking sent! Waiting for confirmation'),
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to book: $e')),
+        );
+      } finally {
+        notesController.dispose();
+      }
+    } else {
+      notesController.dispose();
     }
   }
 
@@ -467,9 +525,9 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                       .collection('bookings')
                       .doc(bookingId)
                       .update({
-                        'status': 'cancelled',
-                        'updatedAt': FieldValue.serverTimestamp(),
-                      });
+                    'status': 'cancelled',
+                    'updatedAt': FieldValue.serverTimestamp(),
+                  });
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Booking cancelled')),
                   );
