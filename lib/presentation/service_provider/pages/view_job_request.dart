@@ -20,7 +20,7 @@ class AllJobRequestsScreen extends StatelessWidget {
                 .collection('bookings')
                 .where('serviceProviderId', isEqualTo: userId)
                 // Uncomment below to exclude completed/cancelled jobs:
-                // .where('status', whereNotIn: ['completed_by_provider', 'cancelled'])
+                //.where('status', whereNotIn: ['completed_by_provider', 'cancelled'])
                 .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -59,16 +59,47 @@ class AllJobRequestsScreen extends StatelessWidget {
                       ? bookingDate.toDate().toLocal().toString()
                       : 'Unknown date';
 
+              final note = data['notes'] ?? ''; // 🔹 Extract note here
+
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
-                child: ListTile(
-                  title: Text(jobType),
-                  subtitle: Column(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text(
+                        jobType,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blueAccent,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                       Text('Client: ${data['clientName'] ?? 'Unknown'}'),
                       Text('Date: $formattedDate'),
                       Text('Status: ${data['status']}'),
+                      if (note.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(
+                              Icons.note,
+                              size: 18,
+                              color: Colors.grey,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                note,
+                                style: TextStyle(color: Colors.grey[700]),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
