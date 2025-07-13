@@ -849,10 +849,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                                                         ? booking.categories[0]
                                                         : '',
 
-                                                userLocation: const GeoPoint(
-                                                  0,
-                                                  0,
-                                                ), // Replace with actual location
+                                                userLocation: booking.location, // ✅ Use actual booking location
                                               ),
                                         ),
                                       );
