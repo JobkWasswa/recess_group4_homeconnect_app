@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/presentation/service_provider/pages/service_provider_savedprofile.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:homeconnect/presentation/service_provider/pages/view_job_request.dart';
 
 class ServiceProviderDashboardScreen extends StatefulWidget {
   const ServiceProviderDashboardScreen({super.key});
@@ -563,7 +564,12 @@ class _ServiceProviderDashboardScreenState
               ),
               TextButton(
                 onPressed: () {
-                  // TODO: Navigate to All Job Requests
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AllJobRequestsScreen(),
+                    ),
+                  );
                 },
                 child: const Text('View All'),
               ),
@@ -605,7 +611,7 @@ class _ServiceProviderDashboardScreenState
 
               return Column(
                 children:
-                    docs.map((doc) {
+                    docs.take(5).map((doc) {
                       final data = doc.data() as Map<String, dynamic>;
 
                       final categories = data['categories'];
@@ -620,6 +626,7 @@ class _ServiceProviderDashboardScreenState
                           bookingDate is Timestamp
                               ? bookingDate.toDate().toLocal().toString()
                               : 'Unknown date';
+                      final note = data['notes'] ?? '';
 
                       return _buildJobRequestCard(
                         context: context,
@@ -632,6 +639,7 @@ class _ServiceProviderDashboardScreenState
                         price: '', // Add pricing logic if needed
                         bookingId:
                             doc.id, // Pass bookingId for accept/reject actions
+                        note: note,
                       );
                     }).toList(),
               );
@@ -649,7 +657,8 @@ class _ServiceProviderDashboardScreenState
     required String date,
     required String location,
     required String price,
-    required String bookingId, // Added bookingId parameter
+    required String bookingId,
+    String? note,
   }) {
     return Card(
       elevation: 8,
@@ -657,128 +666,172 @@ class _ServiceProviderDashboardScreenState
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              jobType,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF6B7280),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.person, size: 18, color: Colors.grey),
-                const SizedBox(width: 8),
-                Text(homeownerName, style: TextStyle(color: Colors.grey[700])),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
-                const SizedBox(width: 8),
-                Text(date, style: TextStyle(color: Colors.grey[700])),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.location_on, size: 18, color: Colors.grey),
-                const SizedBox(width: 8),
-                Text(location, style: TextStyle(color: Colors.grey[700])),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  price,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  ),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: double.infinity),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                jobType,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF6B7280),
                 ),
-                Row(
-                  children: [
-                    ElevatedButton(
-                      onPressed: () async {
-                        try {
-                          await FirebaseFirestore.instance
-                              .collection('bookings')
-                              .doc(bookingId) // Use the passed bookingId
-                              .update({
-                                'status': 'confirmed',
-                                'updatedAt': FieldValue.serverTimestamp(),
-                              });
-
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Job accepted and moved to Active Jobs',
-                              ),
-                            ),
-                          );
-                        } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Error accepting job: $e')),
-                          );
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green[600],
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text('Accept'),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.person, size: 18, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      homeownerName,
+                      style: TextStyle(color: Colors.grey[700]),
+                      overflow: TextOverflow.ellipsis,
                     ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.calendar_today,
+                    size: 18,
+                    color: Colors.grey,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      date,
+                      style: TextStyle(color: Colors.grey[700]),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.location_on, size: 18, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      location,
+                      style: TextStyle(color: Colors.grey[700]),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              if (note != null && note.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.note, size: 18, color: Colors.grey),
                     const SizedBox(width: 8),
-                    OutlinedButton(
-                      onPressed: () async {
-                        // Made async for Firestore update
-                        try {
-                          await FirebaseFirestore.instance
-                              .collection('bookings')
-                              .doc(bookingId) // Use the passed bookingId
-                              .update({
-                                'status':
-                                    'rejected_by_provider', // Or 'cancelled' or similar
-                                'updatedAt': FieldValue.serverTimestamp(),
-                              });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Rejected $jobType from $homeownerName.',
-                              ),
-                            ),
-                          );
-                        } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Error rejecting job: $e')),
-                          );
-                        }
-                      },
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Colors.red[400]!),
-                        foregroundColor: Colors.red[400],
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                    Expanded(
+                      child: Text(
+                        note,
+                        style: TextStyle(color: Colors.grey[700]),
+                        softWrap: true,
+                        overflow: TextOverflow.visible,
                       ),
-                      child: const Text('Reject'),
                     ),
                   ],
                 ),
               ],
-            ),
-          ],
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    price,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      ElevatedButton(
+                        onPressed: () async {
+                          try {
+                            await FirebaseFirestore.instance
+                                .collection('bookings')
+                                .doc(bookingId)
+                                .update({
+                                  'status': 'confirmed',
+                                  'updatedAt': FieldValue.serverTimestamp(),
+                                });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Job accepted and moved to Active Jobs',
+                                ),
+                              ),
+                            );
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error accepting job: $e'),
+                              ),
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green[600],
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text('Accept'),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton(
+                        onPressed: () async {
+                          try {
+                            await FirebaseFirestore.instance
+                                .collection('bookings')
+                                .doc(bookingId)
+                                .update({
+                                  'status': 'rejected_by_provider',
+                                  'updatedAt': FieldValue.serverTimestamp(),
+                                });
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Rejected $jobType from $homeownerName.',
+                                ),
+                              ),
+                            );
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error rejecting job: $e'),
+                              ),
+                            );
+                          }
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: Colors.red[400]!),
+                          foregroundColor: Colors.red[400],
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text('Reject'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
