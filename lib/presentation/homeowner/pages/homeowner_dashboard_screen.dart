@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/data/models/users.dart'; // CHANGE: Import UserProfile model
 import 'package:geolocator/geolocator.dart';
 import 'package:homeconnect/presentation/homeowner/pages/list_of _serviceproviders.dart';
-//import 'package:geolocator/geolocator.dart';
+
 import 'package:homeconnect/data/models/booking.dart';
 import 'package:homeconnect/presentation/homeowner/pages/view_all_bookings.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
