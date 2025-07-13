@@ -55,11 +55,12 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
 
   Future<int> _getCompletedJobsCount(String providerId) async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('bookings')
-          .where('serviceProviderId', isEqualTo: providerId)
-          .where('status', isEqualTo: 'completed')
-          .get();
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('bookings')
+              .where('serviceProviderId', isEqualTo: providerId)
+              .where('status', isEqualTo: 'completed')
+              .get();
       return snapshot.size;
     } catch (e) {
       debugPrint('Error getting completed jobs count: $e');
@@ -120,18 +121,23 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                           CircleAvatar(
                             radius: 30,
                             backgroundColor: Colors.grey[200],
-                            child: provider.profilePhoto != null
-                                ? ClipOval(
-                                    child: Image.network(
-                                      provider.profilePhoto!,
-                                      width: 60,
-                                      height: 60,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stack) =>
-                                          const Icon(Icons.person, size: 30),
-                                    ),
-                                  )
-                                : const Icon(Icons.person, size: 30),
+                            child:
+                                provider.profilePhoto != null
+                                    ? ClipOval(
+                                      child: Image.network(
+                                        provider.profilePhoto!,
+                                        width: 60,
+                                        height: 60,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stack) =>
+                                                const Icon(
+                                                  Icons.person,
+                                                  size: 30,
+                                                ),
+                                      ),
+                                    )
+                                    : const Icon(Icons.person, size: 30),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -207,7 +213,9 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                   final count = snapshot.data ?? 0;
                                   return Container(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 2),
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: Colors.green[50],
                                       borderRadius: BorderRadius.circular(12),
@@ -242,10 +250,12 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (_) =>
-                                            ProfileDisplayScreenForClient(
-                                          serviceProviderId: provider.id,
-                                        ),
+                                        builder:
+                                            (_) =>
+                                                ProfileDisplayScreenForClient(
+                                                  serviceProviderId:
+                                                      provider.id,
+                                                ),
                                       ),
                                     );
                                   },
@@ -271,7 +281,10 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                               SizedBox(
                                 width: 120,
                                 child: OutlinedButton(
-                                  onPressed: () => _handleBookNow(provider), // No notes passed here initially
+                                  onPressed:
+                                      () => _handleBookNow(
+                                        provider,
+                                      ), // No notes passed here initially
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: Colors.purple,
                                     side: const BorderSide(
@@ -298,23 +311,26 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                       Wrap(
                         spacing: 8,
                         runSpacing: 4,
-                        children: provider.categories
-                            .take(3)
-                            .map((cat) => Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
+                        children:
+                            provider.categories
+                                .take(3)
+                                .map(
+                                  (cat) => Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[200],
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: Text(
+                                      cat,
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
                                   ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[200],
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: Text(
-                                    cat,
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                ))
-                            .toList(),
+                                )
+                                .toList(),
                       ),
                       _buildActiveBookingButton(provider.id),
                     ],
@@ -338,20 +354,22 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
     }
 
     final currentUserId = user.uid;
-    final currentUserName = user.displayName ??
+    final currentUserName =
+        user.displayName ??
         (user.email != null ? user.email!.split('@')[0] : 'Homeowner');
 
     final providerCategory =
         provider.categories.isNotEmpty ? provider.categories[0] : '';
 
     // Check for existing active booking
-    final existingBookingQuery = await FirebaseFirestore.instance
-        .collection('bookings')
-        .where('clientId', isEqualTo: currentUserId)
-        .where('selectedCategory', isEqualTo: providerCategory)
-        .where('status', whereIn: ServiceProvidersList.activeStatuses)
-        .limit(1)
-        .get();
+    final existingBookingQuery =
+        await FirebaseFirestore.instance
+            .collection('bookings')
+            .where('clientId', isEqualTo: currentUserId)
+            .where('selectedCategory', isEqualTo: providerCategory)
+            .where('status', whereIn: ServiceProvidersList.activeStatuses)
+            .limit(1)
+            .get();
 
     if (existingBookingQuery.docs.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -366,78 +384,87 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
     final TextEditingController notesController = TextEditingController();
     final bool? confirmBooking = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirm Booking'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Service: ${widget.category}',
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              Row(
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Confirm Booking'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: Colors.grey[200],
-                    child: provider.profilePhoto != null
-                        ? ClipOval(
-                            child: Image.network(
-                              provider.profilePhoto!,
-                              width: 40,
-                              height: 40,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stack) =>
-                                  const Icon(Icons.person, size: 20),
-                            ),
-                          )
-                        : const Icon(Icons.person, size: 20),
+                  Text(
+                    'Service: ${widget.category}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(width: 8),
-                  Text('Provider: ${provider.name}',
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: Colors.grey[200],
+                        child:
+                            provider.profilePhoto != null
+                                ? ClipOval(
+                                  child: Image.network(
+                                    provider.profilePhoto!,
+                                    width: 40,
+                                    height: 40,
+                                    fit: BoxFit.cover,
+                                    errorBuilder:
+                                        (context, error, stack) =>
+                                            const Icon(Icons.person, size: 20),
+                                  ),
+                                )
+                                : const Icon(Icons.person, size: 20),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Provider: ${provider.name}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Add a note for the service provider (optional):'),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: notesController,
+                    decoration: InputDecoration(
+                      hintText: 'e.g., specific instructions, preferred time',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                    ),
+                    maxLines: 3,
+                  ),
                 ],
               ),
-              const SizedBox(height: 16),
-              const Text('Add a note for the service provider (optional):'),
-              const SizedBox(height: 8),
-              TextField(
-                controller: notesController,
-                decoration: InputDecoration(
-                  hintText: 'e.g., specific instructions, preferred time',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  isDense: true,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  notesController.dispose();
+                  Navigator.pop(context, false); // Cancel
+                },
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context, true); // Confirm
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purple,
+                  foregroundColor: Colors.white,
                 ),
-                maxLines: 3,
+                child: const Text('Confirm Booking'),
               ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              notesController.dispose();
-              Navigator.pop(context, false); // Cancel
-            },
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context, true); // Confirm
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Confirm Booking'),
-          ),
-        ],
-      ),
     );
 
     if (confirmBooking == true) {
@@ -466,9 +493,9 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
           ),
         );
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to book: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to book: $e')));
       } finally {
         notesController.dispose();
       }
@@ -479,13 +506,17 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
 
   Widget _buildActiveBookingButton(String providerId) {
     return FutureBuilder<QuerySnapshot>(
-      future: FirebaseFirestore.instance
-          .collection('bookings')
-          .where('clientId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
-          .where('serviceProviderId', isEqualTo: providerId)
-          .where('status', whereIn: ServiceProvidersList.activeStatuses)
-          .limit(1)
-          .get(),
+      future:
+          FirebaseFirestore.instance
+              .collection('bookings')
+              .where(
+                'clientId',
+                isEqualTo: FirebaseAuth.instance.currentUser?.uid,
+              )
+              .where('serviceProviderId', isEqualTo: providerId)
+              .where('status', whereIn: ServiceProvidersList.activeStatuses)
+              .limit(1)
+              .get(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const SizedBox();
@@ -503,20 +534,21 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
             onPressed: () async {
               final confirm = await showDialog<bool>(
                 context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Cancel Booking'),
-                  content: const Text('Are you sure you want to cancel?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('No'),
+                builder:
+                    (context) => AlertDialog(
+                      title: const Text('Cancel Booking'),
+                      content: const Text('Are you sure you want to cancel?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: const Text('No'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          child: const Text('Yes'),
+                        ),
+                      ],
                     ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const Text('Yes'),
-                    ),
-                  ],
-                ),
               );
 
               if (confirm == true) {
@@ -525,17 +557,17 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                       .collection('bookings')
                       .doc(bookingId)
                       .update({
-                    'status': 'cancelled',
-                    'updatedAt': FieldValue.serverTimestamp(),
-                  });
+                        'status': 'cancelled',
+                        'updatedAt': FieldValue.serverTimestamp(),
+                      });
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Booking cancelled')),
                   );
                   setState(() {});
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Error: $e')));
                 }
               }
             },
