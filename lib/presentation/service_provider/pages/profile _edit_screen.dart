@@ -32,7 +32,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   // New state variables for location
   GeoPoint? _currentLocation;
   String _locationStatus =
-      'Loading location...'; // To display status to the user
+      'Loading location...'; // To displaying status to the user
 
   final picker = ImagePicker();
 
