@@ -15,13 +15,14 @@ class AllJobRequestsScreen extends StatelessWidget {
         backgroundColor: Colors.blueAccent,
       ),
       body: StreamBuilder<QuerySnapshot>(
-        stream:
-            FirebaseFirestore.instance
-                .collection('bookings')
-                .where('serviceProviderId', isEqualTo: userId)
-                // Uncomment below to exclude completed/cancelled jobs:
-                //.where('status', whereNotIn: ['completed_by_provider', 'cancelled'])
-                .snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('bookings')
+            .where('serviceProviderId', isEqualTo: userId)
+            .orderBy('createdAt', descending: true)
+            .snapshots()
+            .handleError((error) {
+              print('🔥 Firestore error (Job Requests): $error');
+            }),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -59,7 +60,7 @@ class AllJobRequestsScreen extends StatelessWidget {
                       ? bookingDate.toDate().toLocal().toString()
                       : 'Unknown date';
 
-              final note = data['notes'] ?? ''; // 🔹 Extract note here
+              final note = data['notes'] ?? '';
 
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
