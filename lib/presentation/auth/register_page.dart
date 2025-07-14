@@ -51,7 +51,7 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
-  // Write minimal profile (role, email, and location for homeowners) to Firestore
+  // Write  profile (role, email, and location for homeowners) to Firestore
   Future<void> _saveRoleToFirestore(String uid, String email) async {
     await _db.collection('users').doc(uid).set({
       'userType': _userType,
