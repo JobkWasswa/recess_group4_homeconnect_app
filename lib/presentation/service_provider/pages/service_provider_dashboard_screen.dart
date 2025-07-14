@@ -5,10 +5,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/presentation/service_provider/pages/service_provider_savedprofile.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:homeconnect/presentation/service_provider/pages/view_job_request.dart';
-import 'package:intl/intl.dart'; // Import for better date formatting
-
-// NEW IMPORT: Import your ProviderMapsScreen
+import 'package:intl/intl.dart';
 import 'package:homeconnect/presentation/service_provider/pages/provider_maps_screen.dart';
+import 'package:homeconnect/utils/location_utils.dart'; // Import your location utility file
 
 class ServiceProviderDashboardScreen extends StatefulWidget {
   const ServiceProviderDashboardScreen({super.key});
@@ -30,7 +29,6 @@ class _ServiceProviderDashboardScreenState
     _updateProviderFCMToken();
   }
 
-  // Add to _ServiceProviderDashboardScreenState
   Stream<QuerySnapshot> _getAcceptedJobs() {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return const Stream.empty();
@@ -46,7 +44,6 @@ class _ServiceProviderDashboardScreenState
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        // If no user is logged in, default to 'Provider' and stop loading
         setState(() {
           providerName = 'Provider';
           isLoading = false;
@@ -68,7 +65,6 @@ class _ServiceProviderDashboardScreenState
             .join(' ');
       }
 
-      // Attempt to fetch provider data from Firestore
       final doc =
           await FirebaseFirestore.instance
               .collection('service_providers')
@@ -76,31 +72,24 @@ class _ServiceProviderDashboardScreenState
               .get();
 
       String? emailFromFirestore = doc.data()?['email']?.toString();
-      String? nameFromFirestore =
-          doc
-              .data()?['fullName']
-              ?.toString(); // Assuming you store a 'fullName' field
+      String? nameFromFirestore = doc.data()?['fullName']?.toString();
 
       if (nameFromFirestore != null && nameFromFirestore.isNotEmpty) {
-        // Use the 'fullName' from Firestore if available
         setState(() {
           providerName = nameFromFirestore;
           isLoading = false;
         });
       } else if (emailFromFirestore != null && emailFromFirestore.isNotEmpty) {
-        // If 'fullName' is not available, try to format from the email stored in Firestore
         setState(() {
           providerName = formatNameFromEmail(emailFromFirestore);
           isLoading = false;
         });
       } else if (user.email != null) {
-        // Fallback to formatting from the authenticated user's email
         setState(() {
           providerName = formatNameFromEmail(user.email!);
           isLoading = false;
         });
       } else {
-        // Last resort: default to 'Provider'
         setState(() {
           providerName = 'Provider';
           isLoading = false;
@@ -109,13 +98,12 @@ class _ServiceProviderDashboardScreenState
     } catch (e) {
       print('Error fetching provider name: $e');
       setState(() {
-        providerName = 'Provider'; // Fallback in case of any error
+        providerName = 'Provider';
         isLoading = false;
       });
     }
   }
 
-  // Save or update FCM token in provider's Firestore document
   Future<void> _updateProviderFCMToken() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -125,17 +113,13 @@ class _ServiceProviderDashboardScreenState
         await FirebaseFirestore.instance
             .collection('service_providers')
             .doc(user.uid)
-            .set(
-              {'fcmToken': token},
-              SetOptions(merge: true),
-            ); // Use set with merge to avoid overwriting
+            .set({'fcmToken': token}, SetOptions(merge: true));
       }
     } catch (e) {
       print('Error updating FCM token: $e');
     }
   }
 
-  // Add this widget method
   Widget _buildActiveJobsSection(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
@@ -192,15 +176,12 @@ class _ServiceProviderDashboardScreenState
     Map<String, dynamic> data,
   ) {
     final categories = data['categories'];
-    // Display only the first service if categories is a list, otherwise the whole string or 'Unknown'
     final jobType =
         (categories is List && categories.isNotEmpty)
-            ? categories[0]
-                .toString() // Take the first item
+            ? categories[0].toString()
             : (categories?.toString() ?? 'Unknown');
 
     final bookingDate = data['bookingDate'];
-    // Improved date formatting using intl
     final formattedDate =
         bookingDate is Timestamp
             ? DateFormat(
@@ -208,9 +189,27 @@ class _ServiceProviderDashboardScreenState
             ).format(bookingDate.toDate().toLocal())
             : 'Unknown date';
 
-    final location =
-        data['address'] ??
-        'Location not specified'; // Assuming 'address' field for location
+    // Retrieve latitude and longitude for reverse geocoding
+    // IMPORTANT: Adjust these lines based on how your Firestore stores location data.
+    // If you have separate 'latitude' and 'longitude' fields:
+    final double? latitude =
+        (data['latitude'] is num) ? data['latitude'].toDouble() : null;
+    final double? longitude =
+        (data['longitude'] is num) ? data['longitude'].toDouble() : null;
+    // If you have a GeoPoint field, e.g., 'location':
+    // final GeoPoint? geoPoint = data['location'] as GeoPoint?;
+    // final double? latitude = geoPoint?.latitude;
+    // final double? longitude = geoPoint?.longitude;
+
+    Future<String> getDisplayAddress() async {
+      // Prioritize an existing 'address' string if you have one and it's formatted well,
+      // otherwise, use reverse geocoding.
+      // return data['address'] ?? await getAddressFromLatLng(latitude, longitude);
+      return await getAddressFromLatLng(
+        latitude,
+        longitude,
+      ); // Always use reverse geocoding
+    }
 
     return Card(
       elevation: 8,
@@ -248,21 +247,37 @@ class _ServiceProviderDashboardScreenState
                 Text(formattedDate, style: TextStyle(color: Colors.grey[700])),
               ],
             ),
-            const SizedBox(height: 4), // Added row for location
+            const SizedBox(height: 4),
             Row(
               children: [
                 const Icon(Icons.location_on, size: 18, color: Colors.grey),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text(
-                    location,
-                    style: TextStyle(color: Colors.grey[700]),
-                    overflow: TextOverflow.ellipsis,
+                  child: FutureBuilder<String>(
+                    future: getDisplayAddress(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Text(
+                          'Loading location...',
+                          style: TextStyle(color: Colors.grey),
+                        );
+                      } else if (snapshot.hasError) {
+                        return Text(
+                          'Error loading location: ${snapshot.error}',
+                          style: const TextStyle(color: Colors.red),
+                        );
+                      } else {
+                        return Text(
+                          snapshot.data ?? 'Location not specified',
+                          style: TextStyle(color: Colors.grey[700]),
+                          overflow: TextOverflow.ellipsis,
+                        );
+                      }
+                    },
                   ),
                 ),
               ],
             ),
-            // Removed price display from here
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
@@ -380,7 +395,6 @@ class _ServiceProviderDashboardScreenState
                 ),
                 Row(
                   children: [
-                    // Notification icon
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
@@ -390,7 +404,6 @@ class _ServiceProviderDashboardScreenState
                         children: [
                           IconButton(
                             onPressed: () {
-                              // TODO: Navigate to Notifications
                               print('Provider Notifications pressed');
                             },
                             icon: const Icon(
@@ -414,7 +427,6 @@ class _ServiceProviderDashboardScreenState
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // Profile settings icon
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
@@ -422,14 +434,12 @@ class _ServiceProviderDashboardScreenState
                       ),
                       child: IconButton(
                         onPressed: () {
-                          // TODO: Navigate to Profile Settings
                           print('Provider Profile pressed');
                         },
                         icon: const Icon(Icons.settings, color: Colors.white),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // Logout icon
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
@@ -449,7 +459,6 @@ class _ServiceProviderDashboardScreenState
               ],
             ),
             const SizedBox(height: 24),
-            // Quick Status Summary
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -514,7 +523,7 @@ class _ServiceProviderDashboardScreenState
 
   Widget _buildStatsSummary() {
     return Transform.translate(
-      offset: const Offset(0, -32), // Pull up into the header gradient
+      offset: const Offset(0, -32),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: Card(
@@ -642,14 +651,12 @@ class _ServiceProviderDashboardScreenState
                       final data = doc.data() as Map<String, dynamic>;
 
                       final categories = data['categories'];
-                      // MODIFICATION HERE: Display only the first service
                       final jobType =
                           (categories is List && categories.isNotEmpty)
                               ? categories[0].toString()
                               : (categories?.toString() ?? 'Unknown');
 
                       final bookingDate = data['bookingDate'];
-                      // Improved date formatting using intl
                       final formattedDate =
                           bookingDate is Timestamp
                               ? DateFormat(
@@ -657,19 +664,31 @@ class _ServiceProviderDashboardScreenState
                               ).format(bookingDate.toDate().toLocal())
                               : 'Unknown date';
                       final note = data['notes'] ?? '';
-                      final location =
-                          data['address'] ??
-                          'Location not specified'; // Assuming 'address' field for location
+
+                      // Retrieve latitude and longitude for reverse geocoding
+                      // IMPORTANT: Adjust these lines based on how your Firestore stores location data.
+                      // If you have separate 'latitude' and 'longitude' fields:
+                      final double? latitude =
+                          (data['latitude'] is num)
+                              ? data['latitude'].toDouble()
+                              : null;
+                      final double? longitude =
+                          (data['longitude'] is num)
+                              ? data['longitude'].toDouble()
+                              : null;
+                      // If you have a GeoPoint field, e.g., 'location':
+                      // final GeoPoint? geoPoint = data['location'] as GeoPoint?;
+                      // final double? latitude = geoPoint?.latitude;
+                      // final double? longitude = geoPoint?.longitude;
 
                       return _buildJobRequestCard(
                         context: context,
-                        jobType:
-                            jobType, // This will now only be the first service
+                        jobType: jobType,
                         homeownerName: data['clientName'] ?? 'Unknown',
                         date: formattedDate,
-                        location: location, // Pass location data
-                        bookingId:
-                            doc.id, // Pass bookingId for accept/reject actions
+                        latitude: latitude,
+                        longitude: longitude,
+                        bookingId: doc.id,
                         note: note,
                       );
                     }).toList(),
@@ -686,11 +705,15 @@ class _ServiceProviderDashboardScreenState
     required String jobType,
     required String homeownerName,
     required String date,
-    required String location,
-    // Removed required String price,
+    required double? latitude,
+    required double? longitude,
     required String bookingId,
     String? note,
   }) {
+    Future<String> getDisplayAddress() async {
+      return await getAddressFromLatLng(latitude, longitude);
+    }
+
     return Card(
       elevation: 8,
       margin: const EdgeInsets.only(bottom: 12),
@@ -748,10 +771,28 @@ class _ServiceProviderDashboardScreenState
                   const Icon(Icons.location_on, size: 18, color: Colors.grey),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
-                      location,
-                      style: TextStyle(color: Colors.grey[700]),
-                      overflow: TextOverflow.ellipsis,
+                    child: FutureBuilder<String>(
+                      future: getDisplayAddress(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Text(
+                            'Loading location...',
+                            style: TextStyle(color: Colors.grey),
+                          );
+                        } else if (snapshot.hasError) {
+                          return Text(
+                            'Error: ${snapshot.error}',
+                            style: const TextStyle(color: Colors.red),
+                          );
+                        } else {
+                          return Text(
+                            snapshot.data ?? 'Location not specified',
+                            style: TextStyle(color: Colors.grey[700]),
+                            overflow: TextOverflow.ellipsis,
+                          );
+                        }
+                      },
                     ),
                   ),
                 ],
@@ -773,23 +814,11 @@ class _ServiceProviderDashboardScreenState
                     ),
                   ],
                 ),
-              ], // Closing the 'if' block correctly
-              const SizedBox(height: 12), // Moved outside the 'if' block
+              ],
+              const SizedBox(height: 12),
               Row(
-                mainAxisAlignment:
-                    MainAxisAlignment
-                        .end, // Changed to end to align buttons right
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  // Removed pricing text from here
-                  // Text(
-                  //   price,
-                  //   style: const TextStyle(
-                  //     fontSize: 18,
-                  //     fontWeight: FontWeight.bold,
-                  //     color: Colors.green,
-                  //   ),
-                  // ),
-                  // const SizedBox(width: 8), // Added some space
                   ElevatedButton(
                     onPressed: () async {
                       try {
@@ -886,7 +915,7 @@ class _ServiceProviderDashboardScreenState
                 MaterialPageRoute(builder: (context) => ProfileDisplayScreen()),
               );
             },
-            colors: const [Color(0xFFFBBF24), Color(0xFFEAB308)], // Yellow
+            colors: const [Color(0xFFFBBF24), Color(0xFFEAB308)],
           ),
           const SizedBox(height: 12),
           _buildManagementCard(
@@ -895,10 +924,9 @@ class _ServiceProviderDashboardScreenState
             title: 'Set Availability',
             subtitle: 'Manage your working hours and days off.',
             onTap: () {
-              // TODO: Navigate to Set Availability screen
               print('Set Availability pressed');
             },
-            colors: const [Color(0xFF22C55E), Color(0xFF16A34A)], // Green
+            colors: const [Color(0xFF22C55E), Color(0xFF16A34A)],
           ),
           const SizedBox(height: 12),
           _buildManagementCard(
@@ -907,10 +935,9 @@ class _ServiceProviderDashboardScreenState
             title: 'View Job History',
             subtitle: 'See all your past completed jobs and earnings.',
             onTap: () {
-              // TODO: Navigate to Job History screen
               print('Job History pressed');
             },
-            colors: const [Color(0xFFA855F7), Color(0xFF9333EA)], // Purple
+            colors: const [Color(0xFFA855F7), Color(0xFF9333EA)],
           ),
         ],
       ),
@@ -944,9 +971,7 @@ class _ServiceProviderDashboardScreenState
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(
-                  8,
-                ), // Adjusted padding for the icon background
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(colors: colors),
                   borderRadius: BorderRadius.circular(12),
@@ -990,25 +1015,19 @@ class _ServiceProviderDashboardScreenState
         children: <Widget>[
           IconButton(
             icon: const Icon(Icons.home),
-            color: Colors.purple[700], // Highlight current screen
-            onPressed: () {
-              // Already on home, maybe scroll to top or refresh
-            },
+            color: Colors.purple[700],
+            onPressed: () {},
           ),
           IconButton(
             icon: const Icon(Icons.calendar_today),
             color: Colors.grey,
             onPressed: () {
               print('My Bookings bottom nav pressed!');
-              // TODO: Navigate to My Bookings screen
             },
           ),
-          const SizedBox(
-            width: 48,
-          ), // Space for the FloatingActionButton if you have one
+          const SizedBox(width: 48),
           IconButton(
-            // NEW: Changed icon to map and added navigation
-            icon: const Icon(Icons.map), // Changed from Icons.work
+            icon: const Icon(Icons.map),
             color: Colors.grey,
             onPressed: () {
               print('Map bottom nav pressed!');
@@ -1025,7 +1044,6 @@ class _ServiceProviderDashboardScreenState
             color: Colors.grey,
             onPressed: () {
               print('Messages bottom nav pressed!');
-              // TODO: Navigate to Messages screen
             },
           ),
         ],
