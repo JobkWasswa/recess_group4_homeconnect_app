@@ -158,7 +158,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
             }).toList(),
       ),
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(20.0), // Increased padding
+        padding: const EdgeInsets.all(20.0), // Increase padding
         child: ElevatedButton(
           onPressed: _saveAvailability,
           style: ElevatedButton.styleFrom(
