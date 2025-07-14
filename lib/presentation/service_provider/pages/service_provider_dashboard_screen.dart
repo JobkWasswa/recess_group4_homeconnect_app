@@ -315,6 +315,7 @@ class _ServiceProviderDashboardScreenState
                   ),
         ),
       ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
 
@@ -946,6 +947,44 @@ class _ServiceProviderDashboardScreenState
             ],
           ),
         ),
+      ),
+    );
+  }
+  Widget _buildBottomNavigationBar() {
+    return BottomAppBar(
+      shape: const CircularNotchedRectangle(),
+      notchMargin: 8.0,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: <Widget>[
+          IconButton(
+            icon: const Icon(Icons.home),
+            color: Colors.purple[700],
+            onPressed: () {},
+          ),
+          IconButton(
+            icon: const Icon(Icons.calendar_today),
+            color: Colors.grey,
+            onPressed: () {
+              print('My Bookings bottom nav pressed!');
+            },
+          ),
+          const SizedBox(width: 48),
+          IconButton(
+            icon: const Icon(Icons.work),
+            color: Colors.grey,
+            onPressed: () {
+              print('My Jobs bottom nav pressed!');
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.message),
+            color: Colors.grey,
+            onPressed: () {
+              print('Messages bottom nav pressed!');
+            },
+          ),
+        ],
       ),
     );
   }
