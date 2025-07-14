@@ -11,8 +11,8 @@ class Booking {
   final DateTime bookingDate;
   final String status; // Updated with new status flow
   final String? notes;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final dynamic createdAt;
+  final dynamic updatedAt;
   final GeoPoint location;
   final DateTime? completedAt; // NEW: Added completion timestamp
 
@@ -58,9 +58,11 @@ class Booking {
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       updatedAt: (data['updatedAt'] as Timestamp).toDate(),
       location: data['location'] as GeoPoint,
-      completedAt: data['completedAt'] != null // NEW: Handle completion timestamp
-          ? (data['completedAt'] as Timestamp).toDate()
-          : null,
+      completedAt:
+          data['completedAt'] !=
+                  null // NEW: Handle completion timestamp
+              ? (data['completedAt'] as Timestamp).toDate()
+              : null,
     );
   }
 
@@ -75,12 +77,14 @@ class Booking {
       'bookingDate': Timestamp.fromDate(bookingDate),
       'status': status,
       'notes': notes,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': Timestamp.fromDate(updatedAt),
+      'createdAt': FieldValue.serverTimestamp(), // ✅ fix here
+      'updatedAt': FieldValue.serverTimestamp(),
       'location': location,
-      'completedAt': completedAt != null // NEW: Include completion timestamp
-          ? Timestamp.fromDate(completedAt!)
-          : null,
+      'completedAt':
+          completedAt !=
+                  null // NEW: Include completion timestamp
+              ? Timestamp.fromDate(completedAt!)
+              : null,
     };
   }
 
@@ -114,16 +118,17 @@ class Booking {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       location: location ?? this.location,
-      completedAt: completedAt ?? this.completedAt, // NEW: Include completion timestamp
+      completedAt:
+          completedAt ?? this.completedAt, // NEW: Include completion timestamp
     );
   }
 
   // NEW: Helper method to check if booking is in active state
   bool get isActive {
-    return status == pending || 
-           status == confirmed || 
-           status == inProgress || 
-           status == completedByProvider;
+    return status == pending ||
+        status == confirmed ||
+        status == inProgress ||
+        status == completedByProvider;
   }
 
   // NEW: Helper method to check if booking is complete

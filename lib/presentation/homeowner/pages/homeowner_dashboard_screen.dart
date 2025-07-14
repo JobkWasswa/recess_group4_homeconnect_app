@@ -1033,7 +1033,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                     .where('clientId', isEqualTo: user.uid)
                     .where('status', whereIn: ['pending', 'confirmed'])
                     .limit(3)
-                    //.orderBy('createdAt', descending: true)
+                    .orderBy('createdAt', descending: true)
                     .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
