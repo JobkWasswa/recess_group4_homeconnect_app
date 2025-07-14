@@ -32,9 +32,8 @@ dependencies:
   permission_handler: ^12.0.0+1
   firebase_messaging: ^15.2.8
   flutter_rating_bar: ^4.0.1
-  Maps_flutter: ^2.6.0
+  google_maps_flutter: ^2.6.0
   url_launcher: ^6.2.2 
-  geolocator: ^11.0.0
   
 
 dev_dependencies:

@@ -5,6 +5,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/presentation/service_provider/pages/service_provider_savedprofile.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:homeconnect/presentation/service_provider/pages/view_job_request.dart';
+import 'package:intl/intl.dart'; // Import for better date formatting
+
+// NEW IMPORT: Import your ProviderMapsScreen
+import 'package:homeconnect/presentation/service_provider/pages/provider_maps_screen.dart';
 
 class ServiceProviderDashboardScreen extends StatefulWidget {
   const ServiceProviderDashboardScreen({super.key});
@@ -196,10 +200,17 @@ class _ServiceProviderDashboardScreenState
             : (categories?.toString() ?? 'Unknown');
 
     final bookingDate = data['bookingDate'];
+    // Improved date formatting using intl
     final formattedDate =
         bookingDate is Timestamp
-            ? bookingDate.toDate().toLocal().toString()
+            ? DateFormat(
+              'MMM d, yyyy h:mm a',
+            ).format(bookingDate.toDate().toLocal())
             : 'Unknown date';
+
+    final location =
+        data['address'] ??
+        'Location not specified'; // Assuming 'address' field for location
 
     return Card(
       elevation: 8,
@@ -237,6 +248,21 @@ class _ServiceProviderDashboardScreenState
                 Text(formattedDate, style: TextStyle(color: Colors.grey[700])),
               ],
             ),
+            const SizedBox(height: 4), // Added row for location
+            Row(
+              children: [
+                const Icon(Icons.location_on, size: 18, color: Colors.grey),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    location,
+                    style: TextStyle(color: Colors.grey[700]),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            // Removed price display from here
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
@@ -623,11 +649,17 @@ class _ServiceProviderDashboardScreenState
                               : (categories?.toString() ?? 'Unknown');
 
                       final bookingDate = data['bookingDate'];
+                      // Improved date formatting using intl
                       final formattedDate =
                           bookingDate is Timestamp
-                              ? bookingDate.toDate().toLocal().toString()
+                              ? DateFormat(
+                                'MMM d, yyyy h:mm a',
+                              ).format(bookingDate.toDate().toLocal())
                               : 'Unknown date';
                       final note = data['notes'] ?? '';
+                      final location =
+                          data['address'] ??
+                          'Location not specified'; // Assuming 'address' field for location
 
                       return _buildJobRequestCard(
                         context: context,
@@ -635,9 +667,7 @@ class _ServiceProviderDashboardScreenState
                             jobType, // This will now only be the first service
                         homeownerName: data['clientName'] ?? 'Unknown',
                         date: formattedDate,
-                        location:
-                            '', // You can update this from data['location'] if needed
-                        price: '', // Add pricing logic if needed
+                        location: location, // Pass location data
                         bookingId:
                             doc.id, // Pass bookingId for accept/reject actions
                         note: note,
@@ -657,7 +687,7 @@ class _ServiceProviderDashboardScreenState
     required String homeownerName,
     required String date,
     required String location,
-    required String price,
+    // Removed required String price,
     required String bookingId,
     String? note,
   }) {
@@ -743,91 +773,87 @@ class _ServiceProviderDashboardScreenState
                     ),
                   ],
                 ),
-              ],
-              const SizedBox(height: 12),
+              ], // Closing the 'if' block correctly
+              const SizedBox(height: 12), // Moved outside the 'if' block
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment:
+                    MainAxisAlignment
+                        .end, // Changed to end to align buttons right
                 children: [
-                  Text(
-                    price,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
+                  // Removed pricing text from here
+                  // Text(
+                  //   price,
+                  //   style: const TextStyle(
+                  //     fontSize: 18,
+                  //     fontWeight: FontWeight.bold,
+                  //     color: Colors.green,
+                  //   ),
+                  // ),
+                  // const SizedBox(width: 8), // Added some space
+                  ElevatedButton(
+                    onPressed: () async {
+                      try {
+                        await FirebaseFirestore.instance
+                            .collection('bookings')
+                            .doc(bookingId)
+                            .update({
+                              'status': 'confirmed',
+                              'updatedAt': FieldValue.serverTimestamp(),
+                            });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Job accepted and moved to Active Jobs',
+                            ),
+                          ),
+                        );
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error accepting job: $e')),
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green[600],
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
+                    child: const Text('Accept'),
                   ),
-                  Row(
-                    children: [
-                      ElevatedButton(
-                        onPressed: () async {
-                          try {
-                            await FirebaseFirestore.instance
-                                .collection('bookings')
-                                .doc(bookingId)
-                                .update({
-                                  'status': 'confirmed',
-                                  'updatedAt': FieldValue.serverTimestamp(),
-                                });
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Job accepted and moved to Active Jobs',
-                                ),
-                              ),
-                            );
-                          } catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Error accepting job: $e'),
-                              ),
-                            );
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green[600],
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                  const SizedBox(width: 8),
+                  OutlinedButton(
+                    onPressed: () async {
+                      try {
+                        await FirebaseFirestore.instance
+                            .collection('bookings')
+                            .doc(bookingId)
+                            .update({
+                              'status': 'rejected_by_provider',
+                              'updatedAt': FieldValue.serverTimestamp(),
+                            });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Rejected $jobType from $homeownerName.',
+                            ),
                           ),
-                        ),
-                        child: const Text('Accept'),
+                        );
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error rejecting job: $e')),
+                        );
+                      }
+                    },
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.red[400]!),
+                      foregroundColor: Colors.red[400],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      const SizedBox(width: 8),
-                      OutlinedButton(
-                        onPressed: () async {
-                          try {
-                            await FirebaseFirestore.instance
-                                .collection('bookings')
-                                .doc(bookingId)
-                                .update({
-                                  'status': 'rejected_by_provider',
-                                  'updatedAt': FieldValue.serverTimestamp(),
-                                });
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Rejected $jobType from $homeownerName.',
-                                ),
-                              ),
-                            );
-                          } catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Error rejecting job: $e'),
-                              ),
-                            );
-                          }
-                        },
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: Colors.red[400]!),
-                          foregroundColor: Colors.red[400],
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text('Reject'),
-                      ),
-                    ],
+                    ),
+                    child: const Text('Reject'),
                   ),
                 ],
               ),
@@ -870,6 +896,7 @@ class _ServiceProviderDashboardScreenState
             subtitle: 'Manage your working hours and days off.',
             onTap: () {
               // TODO: Navigate to Set Availability screen
+              print('Set Availability pressed');
             },
             colors: const [Color(0xFF22C55E), Color(0xFF16A34A)], // Green
           ),
@@ -881,6 +908,7 @@ class _ServiceProviderDashboardScreenState
             subtitle: 'See all your past completed jobs and earnings.',
             onTap: () {
               // TODO: Navigate to Job History screen
+              print('Job History pressed');
             },
             colors: const [Color(0xFFA855F7), Color(0xFF9333EA)], // Purple
           ),
@@ -916,7 +944,9 @@ class _ServiceProviderDashboardScreenState
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(
+                  8,
+                ), // Adjusted padding for the icon background
                 decoration: BoxDecoration(
                   gradient: LinearGradient(colors: colors),
                   borderRadius: BorderRadius.circular(12),
@@ -950,6 +980,7 @@ class _ServiceProviderDashboardScreenState
       ),
     );
   }
+
   Widget _buildBottomNavigationBar() {
     return BottomAppBar(
       shape: const CircularNotchedRectangle(),
@@ -959,22 +990,34 @@ class _ServiceProviderDashboardScreenState
         children: <Widget>[
           IconButton(
             icon: const Icon(Icons.home),
-            color: Colors.purple[700],
-            onPressed: () {},
+            color: Colors.purple[700], // Highlight current screen
+            onPressed: () {
+              // Already on home, maybe scroll to top or refresh
+            },
           ),
           IconButton(
             icon: const Icon(Icons.calendar_today),
             color: Colors.grey,
             onPressed: () {
               print('My Bookings bottom nav pressed!');
+              // TODO: Navigate to My Bookings screen
             },
           ),
-          const SizedBox(width: 48),
+          const SizedBox(
+            width: 48,
+          ), // Space for the FloatingActionButton if you have one
           IconButton(
-            icon: const Icon(Icons.work),
+            // NEW: Changed icon to map and added navigation
+            icon: const Icon(Icons.map), // Changed from Icons.work
             color: Colors.grey,
             onPressed: () {
-              print('My Jobs bottom nav pressed!');
+              print('Map bottom nav pressed!');
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ProviderMapsScreen(),
+                ),
+              );
             },
           ),
           IconButton(
@@ -982,6 +1025,7 @@ class _ServiceProviderDashboardScreenState
             color: Colors.grey,
             onPressed: () {
               print('Messages bottom nav pressed!');
+              // TODO: Navigate to Messages screen
             },
           ),
         ],
