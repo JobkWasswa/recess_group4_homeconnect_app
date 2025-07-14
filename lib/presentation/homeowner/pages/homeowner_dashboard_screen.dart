@@ -1027,14 +1027,16 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
 
           // Regular Bookings Section
           StreamBuilder<QuerySnapshot>(
-            stream:
-                FirebaseFirestore.instance
-                    .collection('bookings')
-                    .where('clientId', isEqualTo: user.uid)
-                    .where('status', whereIn: ['pending', 'confirmed'])
-                    .limit(3)
-                    .orderBy('createdAt', descending: true)
-                    .snapshots(),
+            stream: FirebaseFirestore.instance
+                .collection('bookings')
+                .where('clientId', isEqualTo: user.uid)
+                .where('status', whereIn: ['pending', 'confirmed'])
+                .orderBy('createdAt', descending: true)
+                .limit(3)
+                .snapshots()
+                .handleError((error) {
+                  print('🔥 Firestore error: $error');
+                }),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -1086,10 +1088,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                                                             .isNotEmpty
                                                         ? booking.categories[0]
                                                         : '',
-
-                                                userLocation:
-                                                    booking
-                                                        .location, // ✅ Use actual booking location
+                                                userLocation: booking.location,
                                               ),
                                         ),
                                       );
@@ -1111,6 +1110,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
               );
             },
           ),
+
           const SizedBox(height: 10),
           Center(
             child: TextButton(
