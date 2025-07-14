@@ -883,7 +883,10 @@ class _ServiceProviderDashboardScreenState
             title: 'View Job History',
             subtitle: 'See all your past completed jobs and earnings.',
             onTap: () {
-              // TODO: Navigate to Job History screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AllJobRequestsScreen()),
+              );
             },
             colors: const [Color(0xFFA855F7), Color(0xFF9333EA)], // Purple
           ),
