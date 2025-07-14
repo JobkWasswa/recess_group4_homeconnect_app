@@ -24,6 +24,7 @@ class _ServiceProviderDashboardScreenState
     _fetchProviderName();
     _updateProviderFCMToken();
   }
+
   // Add to _ServiceProviderDashboardScreenState
   Stream<QuerySnapshot> _getAcceptedJobs() {
     final userId = FirebaseAuth.instance.currentUser?.uid;
@@ -128,7 +129,8 @@ class _ServiceProviderDashboardScreenState
       print('Error updating FCM token: $e');
     }
   }
-// Add this widget method
+
+  // Add this widget method
   Widget _buildActiveJobsSection(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
@@ -166,10 +168,11 @@ class _ServiceProviderDashboardScreenState
               }
 
               return Column(
-                children: docs.map((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  return _buildActiveJobCard(context, doc.id, data);
-                }).toList(),
+                children:
+                    docs.map((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      return _buildActiveJobCard(context, doc.id, data);
+                    }).toList(),
               );
             },
           ),
@@ -177,97 +180,106 @@ class _ServiceProviderDashboardScreenState
       ),
     );
   }
+
   Widget _buildActiveJobCard(
-    BuildContext context, String bookingId, Map<String, dynamic> data) {
-  final categories = data['categories'];
-  final jobType = categories is List
-      ? categories.join(', ')
-      : (categories?.toString() ?? 'Unknown');
+    BuildContext context,
+    String bookingId,
+    Map<String, dynamic> data,
+  ) {
+    final categories = data['categories'];
+    final jobType =
+        categories is List
+            ? categories.join(', ')
+            : (categories?.toString() ?? 'Unknown');
 
-  final bookingDate = data['bookingDate'];
-  final formattedDate = bookingDate is Timestamp
-      ? bookingDate.toDate().toLocal().toString()
-      : 'Unknown date';
+    final bookingDate = data['bookingDate'];
+    final formattedDate =
+        bookingDate is Timestamp
+            ? bookingDate.toDate().toLocal().toString()
+            : 'Unknown date';
 
-  return Card(
-    elevation: 8,
-    margin: const EdgeInsets.only(bottom: 12),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    child: Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            jobType,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF6B7280),
+    return Card(
+      elevation: 8,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              jobType,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF6B7280),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(Icons.person, size: 18, color: Colors.grey),
-              const SizedBox(width: 8),
-              Text(data['clientName'] ?? 'Unknown',
-                  style: TextStyle(color: Colors.grey[700])),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
-              const SizedBox(width: 8),
-              Text(formattedDate, style: TextStyle(color: Colors.grey[700])),
-            ],
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () async {
-                try {
-                  await FirebaseFirestore.instance
-                      .collection('bookings')
-                      .doc(bookingId)
-                      .update({
-                        'status': 'completed_by_provider',
-                        'updatedAt': FieldValue.serverTimestamp(),
-                      });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Job marked as complete!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              },
-              icon: const Icon(Icons.check_circle_outline),
-              label: const Text('Mark as Complete'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green[600],
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.person, size: 18, color: Colors.grey),
+                const SizedBox(width: 8),
+                Text(
+                  data['clientName'] ?? 'Unknown',
+                  style: TextStyle(color: Colors.grey[700]),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
+                const SizedBox(width: 8),
+                Text(formattedDate, style: TextStyle(color: Colors.grey[700])),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  try {
+                    await FirebaseFirestore.instance
+                        .collection('bookings')
+                        .doc(bookingId)
+                        .update({
+                          'status': 'completed_by_provider',
+                          'updatedAt': FieldValue.serverTimestamp(),
+                        });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Job marked as complete!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.check_circle_outline),
+                label: const Text('Mark as Complete'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[600],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -293,9 +305,9 @@ class _ServiceProviderDashboardScreenState
                         _buildHeader(context),
                         _buildStatsSummary(),
                         _buildJobRequestsSection(context),
-                        _buildActiveJobsSection(context), 
-                        
-                        _buildProfileManagementSection(context),  
+                        _buildActiveJobsSection(context),
+
+                        _buildProfileManagementSection(context),
                       ],
                     ),
                   ),
@@ -691,22 +703,34 @@ class _ServiceProviderDashboardScreenState
                     ElevatedButton(
                       onPressed: () async {
                         try {
-                          final bookingDoc = await FirebaseFirestore.instance
-                              .collection('bookings')
-                              .where('serviceProviderId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
-                              .where('status', isEqualTo: 'pending')
-                              .limit(1)
-                              .get();
+                          final bookingDoc =
+                              await FirebaseFirestore.instance
+                                  .collection('bookings')
+                                  .where(
+                                    'serviceProviderId',
+                                    isEqualTo:
+                                        FirebaseAuth.instance.currentUser?.uid,
+                                  )
+                                  .where('status', isEqualTo: 'pending')
+                                  .limit(1)
+                                  .get();
 
                           if (bookingDoc.docs.isNotEmpty) {
                             final docId = bookingDoc.docs.first.id;
-                            await FirebaseFirestore.instance.collection('bookings').doc(docId).update({
-                              'status': 'confirmed',
-                              'updatedAt': FieldValue.serverTimestamp(),
-                            });
+                            await FirebaseFirestore.instance
+                                .collection('bookings')
+                                .doc(docId)
+                                .update({
+                                  'status': 'confirmed',
+                                  'updatedAt': FieldValue.serverTimestamp(),
+                                });
 
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Job accepted and moved to Active Jobs')),
+                              const SnackBar(
+                                content: Text(
+                                  'Job accepted and moved to Active Jobs',
+                                ),
+                              ),
                             );
                           }
                         } catch (e) {
