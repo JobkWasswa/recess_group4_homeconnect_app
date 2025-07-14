@@ -144,14 +144,24 @@ class _ServiceProviderDashboardScreenState
     if (userId == null) return;
 
     try {
+      // Fetch provider stats from the 'service_providers' collection
       final providerDoc =
           await FirebaseFirestore.instance
               .collection('service_providers')
               .doc(userId)
               .get();
 
-      print('Provider stats: ${providerDoc.data()}');
+      if (providerDoc.exists) {
+        final providerData = providerDoc.data();
+        setState(() {
+          _completedJobsCount = providerData?['completedJobs'] ?? 0;
+          _avgRating = providerData?['averageRating']?.toDouble() ?? 0.0;
+        });
+      } else {
+        print('Provider stats not found.');
+      }
 
+      // Fetch upcoming jobs from the 'bookings' collection
       final upcomingJobsSnapshot =
           await FirebaseFirestore.instance
               .collection('bookings')
@@ -159,7 +169,9 @@ class _ServiceProviderDashboardScreenState
               .where('status', isEqualTo: 'confirmed')
               .get();
 
-      print('Upcoming jobs count: ${upcomingJobsSnapshot.docs.length}');
+      setState(() {
+        _upcomingJobsCount = upcomingJobsSnapshot.docs.length;
+      });
     } catch (e) {
       print('Error fetching provider stats: $e');
     }
