@@ -31,13 +31,17 @@ class _ServiceProviderDashboardScreenState
 
   Stream<QuerySnapshot> _getAcceptedJobs() {
     final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) return const Stream.empty();
+    if (userId == null) return Stream<QuerySnapshot>.empty();
 
     return FirebaseFirestore.instance
         .collection('bookings')
         .where('serviceProviderId', isEqualTo: userId)
         .where('status', whereIn: ['confirmed', 'in_progress'])
-        .snapshots();
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .handleError((error) {
+          print('🔥 Firestore error in _getAcceptedJobs: $error');
+        });
   }
 
   Future<void> _fetchProviderName() async {
