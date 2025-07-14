@@ -1031,8 +1031,9 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                 FirebaseFirestore.instance
                     .collection('bookings')
                     .where('clientId', isEqualTo: user.uid)
-                    .where('status', whereNotIn: ['completed_by_provider'])
+                    .where('status', whereIn: ['pending', 'confirmed'])
                     .limit(3)
+                    //.orderBy('createdAt', descending: true)
                     .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
@@ -1085,10 +1086,10 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                                                             .isNotEmpty
                                                         ? booking.categories[0]
                                                         : '',
-                                                userLocation: const GeoPoint(
-                                                  0,
-                                                  0,
-                                                ),
+
+                                                userLocation:
+                                                    booking
+                                                        .location, // ✅ Use actual booking location
                                               ),
                                         ),
                                       );
