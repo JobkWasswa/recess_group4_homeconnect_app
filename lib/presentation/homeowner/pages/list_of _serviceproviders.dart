@@ -478,8 +478,8 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
         status: 'pending',
         selectedCategory: providerCategory,
         notes: notesController.text, // Use the note from the dialog
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
         location: widget.userLocation,
       );
 
