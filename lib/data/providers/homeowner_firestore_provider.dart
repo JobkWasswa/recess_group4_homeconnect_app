@@ -13,7 +13,8 @@ class HomeownerFirestoreProvider {
     required String serviceCategory,
     required double homeownerLatitude,
     required double homeownerLongitude,
-    DateTime? desiredDateTime, // Optional parameter for availability
+    double radiusKm = 10.0, // ✅ Default radius
+    DateTime? desiredDateTime,
   }) async {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
@@ -29,19 +30,16 @@ class HomeownerFirestoreProvider {
         'serviceCategory': serviceCategory,
         'homeownerLatitude': homeownerLatitude,
         'homeownerLongitude': homeownerLongitude,
-        // Pass desiredDateTime as an ISO 8601 UTC string.
-        // It's important to use toUtc() to ensure consistency with the Cloud Function.
+        'radiusKm': radiusKm, // ✅ Pass radius to Cloud Function
         'desiredDateTime': desiredDateTime?.toUtc().toIso8601String(),
       };
+
       print('DEBUG: Sending data to Cloud Function: $requestData');
 
       final result = await callable.call(requestData);
 
       final List<dynamic> providersData = result.data['providers'] ?? [];
 
-      // Assuming ServiceProviderModel.fromJson expects a Map<String, dynamic>
-      // and the 'id' field is already included within the map from the Cloud Function.
-      // If your fromMap requires 'data' and a separate 'id', you'll need to adapt this.
       return providersData
           .map(
             (data) =>

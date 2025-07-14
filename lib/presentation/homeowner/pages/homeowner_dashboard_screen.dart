@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:homeconnect/presentation/homeowner/pages/list_of _serviceproviders.dart';
 //import 'package:geolocator/geolocator.dart';
 import 'package:homeconnect/data/models/booking.dart';
+import 'package:homeconnect/presentation/homeowner/pages/view_all_bookings.dart';
 
 // Helper – convert something like “john_doe99@example.com” → “John Doe99”
 String nameFromEmail(String email) {
@@ -184,10 +185,10 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                buildHeader(context),
-                buildSearchAndFilter(),
-                buildCategorySection(context),
-                buildPopularServicesSection(context),
+                _buildHeader(context),
+                _buildSearchAndFilter(),
+                _buildCategorySection(context),
+                _buildPopularServicesSection(context),
                 _buildBookingStatusSection(context),
                 const SizedBox(height: 20),
               ],
@@ -823,133 +824,106 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-          Column(
-            children: [
-              _buildProfessionalCard(
-                context: context,
-                name: 'Grace Nakato',
-                service: 'Plumbing Expert',
-                rating: '4.9',
-                jobsCompleted: '150+',
-                imageUrl: 'https://via.placeholder.com/150',
-              ),
-              const SizedBox(height: 10),
-              _buildProfessionalCard(
-                context: context,
-                name: 'David Ssenyonga',
-                service: 'Electrical & AC Repair',
-                rating: '4.7',
-                jobsCompleted: '120+',
-                imageUrl: 'https://via.placeholder.com/150',
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+          StreamBuilder<QuerySnapshot>(
+            stream:
+                FirebaseFirestore.instance
+                    .collection('bookings')
+                    .where('clientId', isEqualTo: currentUserId)
+                    //.orderBy('createdAt', descending: true)
+                    .limit(3)
+                    .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-  Widget _buildProfessionalCard({
-    required BuildContext context,
-    required String name,
-    required String service,
-    required String rating,
-    required String jobsCompleted,
-    required String imageUrl,
-  }) {
-    return Card(
-      elevation: 5,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(15),
-        onTap: () {
-          print('Professional tapped: \$name');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Tapped on \$name\'s profile!')),
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Row(
-            children: [
-              CircleAvatar(radius: 30, backgroundImage: NetworkImage(imageUrl)),
-              const SizedBox(width: 15),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      service,
-                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 5),
-                    Row(
-                      children: [
-                        Icon(Icons.star, color: Colors.amber[700], size: 16),
-                        Text(
-                          '\$rating (\$jobsCompleted jobs)',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[700],
-                          ),
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return const Text('You have no bookings yet.');
+              }
+
+              // ✅ ADD THIS DEBUG PRINT HERE
+              final docs = snapshot.data!.docs;
+              for (var doc in docs) {
+                print('🔥 Booking doc: ${doc.data()}');
+              }
+
+              final bookings =
+                  snapshot.data!.docs
+                      .map((doc) => Booking.fromFirestore(doc))
+                      .toList();
+
+              return Column(
+                children:
+                    bookings.map((booking) {
+                      final statusColor = _getStatusColor(booking.status);
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Column(
+                          children: [
+                            _buildBookingStatusCard(
+                              context: context,
+                              service:
+                                  booking.categories.isNotEmpty
+                                      ? booking.categories.first
+                                      : 'No category',
+                              provider: booking.serviceProviderName,
+                              status: capitalize(booking.status.toString()),
+                              date: _formatDate(booking.bookingDate),
+                              statusColor: statusColor,
+                            ),
+                            if (booking.status.toLowerCase() == 'denied')
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(top: 4.0),
+                                  child: TextButton(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              (_) => ServiceProvidersList(
+                                                category:
+                                                    booking
+                                                            .categories
+                                                            .isNotEmpty
+                                                        ? booking.categories[0]
+                                                        : '',
+
+                                                userLocation: const GeoPoint(
+                                                  0,
+                                                  0,
+                                                ), // Replace with actual location
+                                              ),
+                                        ),
+                                      );
+                                    },
+                                    child: const Text(
+                                      'Book Another',
+                                      style: TextStyle(
+                                        color: Colors.purple,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: Colors.grey),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBookingStatusSection(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'My Bookings',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          _buildBookingStatusCard(
-            context: context,
-            service: 'Plumbing Repair',
-            provider: 'Grace Nakato',
-            status: 'Pending',
-            date: 'Tomorrow, 10:00 AM',
-            statusColor: Colors.orange,
-          ),
-          const SizedBox(height: 10),
-          _buildBookingStatusCard(
-            context: context,
-            service: 'House Cleaning',
-            provider: 'CleanSweep Ltd.',
-            status: 'Confirmed',
-            date: 'Today, 2:00 PM',
-            statusColor: Colors.green,
+                      );
+                    }).toList(),
+              );
+            },
           ),
           const SizedBox(height: 10),
           Center(
             child: TextButton(
               onPressed: () {
-                print('View All Bookings pressed');
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => AllBookingsScreen()),
+                );
               },
               child: const Text('View All My Bookings'),
             ),

@@ -1,4 +1,3 @@
-// File: homeconnect/presentation/homeowner/pages/service_providers_list_widget.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/data/models/service_provider_modal.dart';
@@ -9,14 +8,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class ServiceProvidersList extends StatefulWidget {
   final String category;
-  final GeoPoint userLocation; // User's current location to pass to the CF
-  final DateTime? desiredDateTime; // Add this parameter
+  final GeoPoint userLocation;
+  final DateTime? desiredDateTime;
+  static const List<String> activeStatuses = ['pending', 'confirmed'];
 
   const ServiceProvidersList({
     super.key,
     required this.category,
     required this.userLocation,
-    this.desiredDateTime, // Make it optional if you want to allow initial broad search
+    this.desiredDateTime,
   });
 
   @override
@@ -25,6 +25,8 @@ class ServiceProvidersList extends StatefulWidget {
 
 class _ServiceProvidersListState extends State<ServiceProvidersList> {
   late Future<List<ServiceProviderModel>> _providersFuture;
+
+  final Map<String, TextEditingController> _notesControllers = {};
 
   @override
   void initState() {
@@ -35,7 +37,6 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
   @override
   void didUpdateWidget(covariant ServiceProvidersList oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Only re-fetch if relevant parameters have changed
     if (oldWidget.category != widget.category ||
         oldWidget.userLocation != widget.userLocation ||
         oldWidget.desiredDateTime != widget.desiredDateTime) {
@@ -48,9 +49,17 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
       serviceCategory: widget.category,
       homeownerLatitude: widget.userLocation.latitude,
       homeownerLongitude: widget.userLocation.longitude,
-      desiredDateTime:
-          widget.desiredDateTime, // Pass the desired date/time here
+      radiusKm: 10.0, // ✅ Set the distance limit here//
+      desiredDateTime: widget.desiredDateTime,
     );
+  }
+
+  @override
+  void dispose() {
+    for (final controller in _notesControllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
   }
 
   @override
@@ -61,9 +70,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Navigator.pop(
-              context,
-            ); // This will navigate back to the previous screen
+            Navigator.pop(context);
           },
         ),
       ),
@@ -74,7 +81,6 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            print('Error in FutureBuilder: ${snapshot.error}');
             return Center(
               child: Text('Error: ${snapshot.error}. Please try again.'),
             );
@@ -93,6 +99,11 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
             itemCount: providers.length,
             itemBuilder: (context, index) {
               final provider = providers[index];
+              _notesControllers.putIfAbsent(
+                provider.id,
+                () => TextEditingController(),
+              );
+              final notesController = _notesControllers[provider.id]!;
 
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -142,23 +153,38 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                   ),
                                 ),
                                 const SizedBox(height: 6),
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.location_on,
-                                      size: 16,
-                                      color: Colors.grey,
+                                SizedBox(
+                                  height: 28,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
                                     ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      provider.distanceKm != null
-                                          ? '${provider.distanceKm!.toStringAsFixed(1)} km away'
-                                          : 'Distance unknown',
-                                      style: const TextStyle(
-                                        color: Colors.grey,
-                                      ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue[50],
+                                      borderRadius: BorderRadius.circular(16),
                                     ),
-                                  ],
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.location_on,
+                                          size: 16,
+                                          color: Colors.blueAccent,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          provider.distanceKm != null
+                                              ? '${provider.distanceKm!.toStringAsFixed(1)} km away'
+                                              : 'Distance unknown',
+                                          style: const TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.black87,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
@@ -193,12 +219,11 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                       context,
                                       MaterialPageRoute(
                                         builder:
-                                            (
-                                              _,
-                                            ) => ProfileDisplayScreenForClient(
-                                              serviceProviderId: provider.id,
-                                              // Pass desiredDateTime if needed on the profile screen
-                                            ),
+                                            (_) =>
+                                                ProfileDisplayScreenForClient(
+                                                  serviceProviderId:
+                                                      provider.id,
+                                                ),
                                       ),
                                     );
                                   },
@@ -218,6 +243,25 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                       color: Colors.white,
                                     ),
                                   ),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              SizedBox(
+                                width: 240,
+                                child: TextField(
+                                  controller: notesController,
+                                  decoration: InputDecoration(
+                                    hintText: 'Add note for provider',
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 8,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  maxLines: 2,
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -244,22 +288,70 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                     final currentUserName =
                                         user.displayName ?? 'Unknown User';
 
+                                    final providerCategory =
+                                        provider.categories.isNotEmpty
+                                            ? provider.categories[0]
+                                            : '';
+
+                                    // 1. Check for existing active booking in this category
+                                    final activeStatuses = [
+                                      'pending',
+                                      'confirmed',
+                                    ];
+                                    final existingBookingQuery =
+                                        await FirebaseFirestore.instance
+                                            .collection('bookings')
+                                            .where(
+                                              'clientId',
+                                              isEqualTo: currentUserId,
+                                            )
+                                            .where(
+                                              'selectedCategory',
+                                              isEqualTo: providerCategory,
+                                            )
+                                            .where(
+                                              'status',
+                                              whereIn: activeStatuses,
+                                            )
+                                            .limit(1)
+                                            .get();
+
+                                    if (existingBookingQuery.docs.isNotEmpty) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'You already have an active booking in this category. Please complete or cancel it first.',
+                                          ),
+                                        ),
+                                      );
+                                      return; // block booking creation
+                                    }
+
                                     final booking = Booking(
-                                      clientId: currentUserId,
-                                      clientName: currentUserName,
+                                      clientId: user.uid,
+                                      clientName:
+                                          user.displayName ?? 'Unknown User',
                                       serviceProviderId: provider.id,
                                       serviceProviderName: provider.name,
-                                      categories:
-                                          provider.categories, // no .join()
-
+                                      categories: provider.categories,
                                       bookingDate: DateTime.now(),
                                       status: 'pending',
-                                      notes: '',
+                                      selectedCategory:
+                                          providerCategory, // ✅ NEW
+                                      notes:
+                                          notesController
+                                              .text, // ✅ Pass user notes here
                                       createdAt: DateTime.now(),
                                       updatedAt: DateTime.now(),
+                                      location:
+                                          widget
+                                              .userLocation, // <--- Add userLocation here
                                     );
 
                                     try {
+                                      // ✅ Save only once, with Firestore timestamps
                                       await FirebaseFirestore.instance
                                           .collection('bookings')
                                           .add(booking.toFirestore());
@@ -283,7 +375,6 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                       );
                                     }
                                   },
-
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: Colors.purple,
                                     side: const BorderSide(
@@ -330,6 +421,106 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                   ),
                                 )
                                 .toList(),
+                      ),
+
+                      FutureBuilder<QuerySnapshot>(
+                        future:
+                            FirebaseFirestore.instance
+                                .collection('bookings')
+                                .where(
+                                  'clientId',
+                                  isEqualTo:
+                                      FirebaseAuth.instance.currentUser?.uid,
+                                )
+                                .where(
+                                  'serviceProviderId',
+                                  isEqualTo: provider.id,
+                                )
+                                .where(
+                                  'status',
+                                  whereIn: ['pending', 'confirmed'],
+                                )
+                                .limit(1)
+                                .get(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const SizedBox(); // or a small spinner
+                          }
+
+                          if (!snapshot.hasData ||
+                              snapshot.data!.docs.isEmpty) {
+                            return const SizedBox(); // No active booking with this provider
+                          }
+
+                          final bookingDoc = snapshot.data!.docs.first;
+                          final bookingId = bookingDoc.id;
+
+                          return Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton.icon(
+                              onPressed: () async {
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder:
+                                      (context) => AlertDialog(
+                                        title: const Text('Cancel Booking'),
+                                        content: const Text(
+                                          'Are you sure you want to cancel this booking?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed:
+                                                () => Navigator.pop(
+                                                  context,
+                                                  false,
+                                                ),
+                                            child: const Text('No'),
+                                          ),
+                                          TextButton(
+                                            onPressed:
+                                                () => Navigator.pop(
+                                                  context,
+                                                  true,
+                                                ),
+                                            child: const Text('Yes'),
+                                          ),
+                                        ],
+                                      ),
+                                );
+
+                                if (confirm == true) {
+                                  try {
+                                    await FirebaseFirestore.instance
+                                        .collection('bookings')
+                                        .doc(bookingId)
+                                        .update({
+                                          'status': 'cancelled',
+                                          'updatedAt':
+                                              FieldValue.serverTimestamp(),
+                                        });
+
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Booking cancelled.'),
+                                      ),
+                                    );
+                                    setState(() {}); // Refresh the UI
+                                  } catch (e) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Error: $e')),
+                                    );
+                                  }
+                                }
+                              },
+                              icon: const Icon(Icons.cancel, color: Colors.red),
+                              label: const Text(
+                                'Cancel Booking',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),

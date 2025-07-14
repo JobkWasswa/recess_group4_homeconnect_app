@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:homeconnect/config/routes.dart'; // Import routes for logout navigation
+import 'package:homeconnect/config/routes.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/presentation/service_provider/pages/service_provider_savedprofile.dart';
@@ -44,65 +44,77 @@ class _ServiceProviderDashboardScreenState
         .trim();
   }
 
-  Future<void> _fetchProviderData() async {
+  Future<void> _fetchProviderName() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
+        // If no user is logged in, default to 'Provider' and stop loading
         setState(() {
           providerName = 'Provider';
           isLoading = false;
         });
         return;
       }
+
+      String formatNameFromEmail(String email) {
+        final namePart = email.split('@').first;
+        return namePart
+            .replaceAll('.', ' ')
+            .split(' ')
+            .map(
+              (word) =>
+                  word.isNotEmpty
+                      ? '${word[0].toUpperCase()}${word.substring(1)}'
+                      : '',
+            )
+            .join(' ');
+      }
+
+      // Attempt to fetch provider data from Firestore
       final doc =
           await FirebaseFirestore.instance
-              .collection('service_providers') // your provider collection
+              .collection('service_providers')
               .doc(user.uid)
               .get();
 
-      final data = doc.data();
-      final email =
-          data != null && data['email'] != null
-              ? data['email'].toString()
-              : null;
-      final profession =
-          data != null && data['profession'] != null
-              ? data['profession'].toString()
-              : ''; // Fetch profession
+      String? emailFromFirestore = doc.data()?['email']?.toString();
+      String? nameFromFirestore =
+          doc
+              .data()?['fullName']
+              ?.toString(); // Assuming you store a 'fullName' field
 
-      setState(() {
-        providerName = email != null ? _formatNameFromEmail(email) : 'Provider';
-        _userProfession = profession; // Set the fetched profession
-        // Initialize or fetch actual rating/jobs from Firestore if available
-        // For now, using default values as per requirement 1
-        _starRating = (data?['starRating'] as num?)?.toDouble() ?? 1.0;
-        _jobsCompleted = (data?['jobsCompleted'] as int?) ?? 0;
-        _availabilityStatus =
-            (data?['availabilityStatus'] as String?) ?? 'Active';
-        isLoading = false;
-      });
+      if (nameFromFirestore != null && nameFromFirestore.isNotEmpty) {
+        // Use the 'fullName' from Firestore if available
+        setState(() {
+          providerName = nameFromFirestore;
+          isLoading = false;
+        });
+      } else if (emailFromFirestore != null && emailFromFirestore.isNotEmpty) {
+        // If 'fullName' is not available, try to format from the email stored in Firestore
+        setState(() {
+          providerName = formatNameFromEmail(emailFromFirestore);
+          isLoading = false;
+        });
+      } else if (user.email != null) {
+        // Fallback to formatting from the authenticated user's email
+        setState(() {
+          providerName = formatNameFromEmail(user.email!);
+          isLoading = false;
+        });
+      } else {
+        // Last resort: default to 'Provider'
+        setState(() {
+          providerName = 'Provider';
+          isLoading = false;
+        });
+      }
     } catch (e) {
+      print('Error fetching provider name: $e');
       setState(() {
-        providerName = 'Provider';
-        _userProfession = ''; // Default profession on error
-        _starRating = 1.0;
-        _jobsCompleted = 0;
-        _availabilityStatus = 'Active';
+        providerName = 'Provider'; // Fallback in case of any error
         isLoading = false;
       });
-      print('Error fetching provider data: $e');
     }
-  }
-
-  // Simulate updating availability status
-  void _updateAvailabilityStatus(String newStatus) {
-    setState(() {
-      _availabilityStatus = newStatus;
-    });
-    // In a real app, you would update this in Firestore
-    // FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser?.uid).update({
-    //   'availabilityStatus': newStatus,
-    // });
   }
 
   // Save or update FCM token in provider's Firestore document
@@ -115,7 +127,10 @@ class _ServiceProviderDashboardScreenState
         await FirebaseFirestore.instance
             .collection('service_providers')
             .doc(user.uid)
-            .update({'fcmToken': token});
+            .set(
+              {'fcmToken': token},
+              SetOptions(merge: true),
+            ); // Use set with merge to avoid overwriting
       }
     } catch (e) {
       print('Error updating FCM token: $e');
@@ -132,7 +147,10 @@ class _ServiceProviderDashboardScreenState
         await FirebaseFirestore.instance
             .collection('service_providers')
             .doc(user.uid)
-            .update({'fcmToken': token});
+            .set(
+              {'fcmToken': token},
+              SetOptions(merge: true),
+            ); // Use set with merge to avoid overwriting
       }
     } catch (e) {
       print('Error updating FCM token: $e');

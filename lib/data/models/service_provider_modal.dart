@@ -1,4 +1,5 @@
 // File: homeconnect/data/models/service_provider_modal.dart
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ServiceProviderModel {
@@ -9,8 +10,8 @@ class ServiceProviderModel {
   final double rating;
   final int reviewCount;
   final double? distanceKm;
-  // Removed 'availableToday' as its presence in the filtered list implies availability
-  final double score; // Add the calculated score
+  final double score;
+  final int completedJobs; // ✅ New field
 
   ServiceProviderModel({
     required this.id,
@@ -21,15 +22,13 @@ class ServiceProviderModel {
     required this.reviewCount,
     this.distanceKm,
     required this.score,
+    required this.completedJobs, // ✅ Include in constructor
   });
 
-  // Factory constructor for deserializing from a Map (e.g., from Cloud Function result)
-  // This assumes the 'id' is part of the data map returned by the Cloud Function
+  /// Factory constructor for deserializing from a Cloud Function result (via Map)
   factory ServiceProviderModel.fromJson(Map<String, dynamic> data) {
     return ServiceProviderModel(
-      id:
-          data['id']
-              as String, // Expect 'id' to be present in the CF output map
+      id: data['id'] as String,
       name: data['name'] ?? 'Unnamed Provider',
       profilePhoto: data['profilePhoto'],
       categories: List<String>.from(data['categories'] ?? []),
@@ -37,12 +36,11 @@ class ServiceProviderModel {
       reviewCount: data['reviewCount'] ?? 0,
       distanceKm: (data['distanceKm'] as num?)?.toDouble(),
       score: (data['score'] as num?)?.toDouble() ?? 0.0,
+      completedJobs: (data['completedJobs'] as int?) ?? 0, // ✅ Fetch from Cloud Function result
     );
   }
 
-  // Use this if you are fetching a ServiceProvider from a direct Firestore DocumentSnapshot
-  // This constructor is for when you are directly reading from Firestore,
-  // where distance, availability, and score are NOT present and are computed by the CF.
+  /// Factory constructor for direct Firestore DocumentSnapshot reads
   factory ServiceProviderModel.fromDocumentSnapshot(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return ServiceProviderModel(
@@ -52,10 +50,9 @@ class ServiceProviderModel {
       categories: List<String>.from(data['categories'] ?? []),
       rating: (data['averageRating'] as num?)?.toDouble() ?? 0.0,
       reviewCount: (data['numberOfReviews'] as int?) ?? 0,
-      // These fields are calculated by the Cloud Function, so they won't be in a raw document snapshot.
-      // Set them to null or default values when reading directly from Firestore.
-      distanceKm: null,
-      score: 0.0, // Default score when not from CF
+      distanceKm: null, // Not present in raw Firestore doc
+      score: 0.0, // Not present in raw Firestore doc
+      completedJobs: (data['completedJobs'] as int?) ?? 0, // ✅ Fetch from Firestore doc
     );
   }
 }
