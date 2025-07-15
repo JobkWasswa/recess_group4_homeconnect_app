@@ -28,7 +28,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:279318295980:android:4fcf9376f7b3a33a3e7609",
         "android_client_info": {
-          "package_name": "com.example.homeconnect"
+          "package_name": "com.company.homeconnect"
         }
       },
       "oauth_client": [],

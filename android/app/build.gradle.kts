@@ -1,48 +1,47 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    id("com.google.gms.google-services")   // Firebase/Play-Services
+    id("com.google.gms.google-services") // Firebase plugin
     id("dev.flutter.flutter-gradle-plugin") // Flutter (must be last)
 }
 
 android {
-    namespace = "com.example.homeconnect"
-    compileSdk = flutter.compileSdkVersion
+    namespace = "com.company.homeconnect"
+    compileSdk = 35
 
-    // ─── NDK: use the higher version Firebase needs ───
-    ndkVersion = "27.0.12077973"   // <-- CHANGED from flutter.ndkVersion
-    // ───────────────────────────────────────────────────
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions { jvmTarget = JavaVersion.VERSION_11.toString() }
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_17.toString()
+    }
 
     defaultConfig {
-        applicationId = "com.example.homeconnect"
-
-        // ─── minSdk must be ≥23 for latest Firebase ───
-        minSdk = 23                // <-- CHANGED from flutter.minSdkVersion
-        // ───────────────────────────────────────────────
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        applicationId = "com.company.homeconnect"
+        minSdk = 23
+        targetSdk = 35
+        versionCode = 1
+        versionName = "1.0"
     }
 
     buildTypes {
         release {
-            // Signing with debug keys for now so `flutter run --release` works
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("debug") // for testing release builds
         }
     }
 }
 
-flutter { source = "../.." }
+flutter {
+    source = "../.."
+}
 
 dependencies {
+    // Firebase BoM to manage versions automatically
     implementation(platform("com.google.firebase:firebase-bom:33.15.0"))
     implementation("com.google.firebase:firebase-analytics")
-    // add other Firebase dependencies here as needed (no versions with BoM)
+    // Add other Firebase dependencies here if needed
 }
