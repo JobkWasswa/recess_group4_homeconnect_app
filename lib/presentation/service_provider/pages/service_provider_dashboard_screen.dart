@@ -21,12 +21,16 @@ class _ServiceProviderDashboardScreenState
     extends State<ServiceProviderDashboardScreen> {
   String providerName = '';
   bool isLoading = true;
+  int _completedJobsCount = 0;
+  double _avgRating = 0.0;
+  int _upcomingJobsCount = 0;
 
   @override
   void initState() {
     super.initState();
     _fetchProviderName();
     _updateProviderFCMToken();
+    _fetchProviderStats(); // Fetch stats when the screen initializes
   }
 
   Stream<QuerySnapshot> _getAcceptedJobs() {
@@ -123,6 +127,46 @@ class _ServiceProviderDashboardScreenState
       print('Error updating FCM token: $e');
     }
   }
+
+
+  Future<void> _fetchProviderStats() async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+
+    try {
+      // Fetch provider stats from the 'service_providers' collection
+      final providerDoc =
+          await FirebaseFirestore.instance
+              .collection('service_providers')
+              .doc(userId)
+              .get();
+
+      if (providerDoc.exists) {
+        final providerData = providerDoc.data();
+        setState(() {
+          _completedJobsCount = providerData?['completedJobs'] ?? 0;
+          _avgRating = providerData?['averageRating']?.toDouble() ?? 0.0;
+        });
+      } else {
+        print('Provider stats not found.');
+      }
+
+      // Fetch upcoming jobs from the 'bookings' collection
+      final upcomingJobsSnapshot =
+          await FirebaseFirestore.instance
+              .collection('bookings')
+              .where('serviceProviderId', isEqualTo: userId)
+              .where('status', isEqualTo: 'confirmed')
+              .get();
+
+      setState(() {
+        _upcomingJobsCount = upcomingJobsSnapshot.docs.length;
+      });
+    } catch (e) {
+      print('Error fetching provider stats: $e');
+    }
+  }
+
 
   Widget _buildActiveJobsSection(BuildContext context) {
     return Padding(
@@ -474,20 +518,20 @@ class _ServiceProviderDashboardScreenState
                 children: [
                   _buildStatusItem(
                     Icons.star,
-                    '0',
+                    _avgRating.toStringAsFixed(1),
                     'Avg. Rating',
                     Colors.amber,
                   ),
                   _buildStatusItem(
                     Icons.work,
-                    '0+',
+                    '$_completedJobsCount+',
                     'Jobs Completed',
                     Colors.lightBlueAccent,
                   ),
                   _buildStatusItem(
                     Icons.calendar_today,
-                    'Active',
-                    'Availability',
+                    '$_upcomingJobsCount',
+                    'Upcoming Jobs',
                     Colors.greenAccent,
                   ),
                 ],
@@ -548,19 +592,19 @@ class _ServiceProviderDashboardScreenState
                 _buildStatRow(
                   Icons.check_circle_outline,
                   'Completed Jobs',
-                  '0',
+                  '$_completedJobsCount',
                   Colors.green,
                 ),
                 _buildStatRow(
                   Icons.calendar_today_outlined,
                   'Upcoming Jobs',
-                  '0',
+                  '$_upcomingJobsCount',
                   Colors.blue,
                 ),
                 _buildStatRow(
                   Icons.star_half,
                   'Avg. Rating',
-                  '0 (0 reviews)',
+                  '${_avgRating.toStringAsFixed(1)} ($_completedJobsCount reviews)',
                   Colors.amber,
                 ),
               ],
@@ -939,7 +983,12 @@ class _ServiceProviderDashboardScreenState
             title: 'View Job History',
             subtitle: 'See all your past completed jobs and earnings.',
             onTap: () {
-              print('Job History pressed');
+
+              
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AllJobRequestsScreen()),
+              );
             },
             colors: const [Color(0xFFA855F7), Color(0xFF9333EA)],
           ),

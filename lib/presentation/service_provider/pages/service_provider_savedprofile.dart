@@ -40,10 +40,18 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen> {
               });
             });
           }
+
+          // Fetch averageRating and numberOfReviews directly
+          setState(() {
+            _averageRating = doc.data()?['averageRating']?.toDouble() ?? 0.0;
+            _totalReviews = doc.data()?['numberOfReviews'] ?? 0;
+          });
+
+          print('Average Rating: $_averageRating');
+          print('Total Reviews: $_totalReviews');
+
           return doc;
         });
-
-    _loadRatings(user.uid);
   }
 
   Future<void> _loadRatings(String serviceProviderId) async {
