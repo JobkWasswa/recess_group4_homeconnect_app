@@ -8,6 +8,7 @@ import 'package:homeconnect/presentation/service_provider/pages/view_job_request
 import 'package:intl/intl.dart';
 import 'package:homeconnect/presentation/service_provider/pages/provider_maps_screen.dart';
 import 'package:homeconnect/utils/location_utils.dart'; // Import your location utility file
+import 'package:homeconnect/presentation/service_provider/pages/provider_calendar_screen.dart'; // NEW: Import ProviderCalendarScreen
 
 class ServiceProviderDashboardScreen extends StatefulWidget {
   const ServiceProviderDashboardScreen({super.key});
@@ -128,7 +129,6 @@ class _ServiceProviderDashboardScreenState
     }
   }
 
-
   Future<void> _fetchProviderStats() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return;
@@ -166,7 +166,6 @@ class _ServiceProviderDashboardScreenState
       print('Error fetching provider stats: $e');
     }
   }
-
 
   Widget _buildActiveJobsSection(BuildContext context) {
     return Padding(
@@ -230,29 +229,30 @@ class _ServiceProviderDashboardScreenState
             : (categories?.toString() ?? 'Unknown');
 
     final bookingDate = data['bookingDate'];
-    final formattedDate =
+    final formattedBookingDate =
         bookingDate is Timestamp
             ? DateFormat(
               'MMM d, yyyy h:mm a',
             ).format(bookingDate.toDate().toLocal())
             : 'Unknown date';
 
-    // Retrieve latitude and longitude for reverse geocoding
-    // IMPORTANT: Adjust these lines based on how your Firestore stores location data.
-    // If you have separate 'latitude' and 'longitude' fields:
+    // NEW: Retrieve scheduled date, time, and duration
+    final Timestamp? scheduledDateTimestamp =
+        data['scheduledDate'] as Timestamp?;
+    final DateTime? scheduledDate = scheduledDateTimestamp?.toDate();
+    final String? scheduledTime = data['scheduledTime'] as String?;
+    final String? duration = data['duration'] as String?;
+
     final double? latitude =
-        (data['latitude'] is num) ? data['latitude'].toDouble() : null;
+        (data['location'] is GeoPoint)
+            ? (data['location'] as GeoPoint).latitude
+            : null;
     final double? longitude =
-        (data['longitude'] is num) ? data['longitude'].toDouble() : null;
-    // If you have a GeoPoint field, e.g., 'location':
-    // final GeoPoint? geoPoint = data['location'] as GeoPoint?;
-    // final double? latitude = geoPoint?.latitude;
-    // final double? longitude = geoPoint?.longitude;
+        (data['location'] is GeoPoint)
+            ? (data['location'] as GeoPoint).longitude
+            : null;
 
     Future<String> getDisplayAddress() async {
-      // Prioritize an existing 'address' string if you have one and it's formatted well,
-      // otherwise, use reverse geocoding.
-      // return data['address'] ?? await getAddressFromLatLng(latitude, longitude);
       return await getAddressFromLatLng(
         latitude,
         longitude,
@@ -288,13 +288,35 @@ class _ServiceProviderDashboardScreenState
               ],
             ),
             const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
-                const SizedBox(width: 8),
-                Text(formattedDate, style: TextStyle(color: Colors.grey[700])),
-              ],
-            ),
+            // Display Scheduled Date
+            if (scheduledDate != null)
+              Row(
+                children: [
+                  const Icon(
+                    Icons.calendar_today,
+                    size: 18,
+                    color: Colors.grey,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Scheduled: ${DateFormat('MMM d, yyyy').format(scheduledDate)}',
+                    style: TextStyle(color: Colors.grey[700]),
+                  ),
+                ],
+              ),
+            const SizedBox(height: 4),
+            // Display Scheduled Time and Duration
+            if (scheduledTime != null && duration != null)
+              Row(
+                children: [
+                  const Icon(Icons.access_time, size: 18, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Time: $scheduledTime, Duration: $duration',
+                    style: TextStyle(color: Colors.grey[700]),
+                  ),
+                ],
+              ),
             const SizedBox(height: 4),
             Row(
               children: [
@@ -714,20 +736,14 @@ class _ServiceProviderDashboardScreenState
                       final note = data['notes'] ?? '';
 
                       // Retrieve latitude and longitude for reverse geocoding
-                      // IMPORTANT: Adjust these lines based on how your Firestore stores location data.
-                      // If you have separate 'latitude' and 'longitude' fields:
                       final double? latitude =
-                          (data['latitude'] is num)
-                              ? data['latitude'].toDouble()
+                          (data['location'] is GeoPoint)
+                              ? (data['location'] as GeoPoint).latitude
                               : null;
                       final double? longitude =
-                          (data['longitude'] is num)
-                              ? data['longitude'].toDouble()
+                          (data['location'] is GeoPoint)
+                              ? (data['location'] as GeoPoint).longitude
                               : null;
-                      // If you have a GeoPoint field, e.g., 'location':
-                      // final GeoPoint? geoPoint = data['location'] as GeoPoint?;
-                      // final double? latitude = geoPoint?.latitude;
-                      // final double? longitude = geoPoint?.longitude;
 
                       return _buildJobRequestCard(
                         context: context,
@@ -983,8 +999,6 @@ class _ServiceProviderDashboardScreenState
             title: 'View Job History',
             subtitle: 'See all your past completed jobs and earnings.',
             onTap: () {
-
-              
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const AllJobRequestsScreen()),
@@ -1069,16 +1083,24 @@ class _ServiceProviderDashboardScreenState
           IconButton(
             icon: const Icon(Icons.home),
             color: Colors.purple[700],
-            onPressed: () {},
+            onPressed: () {}, // Current screen, no navigation needed
           ),
+          // NEW: Calendar/Appointments Icon
           IconButton(
-            icon: const Icon(Icons.calendar_today),
+            icon: const Icon(
+              Icons.calendar_month,
+            ), // Changed icon to calendar_month
             color: Colors.grey,
             onPressed: () {
-              print('My Bookings bottom nav pressed!');
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ProviderCalendarScreen(),
+                ),
+              );
             },
           ),
-          const SizedBox(width: 48),
+          const SizedBox(width: 48), // Spacer for the FAB if you have one
           IconButton(
             icon: const Icon(Icons.map),
             color: Colors.grey,
