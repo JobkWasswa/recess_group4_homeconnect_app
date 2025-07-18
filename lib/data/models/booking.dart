@@ -8,7 +8,10 @@ class Booking {
   final String serviceProviderName;
   final List<String> categories;
   final String selectedCategory;
-  final DateTime bookingDate;
+  final DateTime bookingDate; // Original booking creation date
+  final DateTime? scheduledDate; // NEW: Scheduled date for the service
+  final String? scheduledTime; // NEW: Scheduled time for the service
+  final String? duration; // NEW: Duration of the service
   final String status; // Updated with new status flow
   final String? notes;
   final dynamic createdAt;
@@ -25,6 +28,9 @@ class Booking {
     required this.categories,
     required this.selectedCategory,
     required this.bookingDate,
+    this.scheduledDate, // NEW
+    this.scheduledTime, // NEW
+    this.duration, // NEW
     required this.status,
     this.notes,
     required this.createdAt,
@@ -53,6 +59,9 @@ class Booking {
       categories: List<String>.from(data['categories'] ?? []),
       selectedCategory: data['selectedCategory'] ?? '',
       bookingDate: (data['bookingDate'] as Timestamp).toDate(),
+      scheduledDate: (data['scheduledDate'] as Timestamp?)?.toDate(), // NEW
+      scheduledTime: data['scheduledTime'], // NEW
+      duration: data['duration'], // NEW
       status: data['status'] ?? pending, // Updated default to use constant
       notes: data['notes'],
       createdAt: (data['createdAt'] as Timestamp).toDate(),
@@ -75,9 +84,15 @@ class Booking {
       'categories': categories,
       'selectedCategory': selectedCategory,
       'bookingDate': Timestamp.fromDate(bookingDate),
+      'scheduledDate':
+          scheduledDate != null
+              ? Timestamp.fromDate(scheduledDate!)
+              : null, // NEW
+      'scheduledTime': scheduledTime, // NEW
+      'duration': duration, // NEW
       'status': status,
       'notes': notes,
-      'createdAt': FieldValue.serverTimestamp(), // ✅ fix here
+      'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
       'location': location,
       'completedAt':
@@ -97,6 +112,9 @@ class Booking {
     List<String>? categories,
     String? selectedCategory,
     DateTime? bookingDate,
+    DateTime? scheduledDate, // NEW
+    String? scheduledTime, // NEW
+    String? duration, // NEW
     String? status,
     String? notes,
     DateTime? createdAt,
@@ -113,6 +131,9 @@ class Booking {
       categories: categories ?? this.categories,
       selectedCategory: selectedCategory ?? this.selectedCategory,
       bookingDate: bookingDate ?? this.bookingDate,
+      scheduledDate: scheduledDate ?? this.scheduledDate, // NEW
+      scheduledTime: scheduledTime ?? this.scheduledTime, // NEW
+      duration: duration ?? this.duration, // NEW
       status: status ?? this.status,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
