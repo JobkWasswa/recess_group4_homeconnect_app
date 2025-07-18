@@ -1,24 +1,49 @@
-// lib/utils/location_utils.dart
+import 'package:geocoding/geocoding.dart'; // Ensure you have geocoding package in pubspec.yaml
 
-import 'package:geocoding/geocoding.dart'; // Make sure you have this package in pubspec.yaml
-
-/// Converts latitude and longitude coordinates into a human-readable address.
-/// Handles null coordinates gracefully.
-Future<String> getAddressFromLatLng(double? lat, double? lng) async {
-  if (lat == null || lng == null) {
-    return "Location not available"; // Handle null case gracefully
-  }
-  try {
-    List<Placemark> placemarks = await placemarkFromCoordinates(lat, lng);
-    if (placemarks.isNotEmpty) {
-      Placemark place = placemarks[0];
-      // Customize the address format as needed. Example:
-      // return "${place.street}, ${place.subLocality}, ${place.locality}, ${place.administrativeArea}, ${place.country}";
-      return "${place.street}, ${place.locality}, ${place.country}"; // Simpler format
+/// Utility functions for location-related operations.
+class LocationUtils {
+  /// Converts latitude and longitude coordinates to a human-readable address string.
+  /// Handles null or invalid coordinates gracefully.
+  ///
+  /// [latitude]: The latitude coordinate.
+  /// [longitude]: The longitude coordinate.
+  /// Returns a Future that resolves to the address string, or a default message
+  /// if coordinates are null or address lookup fails.
+  static Future<String> getAddressFromLatLng(
+    double? latitude,
+    double? longitude,
+  ) async {
+    // If coordinates are null, return a specific message instead of throwing an error.
+    if (latitude == null || longitude == null) {
+      return 'Location coordinates not provided';
     }
-    return "Address not found";
-  } catch (e) {
-    print("Error during reverse geocoding: $e");
-    return "Error getting address";
+    try {
+      // Attempt to get placemarks from the given coordinates.
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        latitude,
+        longitude,
+      );
+
+      // If placemarks are found, construct the address.
+      if (placemarks.isNotEmpty) {
+        Placemark place = placemarks[0];
+        // Concatenate available address components, filtering out nulls or empty strings.
+        return [
+          place.street,
+          place.subLocality,
+          place.locality,
+          place.administrativeArea,
+          place.country,
+        ].where((element) => element != null && element.isNotEmpty).join(', ');
+      } else {
+        // If no placemarks are found, return a specific message.
+        return 'Address not found for coordinates';
+      }
+    } catch (e) {
+      // Catch any errors during the geocoding process and log them.
+      print('Error during reverse geocoding: $e');
+      // Return a generic error message to the UI.
+      return 'Location lookup failed';
+    }
   }
 }
