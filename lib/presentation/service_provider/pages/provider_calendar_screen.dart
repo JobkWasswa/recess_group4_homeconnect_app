@@ -3,7 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:homeconnect/data/models/booking.dart'; // Ensure this path is correct
+import 'package:homeconnect/data/models/booking.dart'; 
+import 'package:homeconnect/data/models/appointment_modal.dart'; // NEW: Import Appointment model
+import 'package:homeconnect/data/repositories/service_provider_repo.dart'; // NEW: Import repository
 
 class ProviderCalendarScreen extends StatefulWidget {
   const ProviderCalendarScreen({super.key});
@@ -14,12 +16,14 @@ class ProviderCalendarScreen extends StatefulWidget {
 
 class _ProviderCalendarScreenState extends State<ProviderCalendarScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ServiceProviderRepository _serviceProviderRepository =
+      ServiceProviderRepository(); // NEW: Instantiate repository
 
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  Map<DateTime, List<Booking>> _events = {}; // Store events for the calendar
+  Map<DateTime, List<Appointment>> _events =
+      {}; // Store events for the calendar (using Appointment model)
 
   @override
   void initState() {
@@ -28,7 +32,7 @@ class _ProviderCalendarScreenState extends State<ProviderCalendarScreen> {
   }
 
   // Helper to get events for a given day
-  List<Booking> _getEventsForDay(DateTime day) {
+  List<Appointment> _getEventsForDay(DateTime day) {
     // Normalize the day to remove time component for consistent lookup
     final normalizedDay = DateTime(day.year, day.month, day.day);
     return _events[normalizedDay] ?? [];
@@ -56,17 +60,11 @@ class _ProviderCalendarScreenState extends State<ProviderCalendarScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream:
-            _firestore
-                .collection('bookings')
-                .where('serviceProviderId', isEqualTo: currentUser.uid)
-                .where('status', whereIn: ['confirmed', 'in_progress'])
-                .orderBy(
-                  'scheduledDate',
-                  descending: false,
-                ) // Order by scheduled date
-                .snapshots(),
+      body: StreamBuilder<List<Appointment>>(
+        // Changed to List<Appointment>
+        stream: _serviceProviderRepository.getProviderAppointments(
+          currentUser.uid,
+        ), // Use new repository method
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -78,33 +76,32 @@ class _ProviderCalendarScreenState extends State<ProviderCalendarScreen> {
 
           // Process fetched data into events map for table_calendar
           _events = {}; // Clear previous events
-          snapshot.data!.docs.forEach((doc) {
-            final booking = Booking.fromFirestore(doc);
-            if (booking.scheduledDate != null) {
+          snapshot.data!.forEach((appointment) {
+            // Iterate through Appointment objects
+            if (appointment.scheduledDate != null) {
               final normalizedDate = DateTime(
-                booking.scheduledDate!.year,
-                booking.scheduledDate!.month,
-                booking.scheduledDate!.day,
+                appointment.scheduledDate.year,
+                appointment.scheduledDate.month,
+                appointment.scheduledDate.day,
               );
               if (_events[normalizedDate] == null) {
                 _events[normalizedDate] = [];
               }
-              _events[normalizedDate]!.add(booking);
+              _events[normalizedDate]!.add(appointment);
             }
           });
 
-          // Sort bookings within each day by scheduled time
+          // Sort appointments within each day by scheduled time
           _events.forEach((key, value) {
             value.sort((a, b) {
               // Attempt to parse time strings for sorting, default to start of day if parsing fails
-              DateTime timeA = a.scheduledDate ?? DateTime(1900);
-              DateTime timeB = b.scheduledDate ?? DateTime(1900);
+              DateTime timeA = a.scheduledDate; // Start with scheduled date
+              DateTime timeB = b.scheduledDate; // Start with scheduled date
 
               try {
-                if (a.scheduledTime != null) {
-                  final timeParts = a.scheduledTime!.split(
-                    RegExp(r'[:\s]'),
-                  ); // Split by : and space (for AM/PM)
+                if (a.scheduledTime.isNotEmpty) {
+                  // Check if scheduledTime is not empty
+                  final timeParts = a.scheduledTime.split(RegExp(r'[:\s]'));
                   int hour = int.parse(timeParts[0]);
                   int minute = int.parse(timeParts[1]);
                   if (timeParts.length > 2 &&
@@ -114,7 +111,7 @@ class _ProviderCalendarScreenState extends State<ProviderCalendarScreen> {
                   } else if (timeParts.length > 2 &&
                       timeParts[2].toLowerCase() == 'am' &&
                       hour == 12) {
-                    hour = 0; // 12 AM is 0 hour
+                    hour = 0;
                   }
                   timeA = DateTime(
                     timeA.year,
@@ -131,8 +128,9 @@ class _ProviderCalendarScreenState extends State<ProviderCalendarScreen> {
               }
 
               try {
-                if (b.scheduledTime != null) {
-                  final timeParts = b.scheduledTime!.split(RegExp(r'[:\s]'));
+                if (b.scheduledTime.isNotEmpty) {
+                  // Check if scheduledTime is not empty
+                  final timeParts = b.scheduledTime.split(RegExp(r'[:\s]'));
                   int hour = int.parse(timeParts[0]);
                   int minute = int.parse(timeParts[1]);
                   if (timeParts.length > 2 &&
@@ -163,7 +161,8 @@ class _ProviderCalendarScreenState extends State<ProviderCalendarScreen> {
 
           return Column(
             children: [
-              TableCalendar<Booking>(
+              TableCalendar<Appointment>(
+                // Changed generic type to Appointment
                 firstDay: DateTime.utc(2020, 1, 1),
                 lastDay: DateTime.utc(2030, 12, 31),
                 focusedDay: _focusedDay,
@@ -225,19 +224,22 @@ class _ProviderCalendarScreenState extends State<ProviderCalendarScreen> {
               const SizedBox(height: 8.0),
               Expanded(
                 child:
-                    _selectedDay == null
-                        ? const Center(
+                    _selectedDay == null ||
+                            _getEventsForDay(_selectedDay!).isEmpty
+                        ? Center(
                           child: Text(
-                            'Select a date to view appointments.',
+                            _selectedDay == null
+                                ? 'Select a date to view appointments.'
+                                : 'No appointments for ${DateFormat('MMM d, yyyy').format(_selectedDay!)}.',
                             style: TextStyle(color: Colors.grey),
                           ),
                         )
                         : ListView.builder(
                           itemCount: _getEventsForDay(_selectedDay!).length,
                           itemBuilder: (context, index) {
-                            final booking =
+                            final appointment =
                                 _getEventsForDay(_selectedDay!)[index];
-                            return _buildAppointmentCard(booking);
+                            return _buildAppointmentCard(appointment);
                           },
                         ),
               ),
@@ -248,14 +250,15 @@ class _ProviderCalendarScreenState extends State<ProviderCalendarScreen> {
     );
   }
 
-  Widget _buildAppointmentCard(Booking booking) {
-    final String jobType = booking.selectedCategory;
-    final String clientName = booking.clientName;
-    final String scheduledTime = booking.scheduledTime ?? 'Not specified';
-    final String duration = booking.duration ?? 'Not specified';
-    final String notes = booking.notes ?? 'No additional notes.';
-    // REMOVED: final GeoPoint? location = booking.location;
-    // REMOVED: Future<String> getDisplayAddress() async { ... }
+  Widget _buildAppointmentCard(Appointment appointment) {
+    // Changed parameter to Appointment
+    final String jobType = appointment.serviceCategory;
+    final String clientName = appointment.clientName;
+    final String scheduledTime =
+        appointment.scheduledTime; // No longer nullable
+    final String duration = appointment.duration; // No longer nullable
+    final String notes = appointment.notes ?? 'No additional notes.';
+    // Location is explicitly excluded from this screen's display
 
     return Card(
       elevation: 4,
@@ -278,7 +281,6 @@ class _ProviderCalendarScreenState extends State<ProviderCalendarScreen> {
             _buildInfoRow(Icons.person, 'Client:', clientName),
             _buildInfoRow(Icons.access_time, 'Time:', scheduledTime),
             _buildInfoRow(Icons.hourglass_empty, 'Duration:', duration),
-            // REMOVED: Location display block
             if (notes.isNotEmpty) ...[
               const SizedBox(height: 8),
               Row(

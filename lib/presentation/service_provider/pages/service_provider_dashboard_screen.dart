@@ -7,8 +7,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:homeconnect/presentation/service_provider/pages/view_job_request.dart';
 import 'package:intl/intl.dart';
 import 'package:homeconnect/presentation/service_provider/pages/provider_maps_screen.dart';
-import 'package:homeconnect/utils/location_utils.dart'; // Import your location utility file
-import 'package:homeconnect/presentation/service_provider/pages/provider_calendar_screen.dart'; // NEW: Import ProviderCalendarScreen
+// REMOVED: import 'package:homeconnect/utils/location_utils.dart'; // No longer needed for location display in active job cards
+import 'package:homeconnect/presentation/service_provider/pages/provider_calendar_screen.dart';
 
 class ServiceProviderDashboardScreen extends StatefulWidget {
   const ServiceProviderDashboardScreen({super.key});
@@ -235,21 +235,18 @@ class _ServiceProviderDashboardScreenState
     final String? scheduledTime = data['scheduledTime'] as String?;
     final String? duration = data['duration'] as String?;
 
-    final double? latitude =
-        (data['location'] is GeoPoint)
-            ? (data['location'] as GeoPoint).latitude
-            : null;
-    final double? longitude =
-        (data['location'] is GeoPoint)
-            ? (data['location'] as GeoPoint).longitude
-            : null;
+    // REMOVED: Location data retrieval and getDisplayAddress()
+    // final double? latitude =
+    //     (data['location'] is GeoPoint) ? (data['location'] as GeoPoint).latitude : null;
+    // final double? longitude =
+    //     (data['location'] is GeoPoint) ? (data['location'] as GeoPoint).longitude : null;
 
-    Future<String> getDisplayAddress() async {
-      return await getAddressFromLatLng(
-        latitude,
-        longitude,
-      ); // Always use reverse geocoding
-    }
+    // Future<String> getDisplayAddress() async {
+    //   return await getAddressFromLatLng(
+    //     latitude,
+    //     longitude,
+    //   ); // Always use reverse geocoding
+    // }
 
     return Card(
       elevation: 8,
@@ -311,37 +308,38 @@ class _ServiceProviderDashboardScreenState
                 ],
               ),
             ],
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.location_on, size: 18, color: Colors.grey),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: FutureBuilder<String>(
-                    future: getDisplayAddress(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Text(
-                          'Loading location...',
-                          style: TextStyle(color: Colors.grey),
-                        );
-                      } else if (snapshot.hasError) {
-                        return Text(
-                          'Error loading location: ${snapshot.error}',
-                          style: const TextStyle(color: Colors.red),
-                        );
-                      } else {
-                        return Text(
-                          snapshot.data ?? 'Location not specified',
-                          style: TextStyle(color: Colors.grey[700]),
-                          overflow: TextOverflow.ellipsis,
-                        );
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ),
+            // REMOVED: Location display block from active job card
+            // const SizedBox(height: 4),
+            // Row(
+            //   children: [
+            //     const Icon(Icons.location_on, size: 18, color: Colors.grey),
+            //     const SizedBox(width: 8),
+            //     Expanded(
+            //       child: FutureBuilder<String>(
+            //         future: getDisplayAddress(),
+            //         builder: (context, snapshot) {
+            //           if (snapshot.connectionState == ConnectionState.waiting) {
+            //             return const Text(
+            //               'Loading location...',
+            //               style: TextStyle(color: Colors.grey),
+            //             );
+            //           } else if (snapshot.hasError) {
+            //             return Text(
+            //               'Error loading location: ${snapshot.error}',
+            //               style: const TextStyle(color: Colors.red),
+            //             );
+            //           } else {
+            //             return Text(
+            //               snapshot.data ?? 'Location not specified',
+            //               style: TextStyle(color: Colors.grey[700]),
+            //               overflow: TextOverflow.ellipsis,
+            //             );
+            //           }
+            //         },
+            //       ),
+            //     ),
+            //   ],
+            // ),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
@@ -729,23 +727,18 @@ class _ServiceProviderDashboardScreenState
                               : 'Unknown date';
                       final note = data['notes'] ?? '';
 
-                      // Retrieve latitude and longitude for reverse geocoding
-                      final double? latitude =
-                          (data['location'] is GeoPoint)
-                              ? (data['location'] as GeoPoint).latitude
-                              : null;
-                      final double? longitude =
-                          (data['location'] is GeoPoint)
-                              ? (data['location'] as GeoPoint).longitude
-                              : null;
+                      // REMOVED: Location data retrieval
+                      // final double? latitude =
+                      //     (data['location'] is GeoPoint) ? (data['location'] as GeoPoint).latitude : null;
+                      // final double? longitude =
+                      //     (data['location'] is GeoPoint) ? (data['location'] as GeoPoint).longitude : null;
 
                       return _buildJobRequestCard(
                         context: context,
                         jobType: jobType,
                         homeownerName: data['clientName'] ?? 'Unknown',
                         date: formattedDate,
-                        latitude: latitude,
-                        longitude: longitude,
+                        // REMOVED: latitude and longitude
                         bookingId: doc.id,
                         note: note,
                       );
@@ -763,14 +756,12 @@ class _ServiceProviderDashboardScreenState
     required String jobType,
     required String homeownerName,
     required String date,
-    required double? latitude,
-    required double? longitude,
+    // REMOVED: required double? latitude,
+    // REMOVED: required double? longitude,
     required String bookingId,
     String? note,
   }) {
-    Future<String> getDisplayAddress() async {
-      return await getAddressFromLatLng(latitude, longitude);
-    }
+    // REMOVED: Future<String> getDisplayAddress() async { ... }
 
     return Card(
       elevation: 8,
@@ -823,38 +814,39 @@ class _ServiceProviderDashboardScreenState
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(Icons.location_on, size: 18, color: Colors.grey),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: FutureBuilder<String>(
-                      future: getDisplayAddress(),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Text(
-                            'Loading location...',
-                            style: TextStyle(color: Colors.grey),
-                          );
-                        } else if (snapshot.hasError) {
-                          return Text(
-                            'Error: ${snapshot.error}',
-                            style: const TextStyle(color: Colors.red),
-                          );
-                        } else {
-                          return Text(
-                            snapshot.data ?? 'Location not specified',
-                            style: TextStyle(color: Colors.grey[700]),
-                            overflow: TextOverflow.ellipsis,
-                          );
-                        }
-                      },
-                    ),
-                  ),
-                ],
-              ),
+              // REMOVED: Location display block from job request card
+              // const SizedBox(height: 4),
+              // Row(
+              //   children: [
+              //     const Icon(Icons.location_on, size: 18, color: Colors.grey),
+              //     const SizedBox(width: 8),
+              //     Expanded(
+              //       child: FutureBuilder<String>(
+              //         future: getDisplayAddress(),
+              //         builder: (context, snapshot) {
+              //           if (snapshot.connectionState ==
+              //               ConnectionState.waiting) {
+              //             return const Text(
+              //               'Loading location...',
+              //               style: TextStyle(color: Colors.grey),
+              //             );
+              //           } else if (snapshot.hasError) {
+              //             return Text(
+              //               'Error: ${snapshot.error}',
+              //               style: const TextStyle(color: Colors.red),
+              //             );
+              //           } else {
+              //             return Text(
+              //               snapshot.data ?? 'Location not specified',
+              //               style: TextStyle(color: Colors.grey[700]),
+              //               overflow: TextOverflow.ellipsis,
+              //             );
+              //           }
+              //         },
+              //       ),
+              //     ),
+              //   ],
+              // ),
               if (note != null && note.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Row(
