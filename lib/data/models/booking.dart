@@ -8,16 +8,16 @@ class Booking {
   final String serviceProviderName;
   final List<String> categories;
   final String selectedCategory;
-  final DateTime bookingDate; // Original booking creation date
-  final DateTime? scheduledDate; // NEW: Scheduled date for the service
-  final String? scheduledTime; // NEW: Scheduled time for the service
-  final String? duration; // NEW: Duration of the service
-  final String status; // Updated with new status flow
+  final DateTime bookingDate; 
+  final DateTime? scheduledDate; 
+  final String? scheduledTime; 
+  final String? duration;
+  final String status; 
   final String? notes;
   final dynamic createdAt;
   final dynamic updatedAt;
   final GeoPoint location;
-  final DateTime? completedAt; // NEW: Added completion timestamp
+  final DateTime? completedAt; 
 
   Booking({
     this.bookingId,
