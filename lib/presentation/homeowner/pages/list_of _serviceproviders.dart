@@ -5,6 +5,7 @@ import 'package:homeconnect/presentation/homeowner/pages/profile_display_for_cli
 import 'package:homeconnect/data/providers/homeowner_firestore_provider.dart';
 import 'package:homeconnect/data/models/booking.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:homeconnect/presentation/homeowner/pages/create_booking_screen.dart'; // NEW: Import the new screen
 
 class ServiceProvidersList extends StatefulWidget {
   final String category;
@@ -25,7 +26,6 @@ class ServiceProvidersList extends StatefulWidget {
 
 class _ServiceProvidersListState extends State<ServiceProvidersList> {
   late Future<List<ServiceProviderModel>> _providersFuture;
-  // Removed _notesControllers as notes field is moved to dialog
 
   @override
   void initState() {
@@ -70,7 +70,6 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
 
   @override
   void dispose() {
-    // No need to dispose notesControllers here anymore
     super.dispose();
   }
 
@@ -198,7 +197,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                     size: 16,
                                   ),
                                   Text(
-                                    '${provider.rating} (${provider.reviewCount} reviews)',
+                                    '${provider.rating.toStringAsFixed(1)} (${provider.reviewCount} reviews)',
                                     style: const TextStyle(
                                       fontSize: 14,
                                       color: Colors.grey,
@@ -377,222 +376,26 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
       return;
     }
 
-    // State variables for the dialog
-    DateTime? selectedDate;
-    TimeOfDay? selectedTime;
-    String? selectedDuration;
-    final TextEditingController notesController = TextEditingController();
-
-    // Show confirmation dialog with scheduling options
-    final bool? confirmBooking = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Confirm Booking'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Service: ${widget.category}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundColor: Colors.grey[200],
-                          child:
-                              provider.profilePhoto != null
-                                  ? ClipOval(
-                                    child: Image.network(
-                                      provider.profilePhoto!,
-                                      width: 40,
-                                      height: 40,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stack) => const Icon(
-                                            Icons.person,
-                                            size: 20,
-                                          ),
-                                    ),
-                                  )
-                                  : const Icon(Icons.person, size: 20),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Provider: ${provider.name}',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    // Schedule Section
-                    const Text(
-                      'Schedule',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    // Date Picker
-                    GestureDetector(
-                      onTap: () async {
-                        final DateTime? picked = await showDatePicker(
-                          context: context,
-                          initialDate: selectedDate ?? DateTime.now(),
-                          firstDate: DateTime.now(),
-                          lastDate: DateTime(DateTime.now().year + 5),
-                        );
-                        if (picked != null && picked != selectedDate) {
-                          setDialogState(() {
-                            selectedDate = picked;
-                          });
-                        }
-                      },
-                      child: AbsorbPointer(
-                        child: TextFormField(
-                          decoration: InputDecoration(
-                            labelText: 'Date *',
-                            hintText:
-                                selectedDate == null
-                                    ? 'dd-mm-yyyy'
-                                    : '${selectedDate!.day}-${selectedDate!.month}-${selectedDate!.year}',
-                            border: const OutlineInputBorder(),
-                            suffixIcon: const Icon(Icons.calendar_today),
-                          ),
-                          readOnly: true,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Time Picker
-                    GestureDetector(
-                      onTap: () async {
-                        final TimeOfDay? picked = await showTimePicker(
-                          context: context,
-                          initialTime: selectedTime ?? TimeOfDay.now(),
-                        );
-                        if (picked != null && picked != selectedTime) {
-                          setDialogState(() {
-                            selectedTime = picked;
-                          });
-                        }
-                      },
-                      child: AbsorbPointer(
-                        child: TextFormField(
-                          decoration: InputDecoration(
-                            labelText: 'Time *',
-                            hintText:
-                                selectedTime == null
-                                    ? 'Select time'
-                                    : selectedTime!.format(context),
-                            border: const OutlineInputBorder(),
-                            suffixIcon: const Icon(Icons.access_time),
-                          ),
-                          readOnly: true,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Duration Dropdown
-                    DropdownButtonFormField<String>(
-                      value: selectedDuration,
-                      hint: const Text('Select duration'),
-                      decoration: const InputDecoration(
-                        labelText: 'Duration *',
-                        border: OutlineInputBorder(),
-                      ),
-                      items:
-                          <String>[
-                            '1 hour',
-                            '2 hours',
-                            '3 hours',
-                            'Half day (4 hours)',
-                            'Full day (8 hours)',
-                            'Custom',
-                          ].map<DropdownMenuItem<String>>((String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(value),
-                            );
-                          }).toList(),
-                      onChanged: (String? newValue) {
-                        setDialogState(() {
-                          selectedDuration = newValue;
-                        });
-                      },
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Please select a duration';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    const Text('Additional Details (optional):'),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: notesController,
-                      decoration: InputDecoration(
-                        hintText: 'e.g., specific instructions, preferred time',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                      ),
-                      maxLines: 3,
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    notesController.dispose();
-                    Navigator.pop(context, false); // Cancel
-                  },
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (selectedDate == null ||
-                        selectedTime == null ||
-                        selectedDuration == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Please select date, time, and duration.',
-                          ),
-                        ),
-                      );
-                      return;
-                    }
-                    Navigator.pop(context, true); // Confirm
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.purple,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('Confirm Booking'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+    // NEW: Navigate to CreateBookingScreen to get scheduling details
+    final Map<String, dynamic>? bookingDetails = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => CreateBookingScreen(
+              serviceProvider: provider,
+              serviceCategory: widget.category,
+            ),
+      ),
     );
 
-    if (confirmBooking == true) {
+    // If booking details are returned (user confirmed on CreateBookingScreen)
+    if (bookingDetails != null) {
+      final DateTime? scheduledDate = bookingDetails['scheduledDate'];
+      final String? scheduledTimeDisplay =
+          bookingDetails['scheduledTimeDisplay'];
+      final String? duration = bookingDetails['duration'];
+      final String? notes = bookingDetails['notes'];
+
       final booking = Booking(
         clientId: user.uid,
         clientName: currentUserName,
@@ -600,12 +403,14 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
         serviceProviderName: provider.name,
         categories: provider.categories,
         selectedCategory: providerCategory,
-        bookingDate: DateTime.now(),
-        scheduledDate: selectedDate, // Pass selected date
-        scheduledTime: selectedTime?.format(context), // Pass selected time
-        duration: selectedDuration, // Pass selected duration
+        bookingDate:
+            DateTime.now(), // This is the date the booking request was made
+        scheduledDate: scheduledDate, // Scheduled date from CreateBookingScreen
+        scheduledTime:
+            scheduledTimeDisplay, // Scheduled time from CreateBookingScreen
+        duration: duration, // Duration from CreateBookingScreen
         status: 'pending',
-        notes: notesController.text, // Use the note from the dialog
+        notes: notes, // Notes from CreateBookingScreen
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         location: widget.userLocation,
@@ -624,11 +429,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Failed to book: $e')));
-      } finally {
-        notesController.dispose();
       }
-    } else {
-      notesController.dispose();
     }
   }
 
