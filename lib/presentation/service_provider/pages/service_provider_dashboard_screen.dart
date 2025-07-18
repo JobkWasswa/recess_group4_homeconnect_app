@@ -228,15 +228,7 @@ class _ServiceProviderDashboardScreenState
             ? categories[0].toString()
             : (categories?.toString() ?? 'Unknown');
 
-    final bookingDate = data['bookingDate'];
-    final formattedBookingDate =
-        bookingDate is Timestamp
-            ? DateFormat(
-              'MMM d, yyyy h:mm a',
-            ).format(bookingDate.toDate().toLocal())
-            : 'Unknown date';
-
-    // NEW: Retrieve scheduled date, time, and duration
+    // Retrieve scheduled date, time, and duration
     final Timestamp? scheduledDateTimestamp =
         data['scheduledDate'] as Timestamp?;
     final DateTime? scheduledDate = scheduledDateTimestamp?.toDate();
@@ -287,9 +279,9 @@ class _ServiceProviderDashboardScreenState
                 ),
               ],
             ),
-            const SizedBox(height: 4),
             // Display Scheduled Date
-            if (scheduledDate != null)
+            if (scheduledDate != null) ...[
+              const SizedBox(height: 4),
               Row(
                 children: [
                   const Icon(
@@ -304,19 +296,21 @@ class _ServiceProviderDashboardScreenState
                   ),
                 ],
               ),
-            const SizedBox(height: 4),
+            ],
             // Display Scheduled Time and Duration
-            if (scheduledTime != null && duration != null)
+            if (scheduledTime != null || duration != null) ...[
+              const SizedBox(height: 4),
               Row(
                 children: [
                   const Icon(Icons.access_time, size: 18, color: Colors.grey),
                   const SizedBox(width: 8),
                   Text(
-                    'Time: $scheduledTime, Duration: $duration',
+                    'Time: ${scheduledTime ?? 'N/A'}, Duration: ${duration ?? 'N/A'}', // Handles if one is null
                     style: TextStyle(color: Colors.grey[700]),
                   ),
                 ],
               ),
+            ],
             const SizedBox(height: 4),
             Row(
               children: [
