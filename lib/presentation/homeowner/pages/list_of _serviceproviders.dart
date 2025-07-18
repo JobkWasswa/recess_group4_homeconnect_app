@@ -5,6 +5,7 @@ import 'package:homeconnect/presentation/homeowner/pages/profile_display_for_cli
 import 'package:homeconnect/data/providers/homeowner_firestore_provider.dart';
 import 'package:homeconnect/data/models/booking.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:homeconnect/presentation/homeowner/pages/client_view_calendar.dart';
 
 class ServiceProvidersList extends StatefulWidget {
   final String category;
@@ -41,6 +42,28 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
         oldWidget.desiredDateTime != widget.desiredDateTime) {
       _fetchProviders();
     }
+  }
+
+  void _showAvailabilityPopup(BuildContext context, String providerId) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Availability"),
+          content: Container(
+            width: double.maxFinite,
+            height: 400,
+            child: ClientViewCalendar(providerId: providerId),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text("Close"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _fetchProviders() {
@@ -180,6 +203,22 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                         ),
                                       ),
                                     ],
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                TextButton.icon(
+                                  onPressed:
+                                      () => _showAvailabilityPopup(
+                                        context,
+                                        provider.id,
+                                      ),
+                                  icon: Icon(Icons.calendar_today, size: 16),
+                                  label: Text("Availability"),
+                                  style: TextButton.styleFrom(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: Size(10, 30),
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
                                   ),
                                 ),
                               ],
