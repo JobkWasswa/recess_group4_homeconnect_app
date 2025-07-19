@@ -76,20 +76,18 @@ class _ProviderCalendarScreenState extends State<ProviderCalendarScreen> {
 
           // Process fetched data into events map for table_calendar
           _events = {}; // Clear previous events
-          snapshot.data!.forEach((appointment) {
+          for (var appointment in snapshot.data!) {
             // Iterate through Appointment objects
-            if (appointment.scheduledDate != null) {
-              final normalizedDate = DateTime(
-                appointment.scheduledDate.year,
-                appointment.scheduledDate.month,
-                appointment.scheduledDate.day,
-              );
-              if (_events[normalizedDate] == null) {
-                _events[normalizedDate] = [];
-              }
-              _events[normalizedDate]!.add(appointment);
+            final normalizedDate = DateTime(
+              appointment.scheduledDate.year,
+              appointment.scheduledDate.month,
+              appointment.scheduledDate.day,
+            );
+            if (_events[normalizedDate] == null) {
+              _events[normalizedDate] = [];
             }
-          });
+            _events[normalizedDate]!.add(appointment);
+                    }
 
           // Sort appointments within each day by scheduled time
           _events.forEach((key, value) {
