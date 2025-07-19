@@ -5,6 +5,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/presentation/service_provider/pages/service_provider_savedprofile.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:homeconnect/presentation/service_provider/pages/view_job_request.dart';
+import 'package:homeconnect/presentation/service_provider/pages/service_provider_view_calendar.dart';
+import 'package:homeconnect/data/models/service_provider_modal.dart';
 
 class ServiceProviderDashboardScreen extends StatefulWidget {
   const ServiceProviderDashboardScreen({super.key});
@@ -16,7 +18,7 @@ class ServiceProviderDashboardScreen extends StatefulWidget {
 
 class _ServiceProviderDashboardScreenState
     extends State<ServiceProviderDashboardScreen> {
-  String providerName = '';
+  ServiceProviderModel? provider;
   bool isLoading = true;
 
   @override
@@ -46,70 +48,45 @@ class _ServiceProviderDashboardScreenState
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        // If no user is logged in, default to 'Provider' and stop loading
         setState(() {
-          providerName = 'Provider';
           isLoading = false;
         });
         return;
       }
 
-      String formatNameFromEmail(String email) {
-        final namePart = email.split('@').first;
-        return namePart
-            .replaceAll('.', ' ')
-            .split(' ')
-            .map(
-              (word) =>
-                  word.isNotEmpty
-                      ? '${word[0].toUpperCase()}${word.substring(1)}'
-                      : '',
-            )
-            .join(' ');
-      }
-
-      // Attempt to fetch provider data from Firestore
       final doc =
           await FirebaseFirestore.instance
               .collection('service_providers')
               .doc(user.uid)
               .get();
 
-      String? emailFromFirestore = doc.data()?['email']?.toString();
-      String? nameFromFirestore =
-          doc
-              .data()?['fullName']
-              ?.toString(); // Assuming you store a 'fullName' field
-
-      if (nameFromFirestore != null && nameFromFirestore.isNotEmpty) {
-        // Use the 'fullName' from Firestore if available
+      if (!doc.exists) {
         setState(() {
-          providerName = nameFromFirestore;
           isLoading = false;
         });
-      } else if (emailFromFirestore != null && emailFromFirestore.isNotEmpty) {
-        // If 'fullName' is not available, try to format from the email stored in Firestore
-        setState(() {
-          providerName = formatNameFromEmail(emailFromFirestore);
-          isLoading = false;
-        });
-      } else if (user.email != null) {
-        // Fallback to formatting from the authenticated user's email
-        setState(() {
-          providerName = formatNameFromEmail(user.email!);
-          isLoading = false;
-        });
-      } else {
-        // Last resort: default to 'Provider'
-        setState(() {
-          providerName = 'Provider';
-          isLoading = false;
-        });
+        return;
       }
-    } catch (e) {
-      print('Error fetching provider name: $e');
+
+      final data = doc.data()!;
+      final model = ServiceProviderModel(
+        id: doc.id,
+        name: data['fullName'] ?? '',
+        profilePhoto: data['profilePhoto'],
+        categories: List<String>.from(data['categories'] ?? []),
+        rating: (data['rating'] as num?)?.toDouble() ?? 0.0,
+        reviewCount: data['reviewCount'] ?? 0,
+        distanceKm: (data['distanceKm'] as num?)?.toDouble(),
+        score: (data['score'] as num?)?.toDouble() ?? 0.0,
+        completedJobs: (data['completedJobs'] as int?) ?? 0,
+      );
+
       setState(() {
-        providerName = 'Provider'; // Fallback in case of any error
+        provider = model;
+        isLoading = false;
+      });
+    } catch (e) {
+      print('Error fetching provider data: $e');
+      setState(() {
         isLoading = false;
       });
     }
@@ -346,7 +323,7 @@ class _ServiceProviderDashboardScreenState
                       style: TextStyle(color: Colors.purple[100], fontSize: 14),
                     ),
                     Text(
-                      providerName,
+                      provider?.name ?? 'Provider',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,
@@ -869,10 +846,18 @@ class _ServiceProviderDashboardScreenState
           _buildManagementCard(
             context: context,
             icon: Icons.calendar_month,
-            title: 'Set Calendar',
+            title: 'View Calendar',
             subtitle: 'Manage your working hours and days off.',
             onTap: () {
-              print('good');
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (context) => ServiceProviderViewCalendarScreen(
+                        provider: provider!,
+                      ),
+                ),
+              );
             },
             colors: const [Color(0xFF22C55E), Color(0xFF16A34A)], // Green
           ),
