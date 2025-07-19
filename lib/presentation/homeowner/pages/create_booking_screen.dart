@@ -5,11 +5,13 @@ import 'package:intl/intl.dart'; // For date formatting
 class CreateBookingScreen extends StatefulWidget {
   final ServiceProviderModel serviceProvider;
   final String serviceCategory;
+  final DateTime? initialDate; // ✅ New parameter
 
   const CreateBookingScreen({
     super.key,
     required this.serviceProvider,
     required this.serviceCategory,
+    this.initialDate, // ✅ Include in constructor
   });
 
   @override
@@ -24,12 +26,17 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
   final _formKey = GlobalKey<FormState>(); // Key for form validation
 
   @override
+  void initState() {
+    super.initState();
+    _selectedDate = widget.initialDate; // ✅ Prefill date from calendar
+  }
+
+  @override
   void dispose() {
     _notesController.dispose();
     super.dispose();
   }
 
-  // Function to show the date picker
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -44,7 +51,6 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
     }
   }
 
-  // Function to show the time picker
   Future<void> _selectTime(BuildContext context) async {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
@@ -57,10 +63,8 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
     }
   }
 
-  // Function to handle the confirmation of booking details
   void _confirmBooking() {
     if (_formKey.currentState!.validate()) {
-      // Validate all form fields
       if (_selectedDate == null ||
           _selectedTime == null ||
           _selectedDuration == null) {
@@ -72,24 +76,17 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
         return;
       }
 
-      // Combine date and time into a single DateTime object for the scheduled time
-      final DateTime? scheduledDateTime =
-          _selectedDate != null && _selectedTime != null
-              ? DateTime(
-                _selectedDate!.year,
-                _selectedDate!.month,
-                _selectedDate!.day,
-                _selectedTime!.hour,
-                _selectedTime!.minute,
-              )
-              : null;
+      final DateTime? scheduledDateTime = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        _selectedTime!.hour,
+        _selectedTime!.minute,
+      );
 
-      // Return the collected data to the previous screen
       Navigator.pop(context, {
-        'scheduledDate': scheduledDateTime, // Pass as DateTime
-        'scheduledTimeDisplay': _selectedTime?.format(
-          context,
-        ), // Pass formatted time for display
+        'scheduledDate': scheduledDateTime,
+        'scheduledTimeDisplay': _selectedTime?.format(context),
         'duration': _selectedDuration,
         'notes': _notesController.text,
       });
@@ -272,7 +269,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Additional Details
+              // Notes
               const Text(
                 'Additional Details (optional):',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -298,7 +295,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
               ),
               const SizedBox(height: 30),
 
-              // Confirm Booking Button
+              // Confirm Button
               Center(
                 child: ElevatedButton(
                   onPressed: _confirmBooking,

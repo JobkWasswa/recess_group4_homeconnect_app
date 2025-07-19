@@ -1,6 +1,7 @@
 import 'dart:io' as io;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:homeconnect/presentation/service_provider/pages/service_provider_dashboard_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -150,9 +151,30 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
         return;
       }
 
+      if (_profileImageFile == null && _webImageBytes == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please select a profile photo.")),
+        );
+        return;
+      }
+
+      if (_nameController.text.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please enter your name.")),
+        );
+        return;
+      }
+
       if (_selectedCategories.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Please select at least one category.")),
+        );
+        return;
+      }
+
+      if (_latitude == null || _longitude == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please set your location.")),
         );
         return;
       }
@@ -174,8 +196,8 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
           .collection('service_providers')
           .doc(uid)
           .set({
-            'name': _nameController.text,
-            'description': _descController.text,
+            'name': _nameController.text.trim(),
+            'description': _descController.text.trim(),
             'categories': _selectedCategories,
             'profilePhoto': imageUrl,
             'location': GeoPoint(_latitude!, _longitude!),
@@ -192,7 +214,7 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
             .collection('users')
             .doc(uid)
             .set({
-              'name': _nameController.text,
+              'name': _nameController.text.trim(),
               'profilePhoto': imageUrl,
               'location': GeoPoint(_latitude!, _longitude!),
               'address': locationAddress,
@@ -613,7 +635,15 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _saveProfile,
+                  onPressed: () async {
+                    await _saveProfile();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ServiceProviderDashboardScreen(),
+                      ),
+                    );
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6B4EEF), // Purple button
                     shape: RoundedRectangleBorder(

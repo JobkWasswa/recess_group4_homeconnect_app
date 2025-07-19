@@ -1,4 +1,4 @@
-package com.example.homeconnect
+package com.company.homeconnect
 
 import io.flutter.embedding.android.FlutterActivity
 
