@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:homeconnect/config/routes.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:homeconnect/presentation/service_provider/pages/calendar.dart';
 import 'package:homeconnect/presentation/service_provider/pages/service_provider_savedprofile.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:homeconnect/presentation/service_provider/pages/view_job_request.dart';
-import 'package:homeconnect/presentation/service_provider/pages/calendar.dart';
 
 class ServiceProviderDashboardScreen extends StatefulWidget {
   const ServiceProviderDashboardScreen({super.key});
@@ -874,15 +872,7 @@ class _ServiceProviderDashboardScreenState
             title: 'Set Calendar',
             subtitle: 'Manage your working hours and days off.',
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder:
-                      (context) => ProviderCalendarEditPage(
-                        providerId: FirebaseAuth.instance.currentUser!.uid,
-                      ),
-                ),
-              );
+              print('good');
             },
             colors: const [Color(0xFF22C55E), Color(0xFF16A34A)], // Green
           ),

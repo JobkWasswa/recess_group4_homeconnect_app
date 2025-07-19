@@ -5,8 +5,8 @@ import 'package:homeconnect/presentation/homeowner/pages/profile_display_for_cli
 import 'package:homeconnect/data/providers/homeowner_firestore_provider.dart';
 import 'package:homeconnect/data/models/booking.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:homeconnect/presentation/homeowner/pages/client_view_calendar.dart';
 import 'package:homeconnect/presentation/homeowner/pages/create_booking_screen.dart';
+import 'package:homeconnect/presentation/service_provider/pages/service_provider_calendar.dart';
 
 class ServiceProvidersList extends StatefulWidget {
   final String category;
@@ -42,28 +42,6 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
         oldWidget.desiredDateTime != widget.desiredDateTime) {
       _fetchProviders();
     }
-  }
-
-  void _showAvailabilityPopup(BuildContext context, String providerId) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text("Availability"),
-          content: Container(
-            width: double.maxFinite,
-            height: 400,
-            child: ClientViewCalendar(providerId: providerId),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text("Close"),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   void _fetchProviders() {
@@ -205,21 +183,6 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                   ),
                                 ),
                                 const SizedBox(height: 6),
-                                TextButton.icon(
-                                  onPressed:
-                                      () => _showAvailabilityPopup(
-                                        context,
-                                        provider.id,
-                                      ),
-                                  icon: Icon(Icons.calendar_today, size: 16),
-                                  label: Text("Availability"),
-                                  style: TextButton.styleFrom(
-                                    padding: EdgeInsets.zero,
-                                    minimumSize: Size(10, 30),
-                                    tapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                  ),
-                                ),
                               ],
                             ),
                           ),
@@ -416,17 +379,16 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
     }
 
     // NEW: Navigate to CreateBookingScreen to get scheduling details
-    final Map<String, dynamic>? bookingDetails = await Navigator.push(
+    final bookingDetails = await Navigator.push<Map<String, dynamic>?>(
       context,
       MaterialPageRoute(
         builder:
-            (context) => CreateBookingScreen(
-              serviceProvider: provider,
-              serviceCategory: widget.category,
+            (_) => ServiceProviderCalendarScreen(
+              provider: provider,
+              category: widget.category,
             ),
       ),
     );
-
     // If booking details are returned (user confirmed on CreateBookingScreen)
     if (bookingDetails != null) {
       final DateTime? scheduledDate = bookingDetails['scheduledDate'];
