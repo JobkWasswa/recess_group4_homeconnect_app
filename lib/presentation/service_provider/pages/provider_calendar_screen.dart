@@ -4,8 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:homeconnect/data/models/booking.dart'; 
-import 'package:homeconnect/data/models/appointment_modal.dart'; // NEW: Import Appointment model
-import 'package:homeconnect/data/repositories/service_provider_repo.dart'; // NEW: Import repository
+import 'package:homeconnect/data/models/appointment_modal.dart';
+import 'package:homeconnect/data/repositories/service_provider_repo.dart'; 
 
 class ProviderCalendarScreen extends StatefulWidget {
   const ProviderCalendarScreen({super.key});
