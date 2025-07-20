@@ -404,8 +404,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
         serviceProviderName: provider.name,
         categories: provider.categories,
         selectedCategory: providerCategory,
-        bookingDate:
-            DateTime.now(), // This is the date the booking request was made
+        bookingDate: bookingDetails['scheduledDate'], // Already DateTime
         scheduledDate: scheduledDate, // Scheduled date from CreateBookingScreen
         scheduledTime:
             scheduledTimeDisplay, // Scheduled time from CreateBookingScreen
