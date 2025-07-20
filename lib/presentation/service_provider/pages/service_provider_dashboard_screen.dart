@@ -7,6 +7,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:homeconnect/presentation/service_provider/pages/view_job_request.dart';
 import 'package:homeconnect/presentation/service_provider/pages/service_provider_view_calendar.dart';
 import 'package:homeconnect/data/models/service_provider_modal.dart';
+import 'package:homeconnect/presentation/service_provider/pages/service_provider_view_booking.dart';
 
 class ServiceProviderDashboardScreen extends StatefulWidget {
   const ServiceProviderDashboardScreen({super.key});
@@ -652,14 +653,52 @@ class _ServiceProviderDashboardScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                jobType,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF6B7280),
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      jobType,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF6B7280),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (_) => ServiceProviderSingleBookingDetailScreen(
+                                bookingData: {
+                                  'serviceCategory': jobType,
+                                  'clientName': homeownerName,
+                                  'scheduledDate': DateTime.tryParse(
+                                    date,
+                                  ), // Or pass original Timestamp if available
+                                  'duration':
+                                      price, // replace with actual duration if needed
+                                  'notes': note ?? '',
+                                },
+                              ),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      'Details',
+                      style: TextStyle(
+                        color: Colors.purple,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
+
               const SizedBox(height: 8),
               Row(
                 children: [
