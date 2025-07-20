@@ -147,3 +147,4 @@ class Booking {
     return status == completed;
   }
 }
+
