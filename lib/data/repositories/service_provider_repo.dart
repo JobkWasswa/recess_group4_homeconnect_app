@@ -173,4 +173,17 @@ class ServiceProviderRepository {
                   .toList(),
         );
   }
+
+  @override
+  Stream<List<Booking>> getActiveBookings(String providerId) {
+    return _firestore
+        .collection('bookings')
+        .where('providerId', isEqualTo: providerId)
+        .where('status', isEqualTo: Booking.pending) // or 'active'
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) => Booking.fromFirestore(doc)).toList(),
+        );
+  }
 }
