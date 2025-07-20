@@ -7,10 +7,14 @@ import 'firebase_options.dart'; // <-- Import generated Firebase options
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform, // Use the generated config
-  );
-  runApp(const MyApp());
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    runApp(const MyApp());
+  } catch (e, s) {
+    print('🔥 Firebase init error: $e\n$s');
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -34,5 +38,3 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
-
