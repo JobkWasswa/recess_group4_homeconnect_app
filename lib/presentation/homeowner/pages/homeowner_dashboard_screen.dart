@@ -1067,7 +1067,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                                       : 'No category',
                               provider: booking.serviceProviderName,
                               status: capitalize(booking.status.toString()),
-                              date: _formatDate(booking.bookingDate),
+                              booking: booking,
                               statusColor: statusColor,
                             ),
                             if (booking.status.toLowerCase() == 'denied')
@@ -1130,10 +1130,10 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
 
   Widget _buildBookingStatusCard({
     required BuildContext context,
-    required String service, // this should now be a single category string
+    required String service,
     required String provider,
     required String status,
-    required String date,
+    required Booking booking,
     required Color statusColor,
   }) {
     return Card(
@@ -1168,14 +1168,21 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                 style: TextStyle(fontSize: 14, color: Colors.grey[700]),
               ),
               const SizedBox(height: 6),
-              // Booking Date and Status Badge
+              // Booking Dates
+              Text(
+                'Booked on: ${_formatDate(booking.bookingDate)}',
+                style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+              ),
+              if (booking.scheduledDate != null)
+                Text(
+                  'Scheduled for: ${_formatDate(booking.scheduledDate!)}',
+                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                ),
+              const SizedBox(height: 6),
+              // Status Badge
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  Text(
-                    date,
-                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                  ),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
