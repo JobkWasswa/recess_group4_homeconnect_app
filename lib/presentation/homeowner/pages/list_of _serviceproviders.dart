@@ -5,7 +5,6 @@ import 'package:homeconnect/presentation/homeowner/pages/profile_display_for_cli
 import 'package:homeconnect/data/providers/homeowner_firestore_provider.dart';
 import 'package:homeconnect/data/models/booking.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:homeconnect/presentation/homeowner/pages/create_booking_screen.dart';
 import 'package:homeconnect/presentation/service_provider/pages/service_provider_calendar.dart';
 
 class ServiceProvidersList extends StatefulWidget {

@@ -16,7 +16,7 @@ class ServiceProviderViewCalendarScreen extends StatefulWidget {
 class _ServiceProviderViewCalendarScreenState
     extends State<ServiceProviderViewCalendarScreen> {
   Set<DateTime> bookedDates = {};
-  DateTime _focusedDay = DateTime.now();
+  final DateTime _focusedDay = DateTime.now();
   bool _isLoading = true;
 
   @override
