@@ -22,15 +22,42 @@ class _ServiceProviderViewCalendarScreenState
   @override
   void initState() {
     super.initState();
+    // Debug print to check the provider ID received
+    print(
+      'ServiceProviderViewCalendarScreen: Received provider ID: ${widget.provider.id}',
+    );
     fetchBookings();
   }
 
   Future<void> fetchBookings() async {
+    // Ensure that widget.provider.id is not null or empty before using it in the query
+    // The 'id' field is required in your ServiceProviderModel, so it should not be null.
+    // However, an empty string check is still good practice.
+    if (widget.provider.id.isEmpty) {
+      print(
+        'Error: Provider ID is empty in ServiceProviderViewCalendarScreen. Cannot fetch bookings.',
+      );
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cannot load calendar: Provider ID is missing.'),
+          ),
+        );
+      }
+      return; // Exit if ID is invalid
+    }
+
     try {
       final snapshot =
           await FirebaseFirestore.instance
               .collection('bookings')
-              .where('serviceProviderId', isEqualTo: widget.provider.id)
+              .where(
+                'serviceProviderId',
+                isEqualTo: widget.provider.id,
+              ) // <--- FIXED: Changed to .id
               .where('status', isEqualTo: 'confirmed')
               .get();
 
@@ -47,6 +74,11 @@ class _ServiceProviderViewCalendarScreenState
     } catch (e) {
       print('Error fetching bookings: $e');
       setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load calendar data: $e')),
+        );
+      }
     }
   }
 
@@ -85,6 +117,11 @@ class _ServiceProviderViewCalendarScreenState
                     color: Colors.grey[300],
                     shape: BoxShape.circle,
                   ),
+                  markerDecoration: BoxDecoration(
+                    color: Colors.red[400],
+                    shape: BoxShape.circle,
+                  ),
+                  markerSize: 8.0,
                 ),
                 calendarBuilders: CalendarBuilders(
                   defaultBuilder: (context, day, focusedDay) {
