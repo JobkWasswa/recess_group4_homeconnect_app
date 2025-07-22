@@ -6,10 +6,27 @@ import 'package:firebase_analytics/firebase_analytics.dart'; // Firebase Analyti
 import 'firebase_options.dart'; // <-- Import generated Firebase options
 
 void main() async {
+  // Ensure proper binding initialization
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform, // Use the generated config
-  );
+
+  // Initialize Firebase with error handling
+  try {
+    // 🔍 Print the Firebase options in use
+    print('Using Firebase options:');
+    print('App ID: ${DefaultFirebaseOptions.currentPlatform.appId}');
+    print('Project ID: ${DefaultFirebaseOptions.currentPlatform.projectId}');
+    print('API Key: ${DefaultFirebaseOptions.currentPlatform.apiKey}');
+    print('Project ID: ${DefaultFirebaseOptions.currentPlatform.projectId}');
+
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    print('Firebase initialized successfully');
+  } catch (e, stack) {
+    print('Firebase initialization failed: $e');
+    print(stack);
+  }
+
   runApp(const MyApp());
 }
 
@@ -26,13 +43,12 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.blue,
-        // Define other global themes if needed
+        // Add visual scaffold to prevent black screen
+        scaffoldBackgroundColor: Colors.white,
       ),
       initialRoute: AppRoutes.splash, // Your app’s initial route
       routes: AppRoutes.routes,
-      onGenerateRoute: AppRoutes.onGenerateRoute, // Your app’s routes
+      onGenerateRoute: AppRoutes.onGenerateRoute,
     );
   }
 }
-
-

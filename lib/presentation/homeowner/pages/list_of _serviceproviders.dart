@@ -5,7 +5,8 @@ import 'package:homeconnect/presentation/homeowner/pages/profile_display_for_cli
 import 'package:homeconnect/data/providers/homeowner_firestore_provider.dart';
 import 'package:homeconnect/data/models/booking.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:homeconnect/presentation/homeowner/pages/create_booking_screen.dart'; // NEW: Import the new screen
+import 'package:homeconnect/presentation/homeowner/pages/create_booking_screen.dart';
+import 'package:homeconnect/presentation/service_provider/pages/service_provider_calendar.dart';
 
 class ServiceProvidersList extends StatefulWidget {
   final String category;
@@ -181,6 +182,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                     ],
                                   ),
                                 ),
+                                const SizedBox(height: 6),
                               ],
                             ),
                           ),
@@ -377,17 +379,16 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
     }
 
     // NEW: Navigate to CreateBookingScreen to get scheduling details
-    final Map<String, dynamic>? bookingDetails = await Navigator.push(
+    final bookingDetails = await Navigator.push<Map<String, dynamic>?>(
       context,
       MaterialPageRoute(
         builder:
-            (context) => CreateBookingScreen(
-              serviceProvider: provider,
-              serviceCategory: widget.category,
+            (_) => ServiceProviderCalendarScreen(
+              provider: provider,
+              category: widget.category,
             ),
       ),
     );
-
     // If booking details are returned (user confirmed on CreateBookingScreen)
     if (bookingDetails != null) {
       final DateTime? scheduledDate = bookingDetails['scheduledDate'];
@@ -403,8 +404,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
         serviceProviderName: provider.name,
         categories: provider.categories,
         selectedCategory: providerCategory,
-        bookingDate:
-            DateTime.now(), // This is the date the booking request was made
+        bookingDate: bookingDetails['scheduledDate'], // Already DateTime
         scheduledDate: scheduledDate, // Scheduled date from CreateBookingScreen
         scheduledTime:
             scheduledTimeDisplay, // Scheduled time from CreateBookingScreen
