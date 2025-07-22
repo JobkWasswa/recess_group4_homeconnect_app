@@ -11,7 +11,8 @@ class ServiceProviderModel {
   final int reviewCount;
   final double? distanceKm;
   final double score;
-  final int completedJobs; // ✅ New field
+  final int completedJobs;
+  final String? email; // ✅ NEW: Added email field
 
   ServiceProviderModel({
     required this.id,
@@ -22,7 +23,8 @@ class ServiceProviderModel {
     required this.reviewCount,
     this.distanceKm,
     required this.score,
-    required this.completedJobs, // ✅ Include in constructor
+    required this.completedJobs,
+    this.email, // ✅ Include in constructor
   });
 
   /// Factory constructor for deserializing from a Cloud Function result (via Map)
@@ -36,7 +38,8 @@ class ServiceProviderModel {
       reviewCount: data['reviewCount'] ?? 0,
       distanceKm: (data['distanceKm'] as num?)?.toDouble(),
       score: (data['score'] as num?)?.toDouble() ?? 0.0,
-      completedJobs: (data['completedJobs'] as int?) ?? 0, // ✅ Fetch from Cloud Function result
+      completedJobs: (data['completedJobs'] as int?) ?? 0,
+      email: data['email'] as String?, // ✅ Fetch from Cloud Function result
     );
   }
 
@@ -45,14 +48,18 @@ class ServiceProviderModel {
     final data = doc.data() as Map<String, dynamic>;
     return ServiceProviderModel(
       id: doc.id,
-      name: data['name'] ?? 'Unnamed Provider',
-      profilePhoto: data['profilePhoto'],
+      name:
+          data['fullName'] ??
+          data['name'] ??
+          'Unnamed Provider', // Prioritize 'fullName', fallback to 'name' or default
+      profilePhoto: data['profilePhoto'] as String?,
       categories: List<String>.from(data['categories'] ?? []),
       rating: (data['averageRating'] as num?)?.toDouble() ?? 0.0,
       reviewCount: (data['numberOfReviews'] as int?) ?? 0,
       distanceKm: null, // Not present in raw Firestore doc
       score: 0.0, // Not present in raw Firestore doc
-      completedJobs: (data['completedJobs'] as int?) ?? 0, // ✅ Fetch from Firestore doc
+      completedJobs: (data['completedJobs'] as int?) ?? 0,
+      email: data['email'] as String?, // ✅ Fetch from Firestore doc
     );
   }
 }
