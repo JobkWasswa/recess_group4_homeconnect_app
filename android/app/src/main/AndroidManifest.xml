@@ -1,9 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.company.homeconnect">
-<<<<<<< HEAD
-=======
-
->>>>>>> 7f3b570ed12086c563afa17345c95caf77e538f1
 
     <!-- Internet & network state -->
     <uses-permission android:name="android.permission.INTERNET"/>
@@ -44,17 +40,12 @@
         <!-- Enables Flutter’s v2 embedding (required for plugin auto-registration) -->
         <meta-data
             android:name="flutterEmbedding"
-<<<<<<< HEAD
-            android:value="2"/>
+            android:value="2" />
 
         <!-- Google Maps API key (if used) -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="HOME_CONNECT4"/>
-=======
-            android:value="2" />
-        
->>>>>>> 7f3b570ed12086c563afa17345c95caf77e538f1
     </application>
 
     <!-- Allow Flutter plugins to query other apps -->
