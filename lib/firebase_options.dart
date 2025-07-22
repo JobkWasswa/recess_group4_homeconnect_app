@@ -52,7 +52,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBSHtXul2nzX9Xe2xLr_wLpe0-K4XS3E1Y',
-    appId: '1:279318295980:android:4fcf9376f7b3a33a3e7609',
+    appId: '1:279318295980:android:cbf053df1aaca02f3e7609',
     messagingSenderId: '279318295980',
     projectId: 'homeconnect-a9d5c',
     storageBucket: 'homeconnect-a9d5c.firebasestorage.app',
@@ -64,6 +64,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '279318295980',
     projectId: 'homeconnect-a9d5c',
     storageBucket: 'homeconnect-a9d5c.firebasestorage.app',
+    androidClientId: '279318295980-hsecm9o4nko3fc5m1nbeobnteuc0dp99.apps.googleusercontent.com',
+    iosClientId: '279318295980-qqfeameik2fp6vgh286br6tg80ket4t9.apps.googleusercontent.com',
     iosBundleId: 'com.example.homeconnect',
   );
 
@@ -73,6 +75,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '279318295980',
     projectId: 'homeconnect-a9d5c',
     storageBucket: 'homeconnect-a9d5c.firebasestorage.app',
+    androidClientId: '279318295980-hsecm9o4nko3fc5m1nbeobnteuc0dp99.apps.googleusercontent.com',
+    iosClientId: '279318295980-qqfeameik2fp6vgh286br6tg80ket4t9.apps.googleusercontent.com',
     iosBundleId: 'com.example.homeconnect',
   );
 
@@ -85,4 +89,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'homeconnect-a9d5c.firebasestorage.app',
     measurementId: 'G-9QYFS5LK99',
   );
+
 }

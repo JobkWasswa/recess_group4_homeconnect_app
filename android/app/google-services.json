@@ -12,7 +12,20 @@
           "package_name": "com.company.homeconnect"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "279318295980-hsecm9o4nko3fc5m1nbeobnteuc0dp99.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.company.homeconnect",
+            "certificate_hash": "b90769a01b440538a711c4c4746862ccee54efa0"
+          }
+        },
+        {
+          "client_id": "279318295980-k1oor2k3jc67kdbso1fuk6g8sut5thg2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBSHtXul2nzX9Xe2xLr_wLpe0-K4XS3E1Y"
@@ -20,26 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:279318295980:android:4fcf9376f7b3a33a3e7609",
-        "android_client_info": {
-          "package_name": "com.example.homeconnect"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyBSHtXul2nzX9Xe2xLr_wLpe0-K4XS3E1Y"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "279318295980-k1oor2k3jc67kdbso1fuk6g8sut5thg2.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "279318295980-qqfeameik2fp6vgh286br6tg80ket4t9.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.homeconnect"
+              }
+            }
+          ]
         }
       }
     }
