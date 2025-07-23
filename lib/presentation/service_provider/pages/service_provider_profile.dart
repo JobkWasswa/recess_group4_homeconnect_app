@@ -139,49 +139,65 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
     }
   }
 
-  Future<void> _saveProfile() async {
-    print("Save profile button pressed");
+  Future<bool> _saveProfile() async {
+    print("Starting _saveProfile...");
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
-        if (!mounted) return;
+        print("User is null");
+        if (!mounted) return false;
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text("User not logged in.")));
-        return;
+        return false;
       }
 
       if (_profileImageFile == null && _webImageBytes == null) {
+        print("No image selected");
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Please select a profile photo.")),
         );
-        return;
+        return false;
       }
 
       if (_nameController.text.trim().isEmpty) {
+        print("Name is empty");
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Please enter your name.")),
         );
-        return;
+        return false;
       }
 
       if (_selectedCategories.isEmpty) {
+        print("No categories selected");
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Please select at least one category.")),
         );
-        return;
+        return false;
       }
 
       if (_latitude == null || _longitude == null) {
+        print("Location not set");
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Please set your location.")),
         );
-        return;
+        return false;
       }
 
       final uid = user.uid;
-      final imageUrl = await _uploadProfileImage();
 
+      print("Uploading image...");
+      final imageUrl = await _uploadProfileImage();
+      print("Image uploaded, URL: $imageUrl");
+
+      if (imageUrl == null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Image upload failed.")));
+        return false;
+      }
+
+      print("Building availability map...");
       Map<String, dynamic> availabilityData = {};
       _availability.forEach((day, isAvailable) {
         if (isAvailable) {
@@ -192,6 +208,7 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
         }
       });
 
+      print("Saving to Firestore...");
       await FirebaseFirestore.instance
           .collection('service_providers')
           .doc(uid)
@@ -208,6 +225,7 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
           });
 
       for (final category in _selectedCategories) {
+        print("Saving under category: $category");
         await FirebaseFirestore.instance
             .collection('categories')
             .doc(category)
@@ -224,20 +242,22 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
             });
       }
 
-      if (!mounted) return;
+      print("Profile saved successfully.");
+      if (!mounted) return false;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Profile saved successfully!")),
       );
-
-      Navigator.pushReplacementNamed(
-        context,
-        AppRoutes.serviceProviderDashboard,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Failed to save profile: $e")));
+      return true;
+    } catch (e, stack) {
+      print("🔥 Error saving profile: $e");
+      print("🔥 Stacktrace: $stack");
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Failed to save profile: $e")));
+      }
+      return false;
     }
   }
 
@@ -636,14 +656,22 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () async {
-                    await _saveProfile();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ServiceProviderDashboardScreen(),
-                      ),
-                    );
+                    print("Create Profile button tapped");
+                    final success = await _saveProfile();
+                    print("Save result: $success");
+                    if (success && mounted) {
+                      print("Navigating to dashboard...");
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) =>
+                                  const ServiceProviderDashboardScreen(),
+                        ),
+                      );
+                    }
                   },
+
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6B4EEF), // Purple button
                     shape: RoundedRectangleBorder(
