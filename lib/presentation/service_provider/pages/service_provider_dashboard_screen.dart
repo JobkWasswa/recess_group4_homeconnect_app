@@ -45,6 +45,7 @@ class _ServiceProviderDashboardScreenState
 
   Stream<QuerySnapshot> _getAcceptedJobs() {
     final userId = FirebaseAuth.instance.currentUser?.uid;
+    print('🔥 Current User ID: $userId');
     if (userId == null) return Stream<QuerySnapshot>.empty();
 
     return FirebaseFirestore.instance
@@ -142,6 +143,13 @@ class _ServiceProviderDashboardScreenState
         print(
           'Provider document not found for user: ${user.uid}. Created default model.',
         );
+        await FirebaseFirestore.instance
+            .collection('service_providers')
+            .doc(user.uid)
+            .set({
+              'completedJobs': 0,
+              'averageRating': 0.0,
+            }, SetOptions(merge: true));
       }
     } catch (e) {
       print('Error fetching provider data: $e');
