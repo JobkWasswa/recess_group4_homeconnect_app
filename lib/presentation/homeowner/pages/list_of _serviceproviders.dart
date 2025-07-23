@@ -363,7 +363,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
     final existingBookingQuery =
         await FirebaseFirestore.instance
             .collection('bookings')
-            .where('clientId', isEqualTo: currentUserId)
+            .where('serviceProviderId', isEqualTo: provider.id)
             .where('selectedCategory', isEqualTo: providerCategory)
             .where('status', whereIn: ServiceProvidersList.activeStatuses)
             .limit(1)
@@ -372,7 +372,9 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
     if (existingBookingQuery.docs.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('You already have an active booking in this category'),
+          content: Text(
+            'This provider already has an active booking in this category',
+          ),
         ),
       );
       return;
