@@ -51,25 +51,47 @@ class Booking {
       'rejected_by_provider'; // Added this for completeness
 
   factory Booking.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+
     return Booking(
-      bookingId: doc.id, // Assign the document ID here
+      bookingId: doc.id,
       clientId: data['clientId'] ?? '',
       clientName: data['clientName'] ?? '',
       serviceProviderId: data['serviceProviderId'] ?? '',
       serviceProviderName: data['serviceProviderName'] ?? '',
-      categories: List<String>.from(data['categories'] ?? []),
+      categories:
+          (data['categories'] is List)
+              ? List<String>.from(data['categories'])
+              : <String>[],
       selectedCategory: data['selectedCategory'] ?? '',
-      bookingDate: (data['bookingDate'] as Timestamp).toDate(),
-      scheduledDate: (data['scheduledDate'] as Timestamp?)?.toDate(),
+      bookingDate:
+          (data['bookingDate'] is Timestamp)
+              ? (data['bookingDate'] as Timestamp).toDate()
+              : DateTime.now(),
+      scheduledDate:
+          (data['scheduledDate'] is Timestamp)
+              ? (data['scheduledDate'] as Timestamp).toDate()
+              : null,
       scheduledTime: data['scheduledTime'],
       duration: data['duration'],
-      status: data['status'] ?? pending,
+      status: data['status'] ?? Booking.pending,
       notes: data['notes'],
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      updatedAt: (data['updatedAt'] as Timestamp).toDate(),
-      location: data['location'] as GeoPoint,
-      completedAt: (data['completedAt'] as Timestamp?)?.toDate(),
+      createdAt:
+          (data['createdAt'] is Timestamp)
+              ? (data['createdAt'] as Timestamp).toDate()
+              : null,
+      updatedAt:
+          (data['updatedAt'] is Timestamp)
+              ? (data['updatedAt'] as Timestamp).toDate()
+              : null,
+      location:
+          (data['location'] is GeoPoint)
+              ? data['location'] as GeoPoint
+              : const GeoPoint(0, 0),
+      completedAt:
+          (data['completedAt'] is Timestamp)
+              ? (data['completedAt'] as Timestamp).toDate()
+              : null,
     );
   }
 
@@ -147,4 +169,3 @@ class Booking {
     return status == completed;
   }
 }
-

@@ -10,6 +10,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:homeconnect/config/routes.dart';
 import 'package:homeconnect/data/models/services.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 class ProfileCreationScreen extends StatefulWidget {
   const ProfileCreationScreen({super.key});
@@ -21,6 +22,7 @@ class ProfileCreationScreen extends StatefulWidget {
 class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
   final _nameController = TextEditingController();
   final _descController = TextEditingController();
+  bool _isSaving = false;
   List<String> _selectedCategories = [];
 
   io.File? _profileImageFile;
@@ -58,6 +60,15 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
         });
       }
     }
+  }
+
+  Future<Uint8List?> compressImage(io.File imageFile) async {
+    return await FlutterImageCompress.compressWithFile(
+      imageFile.absolute.path,
+      minWidth: 800,
+      minHeight: 800,
+      quality: 70,
+    );
   }
 
   Future<String?> _uploadProfileImage() async {
@@ -139,136 +150,74 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
     }
   }
 
-  Future<void> _saveProfile() async {
-    print("Save profile button pressed");
+  Future<bool> _saveProfile() async {
     try {
+      print("Starting _saveProfile...");
+
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("User not logged in.")));
-        return;
-      }
+      if (user == null) throw Exception("User not logged in");
 
-      if (_profileImageFile == null && _webImageBytes == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Please select a profile photo.")),
+      final userId = user.uid;
+      String? imageUrl;
+
+      // Upload image if selected
+      if (kIsWeb && _webImageBytes != null) {
+        print("Uploading web image...");
+        final ref = FirebaseStorage.instance.ref().child(
+          'provider_images/$userId.jpg',
         );
-        return;
-      }
-
-      if (_nameController.text.trim().isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Please enter your name.")),
-        );
-        return;
-      }
-
-      if (_selectedCategories.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Please select at least one category.")),
-        );
-        return;
-      }
-
-      if (_latitude == null || _longitude == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Please set your location.")),
-        );
-        return;
-      }
-
-      final uid = user.uid;
-      final imageUrl = await _uploadProfileImage();
-
-      Map<String, dynamic> availabilityData = {};
-      _availability.forEach((day, isAvailable) {
-        if (isAvailable) {
-          availabilityData[day] = {
-            'start': _startTimes[day]?.format(context),
-            'end': _endTimes[day]?.format(context),
-          };
+        await ref.putData(_webImageBytes!);
+        imageUrl = await ref.getDownloadURL();
+      } else if (!kIsWeb && _profileImageFile != null) {
+        print("Compressing image...");
+        final compressedData = await compressImage(_profileImageFile!);
+        if (compressedData == null) {
+          throw Exception("Image compression failed.");
         }
+
+        print("Uploading compressed image...");
+        final ref = FirebaseStorage.instance.ref().child(
+          'provider_images/$userId.jpg',
+        );
+        await ref.putData(compressedData);
+        imageUrl = await ref.getDownloadURL();
+      }
+
+      print("Image uploaded: $imageUrl");
+
+      // Save to Firestore
+      // Save to Firestore
+      final doc = FirebaseFirestore.instance
+          .collection('service_providers')
+          .doc(userId);
+
+      // ✅ Fix here
+      final Map<String, dynamic> availabilityData = {};
+      _availability.forEach((day, isAvailable) {
+        availabilityData[day] = {
+          'available': isAvailable,
+          'startTime': _startTimes[day]?.format(context),
+          'endTime': _endTimes[day]?.format(context),
+        };
       });
 
-      // Fetch existing data if the provider already exists
-      double existingAverageRating = 0.0;
-      int existingNumberOfReviews = 0;
-      int existingCompletedJobs = 0;
+      await doc.set({
+        'uid': userId,
+        'name': _nameController.text.trim(),
+        'description': _descController.text.trim(),
+        'imageUrl': imageUrl ?? '',
+        'categories': _selectedCategories,
+        'location': GeoPoint(_latitude ?? 0.0, _longitude ?? 0.0),
+        'availability': availabilityData,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
 
-      try {
-        final providerDoc =
-            await FirebaseFirestore.instance
-                .collection('service_providers')
-                .doc(uid)
-                .get();
-
-        if (providerDoc.exists) {
-          final providerData = providerDoc.data();
-          existingAverageRating =
-              (providerData?['averageRating'] as num?)?.toDouble() ?? 0.0;
-          existingNumberOfReviews =
-              (providerData?['numberOfReviews'] as num?)?.toInt() ?? 0;
-          existingCompletedJobs =
-              (providerData?['completedJobs'] as num?)?.toInt() ?? 0;
-        }
-      } catch (e) {
-        print('🔥 Error fetching existing provider data: $e');
-      }
-
-      // Save or update the provider profile
-      await FirebaseFirestore.instance
-          .collection('service_providers')
-          .doc(uid)
-          .set({
-            'name': _nameController.text.trim(),
-            'description': _descController.text.trim(),
-            'categories': _selectedCategories,
-            'profilePhoto': imageUrl,
-            'location': GeoPoint(_latitude!, _longitude!),
-            'availability': availabilityData,
-            'createdAt': Timestamp.now(),
-            'averageRating': existingAverageRating, // Use existing rating
-            'numberOfReviews':
-                existingNumberOfReviews, // Use existing reviews count
-            'completedJobs':
-                existingCompletedJobs, // Use existing completed jobs
-          });
-
-      // Save the provider in the categories collection
-      for (final category in _selectedCategories) {
-        await FirebaseFirestore.instance
-            .collection('categories')
-            .doc(category)
-            .collection('users')
-            .doc(uid)
-            .set({
-              'name': _nameController.text.trim(),
-              'profilePhoto': imageUrl,
-              'location': GeoPoint(_latitude!, _longitude!),
-              'address': locationAddress,
-              'timestamp': Timestamp.now(),
-              'averageRating': existingAverageRating, // Use existing rating
-              'numberOfReviews':
-                  existingNumberOfReviews, // Use existing reviews count
-            });
-      }
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Profile saved successfully!")),
-      );
-
-      Navigator.pushReplacementNamed(
-        context,
-        AppRoutes.serviceProviderDashboard,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Failed to save profile: $e")));
+      print("✅ Profile saved successfully.");
+      return true;
+    } catch (e, stack) {
+      print("❌ Error saving profile: $e");
+      print("Stacktrace: $stack");
+      return false;
     }
   }
 
@@ -667,13 +616,26 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () async {
-                    await _saveProfile();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ServiceProviderDashboardScreen(),
-                      ),
-                    );
+                    if (_isSaving) return; // Prevent duplicate tap
+                    setState(() => _isSaving = true);
+
+                    print("Create Profile button tapped");
+                    final success = await _saveProfile();
+                    print("Save result: $success");
+
+                    if (success && mounted) {
+                      print("Navigating to dashboard...");
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) =>
+                                  const ServiceProviderDashboardScreen(),
+                        ),
+                      );
+                    }
+
+                    if (mounted) setState(() => _isSaving = false);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6B4EEF), // Purple button
@@ -684,19 +646,27 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
                     ),
                     elevation: 5, // Subtle shadow
                   ),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(
-                      vertical: 16.0,
-                    ), // Increased padding for a taller button
-                    child: Text(
-                      "Create Profile",
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ), // Bold and white text
-                    ),
-                  ),
+                  child:
+                      _isSaving
+                          ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                          : const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16.0),
+                            child: Text(
+                              "Create Profile",
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                 ),
               ),
             ),

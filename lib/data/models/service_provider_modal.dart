@@ -45,21 +45,27 @@ class ServiceProviderModel {
 
   /// Factory constructor for direct Firestore DocumentSnapshot reads
   factory ServiceProviderModel.fromDocumentSnapshot(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+
     return ServiceProviderModel(
       id: doc.id,
-      name:
-          data['fullName'] ??
-          data['name'] ??
-          'Unnamed Provider', // Prioritize 'fullName', fallback to 'name' or default
+      name: data['fullName'] ?? data['name'] ?? 'Unnamed Provider',
       profilePhoto: data['profilePhoto'] as String?,
-      categories: List<String>.from(data['categories'] ?? []),
-      rating: (data['averageRating'] as num?)?.toDouble() ?? 0.0,
-      reviewCount: (data['numberOfReviews'] as int?) ?? 0,
-      distanceKm: null, // Not present in raw Firestore doc
-      score: 0.0, // Not present in raw Firestore doc
-      completedJobs: (data['completedJobs'] as int?) ?? 0,
-      email: data['email'] as String?, // ✅ Fetch from Firestore doc
+      categories:
+          (data['categories'] is List)
+              ? List<String>.from(data['categories'])
+              : <String>[],
+      rating:
+          (data['averageRating'] is num)
+              ? (data['averageRating'] as num).toDouble()
+              : 0.0,
+      reviewCount:
+          data['numberOfReviews'] is int ? data['numberOfReviews'] as int : 0,
+      distanceKm: null, // calculate or assign later if needed
+      score: 0.0, // same as above
+      completedJobs:
+          data['completedJobs'] is int ? data['completedJobs'] as int : 0,
+      email: data['email'] as String?,
     );
   }
 }
