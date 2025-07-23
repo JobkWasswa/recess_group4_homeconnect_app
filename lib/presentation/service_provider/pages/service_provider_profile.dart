@@ -192,6 +192,32 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
         }
       });
 
+      // Fetch existing data if the provider already exists
+      double existingAverageRating = 0.0;
+      int existingNumberOfReviews = 0;
+      int existingCompletedJobs = 0;
+
+      try {
+        final providerDoc =
+            await FirebaseFirestore.instance
+                .collection('service_providers')
+                .doc(uid)
+                .get();
+
+        if (providerDoc.exists) {
+          final providerData = providerDoc.data();
+          existingAverageRating =
+              (providerData?['averageRating'] as num?)?.toDouble() ?? 0.0;
+          existingNumberOfReviews =
+              (providerData?['numberOfReviews'] as num?)?.toInt() ?? 0;
+          existingCompletedJobs =
+              (providerData?['completedJobs'] as num?)?.toInt() ?? 0;
+        }
+      } catch (e) {
+        print('🔥 Error fetching existing provider data: $e');
+      }
+
+      // Save or update the provider profile
       await FirebaseFirestore.instance
           .collection('service_providers')
           .doc(uid)
@@ -203,10 +229,14 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
             'location': GeoPoint(_latitude!, _longitude!),
             'availability': availabilityData,
             'createdAt': Timestamp.now(),
-            'averageRating': 0.0,
-            'numberOfReviews': 0,
+            'averageRating': existingAverageRating, // Use existing rating
+            'numberOfReviews':
+                existingNumberOfReviews, // Use existing reviews count
+            'completedJobs':
+                existingCompletedJobs, // Use existing completed jobs
           });
 
+      // Save the provider in the categories collection
       for (final category in _selectedCategories) {
         await FirebaseFirestore.instance
             .collection('categories')
@@ -219,8 +249,9 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
               'location': GeoPoint(_latitude!, _longitude!),
               'address': locationAddress,
               'timestamp': Timestamp.now(),
-              'averageRating': 0.0,
-              'numberOfReviews': 0,
+              'averageRating': existingAverageRating, // Use existing rating
+              'numberOfReviews':
+                  existingNumberOfReviews, // Use existing reviews count
             });
       }
 
