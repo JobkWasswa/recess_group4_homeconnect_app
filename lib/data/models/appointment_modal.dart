@@ -46,7 +46,8 @@ class Appointment {
       'cancelled'; // If an accepted appointment is later cancelled
 
   factory Appointment.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+
     return Appointment(
       appointmentId: doc.id,
       originalBookingId: data['originalBookingId'] ?? '',
@@ -55,15 +56,30 @@ class Appointment {
       serviceProviderId: data['serviceProviderId'] ?? '',
       serviceProviderName: data['serviceProviderName'] ?? '',
       serviceCategory: data['serviceCategory'] ?? '',
-      scheduledDate: (data['scheduledDate'] as Timestamp).toDate(),
+      scheduledDate:
+          (data['scheduledDate'] is Timestamp)
+              ? (data['scheduledDate'] as Timestamp).toDate()
+              : DateTime.now(),
       scheduledTime: data['scheduledTime'] ?? '',
       duration: data['duration'] ?? '',
       status: data['status'] ?? Appointment.confirmed,
       notes: data['notes'],
-      location: data['location'] as GeoPoint,
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      updatedAt: (data['updatedAt'] as Timestamp).toDate(),
-      completedAt: (data['completedAt'] as Timestamp?)?.toDate(),
+      location:
+          data['location'] is GeoPoint
+              ? data['location'] as GeoPoint
+              : const GeoPoint(0.0, 0.0),
+      createdAt:
+          (data['createdAt'] is Timestamp)
+              ? (data['createdAt'] as Timestamp).toDate()
+              : null,
+      updatedAt:
+          (data['updatedAt'] is Timestamp)
+              ? (data['updatedAt'] as Timestamp).toDate()
+              : null,
+      completedAt:
+          (data['completedAt'] is Timestamp)
+              ? (data['completedAt'] as Timestamp).toDate()
+              : null,
     );
   }
 
