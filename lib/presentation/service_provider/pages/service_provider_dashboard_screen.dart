@@ -736,11 +736,9 @@ class _ServiceProviderDashboardScreenState
                     docs.take(5).map((doc) {
                       final data = doc.data() as Map<String, dynamic>;
 
-                      final categories = data['categories'];
+                      //final categories = data['categories'];
                       final jobType =
-                          (categories is List && categories.isNotEmpty)
-                              ? categories[0].toString()
-                              : (categories?.toString() ?? 'Unknown');
+                          data['selectedCategory']?.toString() ?? 'Unknown';
 
                       final bookingDate = data['bookingDate'];
                       final formattedDate =
