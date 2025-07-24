@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 
 class AllJobRequestsScreen extends StatelessWidget {
   const AllJobRequestsScreen({super.key});
@@ -52,10 +53,14 @@ class AllJobRequestsScreen extends StatelessWidget {
               final jobType = data['selectedCategory']?.toString() ?? 'Unknown';
 
               final bookingDate = data['bookingDate'];
-              final formattedDate =
-                  bookingDate is Timestamp
-                      ? bookingDate.toDate().toLocal().toString()
-                      : 'Unknown date';
+              String formattedDate = 'Unknown date';
+
+              if (bookingDate is Timestamp) {
+                final dateTime = bookingDate.toDate().toLocal();
+                formattedDate = DateFormat(
+                  'MMM dd, yyyy – hh:mm a',
+                ).format(dateTime);
+              }
 
               final note = data['notes'] ?? '';
 
