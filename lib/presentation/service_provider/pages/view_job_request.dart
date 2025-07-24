@@ -48,11 +48,8 @@ class AllJobRequestsScreen extends StatelessWidget {
             itemCount: docs.length,
             itemBuilder: (context, index) {
               final data = docs[index].data() as Map<String, dynamic>;
-              final categories = data['categories'];
-              final jobType =
-                  (categories is List && categories.isNotEmpty)
-                      ? categories[0].toString()
-                      : 'Unknown';
+              //final categories = data['categories'];
+              final jobType = data['selectedCategory']?.toString() ?? 'Unknown';
 
               final bookingDate = data['bookingDate'];
               final formattedDate =

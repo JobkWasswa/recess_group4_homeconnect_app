@@ -61,7 +61,7 @@ class AllBookingsScreen extends StatelessWidget {
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text(
-                    '${booking.categories.join(", ")}\n${booking.status.toUpperCase()} • ${booking.bookingDate.toLocal().toString().substring(0, 16)}',
+                    '${booking.selectedCategory}\n${booking.status.toUpperCase()} • ${booking.bookingDate.toLocal().toString().substring(0, 16)}',
                   ),
                   isThreeLine: true,
                   trailing: Icon(
