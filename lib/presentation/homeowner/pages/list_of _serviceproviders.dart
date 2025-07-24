@@ -379,6 +379,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
       );
       return;
     }
+    
 
     // NEW: Navigate to CreateBookingScreen to get scheduling details
     final bookingDetails = await Navigator.push<Map<String, dynamic>?>(
