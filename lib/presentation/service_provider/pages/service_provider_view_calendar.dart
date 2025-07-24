@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:homeconnect/data/models/service_provider_modal.dart';
-import 'package:intl/intl.dart'; // Import for DateFormat
+import 'package:intl/intl.dart';
 
 class ServiceProviderViewCalendarScreen extends StatefulWidget {
   final ServiceProviderModel provider;
@@ -16,60 +16,43 @@ class ServiceProviderViewCalendarScreen extends StatefulWidget {
 
 class _ServiceProviderViewCalendarScreenState
     extends State<ServiceProviderViewCalendarScreen> {
-  // Map to store bookings, keyed by normalized date (year, month, day)
   Map<DateTime, List<DocumentSnapshot>> _bookingsByDate = {};
   DateTime _focusedDay = DateTime.now();
-  DateTime? _selectedDay; // Track the currently selected day
+  DateTime? _selectedDay;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    // Debug print to check the provider ID received
-    print(
-      'ServiceProviderViewCalendarScreen: Received provider ID: ${widget.provider.id}',
-    );
+    print('ServiceProviderViewCalendarScreen: Received provider ID: ${widget.provider.id}');
     fetchBookings();
   }
 
   Future<void> fetchBookings() async {
-    // Ensure that widget.provider.id is not null or empty before using it in the query
     if (widget.provider.id.isEmpty) {
-      print(
-        'Error: Provider ID is empty in ServiceProviderViewCalendarScreen. Cannot fetch bookings.',
-      );
-      setState(() {
-        _isLoading = false;
-      });
+      print('Error: Provider ID is empty.');
+      setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cannot load calendar: Provider ID is missing.'),
-          ),
+          const SnackBar(content: Text('Cannot load calendar: Provider ID is missing.')),
         );
       }
-      return; // Exit if ID is invalid
+      return;
     }
 
     try {
-      final snapshot =
-          await FirebaseFirestore.instance
-              .collection('bookings')
-              .where('serviceProviderId', isEqualTo: widget.provider.id)
-              .where('status', isEqualTo: 'confirmed')
-              .get();
+      final snapshot = await FirebaseFirestore.instance
+          .collection('bookings')
+          .where('serviceProviderId', isEqualTo: widget.provider.id)
+          .where('status', isEqualTo: 'confirmed')
+          .get();
 
       final Map<DateTime, List<DocumentSnapshot>> newBookings = {};
       for (var doc in snapshot.docs) {
-        final Timestamp? scheduledDateTimestamp =
-            doc['scheduledDate'] as Timestamp?;
+        final Timestamp? scheduledDateTimestamp = doc['scheduledDate'] as Timestamp?;
         if (scheduledDateTimestamp != null) {
           final DateTime date = scheduledDateTimestamp.toDate();
-          final DateTime normalizedDate = DateTime(
-            date.year,
-            date.month,
-            date.day,
-          );
+          final DateTime normalizedDate = DateTime(date.year, date.month, date.day);
           if (!newBookings.containsKey(normalizedDate)) {
             newBookings[normalizedDate] = [];
           }
@@ -80,7 +63,6 @@ class _ServiceProviderViewCalendarScreenState
       setState(() {
         _bookingsByDate = newBookings;
         _isLoading = false;
-        // Set selected day to today if there are bookings for today
         _selectedDay = DateTime.now();
       });
     } catch (e) {
@@ -94,50 +76,40 @@ class _ServiceProviderViewCalendarScreenState
     }
   }
 
-  // Callback for when a day is selected in the calendar
   void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
     setState(() {
       _selectedDay = selectedDay;
-      _focusedDay = focusedDay; // Update focused day as well
+      _focusedDay = focusedDay;
     });
 
-    final normalizedSelectedDay = DateTime(
-      selectedDay.year,
-      selectedDay.month,
-      selectedDay.day,
-    );
-    final bookingsForSelectedDay = _bookingsByDate[normalizedSelectedDay] ?? [];
+    final normalized = DateTime(selectedDay.year, selectedDay.month, selectedDay.day);
+    final bookings = _bookingsByDate[normalized] ?? [];
 
-    if (bookingsForSelectedDay.isNotEmpty) {
-      _showBookingDetailsBottomSheet(context, bookingsForSelectedDay);
+    if (bookings.isNotEmpty) {
+      _showBookingDetailsBottomSheet(context, bookings);
     } else {
-      // Optionally, show a message if no bookings for the selected day
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'No confirmed bookings for ${DateFormat('MMM d, yyyy').format(selectedDay)}.',
-          ),
+          content: Text('No confirmed bookings for ${DateFormat('MMM d, yyyy').format(selectedDay)}.'),
           backgroundColor: Colors.blueGrey,
         ),
       );
     }
   }
 
-  // Method to show the bottom sheet with booking details
   void _showBookingDetailsBottomSheet(
     BuildContext context,
     List<DocumentSnapshot> bookings,
   ) {
     showModalBottomSheet(
       context: context,
-      isScrollControlled:
-          true, // Allows the bottom sheet to take full height if needed
+      isScrollControlled: true,
       builder: (context) {
         return DraggableScrollableSheet(
-          initialChildSize: 0.5, // Start at half screen height
+          initialChildSize: 0.5,
           minChildSize: 0.25,
           maxChildSize: 0.9,
-          expand: false, // Don't expand to full screen by default
+          expand: false,
           builder: (BuildContext context, ScrollController scrollController) {
             return Container(
               decoration: const BoxDecoration(
@@ -162,8 +134,7 @@ class _ServiceProviderViewCalendarScreenState
                       controller: scrollController,
                       itemCount: bookings.length,
                       itemBuilder: (context, index) {
-                        final bookingData =
-                            bookings[index].data() as Map<String, dynamic>;
+                        final bookingData = bookings[index].data() as Map<String, dynamic>;
                         return _buildBookingDetailCard(bookingData);
                       },
                     ),
@@ -177,16 +148,13 @@ class _ServiceProviderViewCalendarScreenState
     );
   }
 
-  // Widget to build a single booking detail card
   Widget _buildBookingDetailCard(Map<String, dynamic> data) {
     final categories = data['categories'];
-    final jobType =
-        (categories is List && categories.isNotEmpty)
-            ? categories[0].toString()
-            : (categories?.toString() ?? 'Unknown');
+    final jobType = (categories is List && categories.isNotEmpty)
+        ? categories[0].toString()
+        : (categories?.toString() ?? 'Unknown');
 
-    final Timestamp? scheduledDateTimestamp =
-        data['scheduledDate'] as Timestamp?;
+    final Timestamp? scheduledDateTimestamp = data['scheduledDate'] as Timestamp?;
     final DateTime? scheduledDate = scheduledDateTimestamp?.toDate();
     final String? scheduledTime = data['scheduledTime'] as String?;
     final String? duration = data['duration'] as String?;
@@ -228,11 +196,7 @@ class _ServiceProviderViewCalendarScreenState
               const SizedBox(height: 4),
               Row(
                 children: [
-                  const Icon(
-                    Icons.calendar_today,
-                    size: 18,
-                    color: Colors.grey,
-                  ),
+                  const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
                   const SizedBox(width: 8),
                   Text(
                     'Date: ${DateFormat('MMM d, yyyy').format(scheduledDate)}',
@@ -271,7 +235,6 @@ class _ServiceProviderViewCalendarScreenState
                 ],
               ),
             ],
-            // You can add more details or actions here, e.g., a button to view full booking
           ],
         ),
       ),
@@ -283,7 +246,7 @@ class _ServiceProviderViewCalendarScreenState
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Booking Calendar'),
-        backgroundColor: const Color(0xFF9333EA), // Purple
+        backgroundColor: const Color(0xFF9333EA),
         foregroundColor: Colors.white,
       ),
       body: SafeArea(
@@ -292,17 +255,15 @@ class _ServiceProviderViewCalendarScreenState
             if (_isLoading)
               const Padding(
                 padding: EdgeInsets.all(16.0),
-                child: LinearProgressIndicator(
-                  color: Color(0xFF9333EA), // Purple
-                ),
+                child: LinearProgressIndicator(color: Color(0xFF9333EA)),
               ),
             Expanded(
               child: TableCalendar(
-                firstDay: DateTime.utc(2020, 1, 1), // A reasonable start date
-                lastDay: DateTime.utc(2030, 12, 31), // A reasonable end date
+                firstDay: DateTime.utc(2020, 1, 1),
+                lastDay: DateTime.utc(2030, 12, 31),
                 focusedDay: _focusedDay,
                 selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                onDaySelected: _onDaySelected, // Call the new handler
+                onDaySelected: _onDaySelected,
                 headerStyle: const HeaderStyle(
                   formatButtonVisible: false,
                   titleCentered: true,
@@ -313,17 +274,13 @@ class _ServiceProviderViewCalendarScreenState
                   ),
                 ),
                 calendarStyle: CalendarStyle(
-                  outsideDaysVisible:
-                      false, // Don't show days from other months
+                  outsideDaysVisible: false,
                   todayDecoration: BoxDecoration(
                     color: Colors.blue[400],
                     shape: BoxShape.circle,
                   ),
                   selectedDecoration: BoxDecoration(
-                    color:
-                        Theme.of(
-                          context,
-                        ).primaryColor, // Use theme primary color for selected
+                    color: Theme.of(context).primaryColor,
                     shape: BoxShape.circle,
                   ),
                   defaultDecoration: BoxDecoration(
@@ -334,12 +291,11 @@ class _ServiceProviderViewCalendarScreenState
                     color: Colors.grey[300],
                     shape: BoxShape.circle,
                   ),
-                  // Highlight booked dates
                   markerDecoration: BoxDecoration(
-                    color: Colors.red[400], // Color for booked dates
+                    color: Colors.red[400],
                     shape: BoxShape.circle,
                   ),
-                  markerSize: 8.0, // Size of the marker
+                  markerSize: 8.0,
                 ),
                 calendarBuilders: CalendarBuilders(
                   defaultBuilder: (context, day, focusedDay) {
@@ -350,10 +306,7 @@ class _ServiceProviderViewCalendarScreenState
                       margin: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color:
-                            hasBookings
-                                ? Colors.red[400] // Booked date color
-                                : Colors.green[300], // Available date color
+                        color: hasBookings ? Colors.red[400] : Colors.green[300],
                       ),
                       alignment: Alignment.center,
                       child: Text(
@@ -362,7 +315,6 @@ class _ServiceProviderViewCalendarScreenState
                       ),
                     );
                   },
-                  // You can also use markerBuilder to add a small dot for booked days
                   markerBuilder: (context, day, events) {
                     final normalized = DateTime(day.year, day.month, day.day);
                     if (_bookingsByDate.containsKey(normalized) &&
@@ -374,7 +326,7 @@ class _ServiceProviderViewCalendarScreenState
                           width: 8,
                           height: 8,
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.8), // A white dot
+                            color: Colors.white.withOpacity(0.8),
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -391,3 +343,5 @@ class _ServiceProviderViewCalendarScreenState
     );
   }
 }
+
+

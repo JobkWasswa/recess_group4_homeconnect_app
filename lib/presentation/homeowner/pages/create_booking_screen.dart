@@ -76,7 +76,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
         return;
       }
 
-      final DateTime? scheduledDateTime = DateTime(
+      final DateTime scheduledDateTime = DateTime(
         _selectedDate!.year,
         _selectedDate!.month,
         _selectedDate!.day,

@@ -8,7 +8,6 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:homeconnect/config/routes.dart';
 import 'package:homeconnect/data/models/services.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 
