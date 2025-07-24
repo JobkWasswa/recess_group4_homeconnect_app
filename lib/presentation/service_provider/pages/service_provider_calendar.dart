@@ -26,7 +26,7 @@ class _ServiceProviderCalendarScreenState
   bool _isLoading = true;
 
   final Map<DateTime, int> _bookingCounts = {};
-  final int maxDailyBookings = 4; // Customize this based on your logic
+  final int maxDailyBookings = 4;
 
   @override
   void initState() {
@@ -39,12 +39,12 @@ class _ServiceProviderCalendarScreenState
       final snapshot = await FirebaseFirestore.instance
           .collection('bookings')
           .where('serviceProviderId', isEqualTo: widget.provider.id)
-          .where('status', isEqualTo: 'confirmed')
           .get();
 
       final counts = <DateTime, int>{};
 
       for (var doc in snapshot.docs) {
+        if (!doc.data().containsKey('scheduledDate')) continue;
         final date = (doc['scheduledDate'] as Timestamp).toDate();
         final normalized = DateTime(date.year, date.month, date.day);
         counts[normalized] = (counts[normalized] ?? 0) + 1;
@@ -67,8 +67,10 @@ class _ServiceProviderCalendarScreenState
       _focusedDay = focusedDay;
     });
 
+    final normalizedDay =
+        DateTime(selectedDay.year, selectedDay.month, selectedDay.day);
     final isFullyBooked =
-        (_bookingCounts[selectedDay] ?? 0) >= maxDailyBookings;
+        (_bookingCounts[normalizedDay] ?? 0) >= maxDailyBookings;
 
     if (isFullyBooked) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -83,14 +85,13 @@ class _ServiceProviderCalendarScreenState
         builder: (_) => CreateBookingScreen(
           serviceProvider: widget.provider,
           serviceCategory: widget.category,
-          initialDate: selectedDay,
+          initialDate: normalizedDay,
         ),
       ),
     );
 
     if (result != null) {
-      // Optionally reload data
-      fetchBookingCounts();
+      fetchBookingCounts(); // refresh after booking
     }
   }
 
@@ -106,6 +107,7 @@ class _ServiceProviderCalendarScreenState
 
   Widget _buildLegendItem(Color color, String label) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
         const SizedBox(width: 6),
@@ -116,7 +118,7 @@ class _ServiceProviderCalendarScreenState
 
   Widget _buildLegend() {
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Wrap(
         spacing: 16,
         runSpacing: 8,
@@ -147,38 +149,43 @@ class _ServiceProviderCalendarScreenState
               ),
             _buildLegend(),
             Expanded(
-              child: TableCalendar(
-                firstDay: DateTime.now(),
-                lastDay: DateTime.now().add(const Duration(days: 60)),
-                focusedDay: _focusedDay,
-                selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                onDaySelected: _onDaySelected,
-                calendarStyle: CalendarStyle(
-                  isTodayHighlighted: true,
-                  selectedDecoration: BoxDecoration(
-                    color: Colors.purple,
-                    shape: BoxShape.circle,
+              child: SingleChildScrollView(
+                child: TableCalendar(
+                  firstDay: DateTime.now(),
+                  lastDay: DateTime.now().add(const Duration(days: 60)),
+                  focusedDay: _focusedDay,
+                  selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                  onDaySelected: _onDaySelected,
+                  calendarStyle: CalendarStyle(
+                    isTodayHighlighted: true,
+                    selectedDecoration: BoxDecoration(
+                      color: Colors.purple,
+                      shape: BoxShape.circle,
+                    ),
+                    todayDecoration: BoxDecoration(
+                      color: Colors.blue[400],
+                      shape: BoxShape.circle,
+                    ),
+                    defaultDecoration: const BoxDecoration(shape: BoxShape.circle),
+                    weekendDecoration: const BoxDecoration(shape: BoxShape.circle),
+                    outsideDecoration: const BoxDecoration(shape: BoxShape.circle),
                   ),
-                  todayDecoration: BoxDecoration(
-                    color: Colors.blue[400],
-                    shape: BoxShape.circle,
+                  calendarBuilders: CalendarBuilders(
+                    defaultBuilder: (context, day, focusedDay) {
+                      return Container(
+                        margin: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: _getDayColor(day),
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          '${day.day}',
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      );
+                    },
                   ),
-                  defaultDecoration: const BoxDecoration(shape: BoxShape.circle),
-                  weekendDecoration: const BoxDecoration(shape: BoxShape.circle),
-                  outsideDecoration: const BoxDecoration(shape: BoxShape.circle),
-                ),
-                calendarBuilders: CalendarBuilders(
-                  defaultBuilder: (context, day, focusedDay) {
-                    return Container(
-                      margin: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: _getDayColor(day),
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: Text('${day.day}', style: const TextStyle(color: Colors.white)),
-                    );
-                  },
                 ),
               ),
             ),
