@@ -434,7 +434,6 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
       }
     }
   }
-  
 
   Widget _buildActiveBookingButton(String providerId) {
     return FutureBuilder<QuerySnapshot>(
