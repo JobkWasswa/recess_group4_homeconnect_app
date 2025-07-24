@@ -387,7 +387,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
         builder:
             (_) => ServiceProviderCalendarScreen(
               provider: provider,
-              //category: widget.category,
+              category: widget.category,
             ),
       ),
     );
