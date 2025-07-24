@@ -1062,8 +1062,8 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                             _buildBookingStatusCard(
                               context: context,
                               service:
-                                  booking.categories.isNotEmpty
-                                      ? booking.categories.first
+                                  booking.selectedCategory.isNotEmpty
+                                      ? booking.selectedCategory
                                       : 'No category',
                               provider: booking.serviceProviderName,
                               status: capitalize(booking.status.toString()),
@@ -1154,7 +1154,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
             children: [
               // Category Title (e.g., "Plumbing")
               Text(
-                service,
+                booking.selectedCategory,
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
