@@ -10,6 +10,7 @@ import 'package:homeconnect/presentation/service_provider/pages/service_provider
 import 'package:homeconnect/presentation/service_provider/pages/view_job_request.dart';
 import 'package:intl/intl.dart';
 import 'package:homeconnect/presentation/service_provider/pages/provider_maps_screen.dart';
+import 'package:homeconnect/presentation/service_provider/widgets/chat_screen.dart';
 
 class ServiceProviderDashboardScreen extends StatefulWidget {
   const ServiceProviderDashboardScreen({super.key});
@@ -1141,6 +1142,18 @@ class _ServiceProviderDashboardScreenState
             icon: const Icon(Icons.message),
             color: Colors.grey,
             onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (context) => const ChatScreen(
+                        otherUserId:
+                            'replace_with_user_id', // 👈 replace with actual user ID
+                        otherUserName:
+                            'replace_with_user_name', // 👈 replace with actual name
+                      ),
+                ),
+              );
               print('Messages bottom nav pressed!');
             },
           ),
