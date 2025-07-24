@@ -7,6 +7,7 @@ import 'package:homeconnect/data/models/booking.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:homeconnect/presentation/service_provider/pages/service_provider_calendar.dart';
 
+
 class ServiceProvidersList extends StatefulWidget {
   final String category;
   final GeoPoint userLocation;
@@ -386,7 +387,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
         builder:
             (_) => ServiceProviderCalendarScreen(
               provider: provider,
-              category: widget.category,
+              //category: widget.category,
             ),
       ),
     );
