@@ -12,13 +12,29 @@ class ServiceProviderSingleBookingDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheduledDate =
-        (bookingData['scheduledDate'] is Timestamp)
-            ? (bookingData['scheduledDate'] as Timestamp).toDate()
-            : bookingData['scheduledDate'] as DateTime?;
+    DateTime? scheduledDate;
+    final rawDate = bookingData['scheduledDate'];
+
+    if (rawDate is Timestamp) {
+      scheduledDate = rawDate.toDate();
+    } else if (rawDate is DateTime) {
+      scheduledDate = rawDate;
+    } else if (rawDate is String) {
+      try {
+        scheduledDate = DateTime.parse(rawDate);
+      } catch (_) {
+        scheduledDate = null;
+      }
+    }
 
     final service = bookingData['serviceCategory'] ?? 'Unknown Service';
-    final duration = bookingData['duration'] ?? 'Unknown Duration';
+    final rawDuration = bookingData['duration'];
+    final duration =
+        (rawDuration != null && rawDuration.toString().trim().isNotEmpty)
+            ? rawDuration.toString()
+            : 'Unknown Duration';
+
+    print('✅ Duration is: $duration');
     final notes = bookingData['notes'] ?? '';
     final clientName = bookingData['clientName'] ?? 'Unknown Client';
 
