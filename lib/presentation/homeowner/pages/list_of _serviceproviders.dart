@@ -379,7 +379,6 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
       );
       return;
     }
-    
 
     // NEW: Navigate to CreateBookingScreen to get scheduling details
     final bookingDetails = await Navigator.push<Map<String, dynamic>?>(
@@ -388,7 +387,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
         builder:
             (_) => ServiceProviderCalendarScreen(
               provider: provider,
-              //category: widget.category,
+              category: widget.category,
             ),
       ),
     );
@@ -435,6 +434,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
       }
     }
   }
+
 
   Widget _buildActiveBookingButton(String providerId) {
     return FutureBuilder<QuerySnapshot>(
