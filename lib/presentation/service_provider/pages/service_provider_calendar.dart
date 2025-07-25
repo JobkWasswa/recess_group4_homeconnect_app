@@ -26,6 +26,8 @@ class _ServiceProviderCalendarScreenState
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   bool _isLoading = true;
+  final int maxDailyBookings = 3;
+  Map<DateTime, int> _bookingCounts = {};
 
   @override
   void initState() {
@@ -47,30 +49,29 @@ class _ServiceProviderCalendarScreenState
 
       for (final doc in snapshot.docs) {
         final status = doc['status'] ?? 'pending';
-        // Skip cancelled or rejected bookings
         if (status == 'cancelled' || status == 'rejected_by_provider') continue;
 
-        final Timestamp startTimestamp = doc['scheduledDate'];
-        if (startTimestamp == null) continue; // safety check
+        final Timestamp? startTimestamp = doc['scheduledDate'];
+        if (startTimestamp == null) continue;
+
         final DateTime start = startTimestamp.toDate();
         final normalized = DateTime(start.year, start.month, start.day);
 
         dateBookingCount[normalized] = (dateBookingCount[normalized] ?? 0) + 1;
       }
 
-      // Classify dates by booking count
       dateBookingCount.forEach((date, count) {
-        if (count >= 3) {
-          confirmed.add(date); // Fully booked threshold = 3 (adjust if needed)
+        if (count >= maxDailyBookings) {
+          confirmed.add(date);
         } else if (count > 0) {
-          partial.add(date); // Partially booked
+          partial.add(date);
         }
-        // Dates not in this map have 0 bookings and are available by default
       });
 
       setState(() {
         bookedDates = confirmed;
         partiallyBookedDates = partial;
+        _bookingCounts = dateBookingCount;
         _isLoading = false;
       });
     } catch (e) {
@@ -90,7 +91,13 @@ class _ServiceProviderCalendarScreenState
   }
 
   void _onDaySelected(DateTime selectedDay, DateTime focusedDay) async {
-    if (_isBooked(selectedDay)) {
+    final normalizedDay = DateTime(
+      selectedDay.year,
+      selectedDay.month,
+      selectedDay.day,
+    );
+
+    if (_isBooked(normalizedDay)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('This date is fully booked')),
       );
@@ -98,22 +105,28 @@ class _ServiceProviderCalendarScreenState
     }
 
     setState(() {
-      _selectedDay = selectedDay;
+      _selectedDay = normalizedDay;
       _focusedDay = focusedDay;
     });
 
-    final bookingDetails = await Navigator.push<Map<String, dynamic>?>(
+    final isFullyBooked =
+        (_bookingCounts[normalizedDay] ?? 0) >= maxDailyBookings;
+
+    if (isFullyBooked) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This date is fully booked')),
+      );
+      return;
+    }
+
+    final bookingDetails = await Navigator.push(
       context,
       MaterialPageRoute(
         builder:
             (_) => CreateBookingScreen(
               serviceProvider: widget.provider,
               serviceCategory: widget.category,
-              initialDate: DateTime(
-                selectedDay.year,
-                selectedDay.month,
-                selectedDay.day,
-              ),
+              initialDate: normalizedDay,
             ),
       ),
     );
@@ -137,6 +150,28 @@ class _ServiceProviderCalendarScreenState
     );
   }
 
+  Widget _buildLegend() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildLegendItem(Colors.green[300]!, 'Available'),
+            const SizedBox(width: 16),
+            _buildLegendItem(Colors.orange[300]!, 'Partially Booked'),
+            const SizedBox(width: 16),
+            _buildLegendItem(Colors.red[300]!, 'Booked'),
+            const SizedBox(width: 16),
+            _buildLegendItem(Colors.blue[300]!, 'Today'),
+            const SizedBox(width: 16),
+            _buildLegendItem(Colors.purple, 'Selected'),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -149,6 +184,7 @@ class _ServiceProviderCalendarScreenState
                 padding: EdgeInsets.all(16.0),
                 child: LinearProgressIndicator(),
               ),
+            _buildLegend(),
             Expanded(
               child: TableCalendar(
                 firstDay: DateTime.now(),
@@ -158,7 +194,7 @@ class _ServiceProviderCalendarScreenState
                 onDaySelected: _onDaySelected,
                 calendarStyle: CalendarStyle(
                   isTodayHighlighted: true,
-                  selectedDecoration: BoxDecoration(
+                  selectedDecoration: const BoxDecoration(
                     color: Colors.purple,
                     shape: BoxShape.circle,
                   ),
@@ -170,12 +206,12 @@ class _ServiceProviderCalendarScreenState
                 calendarBuilders: CalendarBuilders(
                   defaultBuilder: (context, day, focusedDay) {
                     final normalized = DateTime(day.year, day.month, day.day);
-                    Color bgColor = Colors.green[300]!; // Available
+                    Color bgColor = Colors.green[300]!;
 
                     if (bookedDates.contains(normalized)) {
-                      bgColor = Colors.red[300]!; // Fully booked
+                      bgColor = Colors.red[300]!;
                     } else if (partiallyBookedDates.contains(normalized)) {
-                      bgColor = Colors.orange[300]!; // Partially booked
+                      bgColor = Colors.orange[300]!;
                     }
 
                     return Container(
@@ -191,28 +227,6 @@ class _ServiceProviderCalendarScreenState
                       ),
                     );
                   },
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16.0,
-                vertical: 8.0,
-              ),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildLegendItem(Colors.green[300]!, 'Available'),
-                    const SizedBox(width: 16),
-                    _buildLegendItem(Colors.orange[300]!, 'Partially Booked'),
-                    const SizedBox(width: 16),
-                    _buildLegendItem(Colors.red[300]!, 'Booked'),
-                    const SizedBox(width: 16),
-                    _buildLegendItem(Colors.blue[300]!, 'Today'),
-                    const SizedBox(width: 16),
-                    _buildLegendItem(Colors.purple, 'Selected'),
-                  ],
                 ),
               ),
             ),

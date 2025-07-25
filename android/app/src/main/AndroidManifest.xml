@@ -42,10 +42,10 @@
             android:name="flutterEmbedding"
             android:value="2" />
 
-        <!-- Google Maps API key (if used) -->
+        <!-- ✅ Correct Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="HOME_CONNECT4"/>
+            android:value="AIzaSyDU25Obz0eNJ__7yemiTNQWhJr2--za9AA"/>
     </application>
 
     <!-- Allow Flutter plugins to query other apps -->
