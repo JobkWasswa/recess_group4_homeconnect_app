@@ -4,9 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/data/models/users.dart'; // CHANGE: Import UserProfile model
 import 'package:geolocator/geolocator.dart';
 import 'package:homeconnect/presentation/homeowner/pages/list_of _serviceproviders.dart';
-//import 'package:geolocator/geolocator.dart';
 import 'package:homeconnect/data/models/booking.dart';
 import 'package:homeconnect/presentation/homeowner/pages/view_all_bookings.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 
 // Helper – convert something like “john_doe99@example.com” → “John Doe99”
 String nameFromEmail(String email) {
@@ -29,15 +29,19 @@ class HomeownerDashboardScreen extends StatefulWidget {
 
 class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
   final TextEditingController _searchController = TextEditingController();
-  List<Booking> _pendingBookings = [];
-  List<Booking> _confirmedBookings = [];
+  // Add to _HomeownerDashboardScreenState
+  Stream<QuerySnapshot> _getCompletableJobs() {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return const Stream.empty();
 
-  @override
-  void initState() {
-    super.initState();
-    _fetchBookings();
+    return FirebaseFirestore.instance
+        .collection('bookings')
+        .where('clientId', isEqualTo: userId)
+        .where('status', isEqualTo: 'completed_by_provider')
+        .snapshots();
   }
 
+  // ★ ADDED: Request permission and fetch GPS coordinates
   Future<Position?> _determinePosition() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return null;
@@ -107,65 +111,195 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
     super.dispose();
   }
 
-  void showRatingPopup(String serviceProviderId, String providerName) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        double currentRating = 0.0;
-        return AlertDialog(
-          title: Text('Rate $providerName'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('How would you rate the service provided by $providerName?'),
-              const SizedBox(height: 20),
-              StatefulBuilder(
-                builder: (context, setState) {
-                  return Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(5, (index) {
-                      return IconButton(
-                        icon: Icon(
-                          index < currentRating
-                              ? Icons.star
-                              : Icons.star_border,
-                          color: Colors.amber,
-                          size: 30,
+  // Add thi
+  Widget _buildVerificationCard(BuildContext context, Booking booking) {
+    return Card(
+      elevation: 8,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              booking.categories.isNotEmpty ? booking.categories[0] : 'Service',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.person, size: 18, color: Colors.grey),
+                const SizedBox(width: 8),
+                Text(
+                  booking.serviceProviderName,
+                  style: TextStyle(color: Colors.grey[700]),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
+                const SizedBox(width: 8),
+                Text(
+                  _formatDate(booking.bookingDate),
+                  style: TextStyle(color: Colors.grey[700]),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () async {
+                  double selectedRating = 3.0;
+                  final TextEditingController feedbackController =
+                      TextEditingController();
+
+                  // Prevent duplicate rating
+                  final ratingDoc =
+                      await FirebaseFirestore.instance
+                          .collection('ratings')
+                          .where('bookingId', isEqualTo: booking.bookingId)
+                          .limit(1)
+                          .get();
+
+                  if (ratingDoc.docs.isNotEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('You already rated this job.'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                    return;
+                  }
+
+                  showDialog(
+                    context: context,
+                    builder: (context) {
+                      return AlertDialog(
+                        title: const Text('Rate Service Provider'),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            RatingBar.builder(
+                              initialRating: 3,
+                              minRating: 1,
+                              direction: Axis.horizontal,
+                              allowHalfRating: false,
+                              itemCount: 5,
+                              itemBuilder:
+                                  (context, _) => const Icon(
+                                    Icons.star,
+                                    color: Colors.amber,
+                                  ),
+                              onRatingUpdate: (rating) {
+                                selectedRating = rating;
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: feedbackController,
+                              maxLines: 3,
+                              decoration: const InputDecoration(
+                                hintText: 'Leave a comment (optional)',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                          ],
                         ),
-                        onPressed: () {
-                          setState(() {
-                            currentRating = (index + 1).toDouble();
-                          });
-                        },
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Cancel'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () async {
+                              Navigator.pop(context);
+
+                              try {
+                                // Update booking status
+                                await FirebaseFirestore.instance
+                                    .collection('bookings')
+                                    .doc(booking.bookingId)
+                                    .update({
+                                      'status': 'completed',
+                                      'completedAt':
+                                          FieldValue.serverTimestamp(),
+                                    });
+
+                                // Add rating to 'ratings' collection
+                                await FirebaseFirestore.instance
+                                    .collection('ratings')
+                                    .add({
+                                      'bookingId': booking.bookingId,
+                                      'providerId': booking.serviceProviderId,
+                                      'clientId': booking.clientId,
+                                      'rating': selectedRating,
+                                      'review': feedbackController.text.trim(),
+                                      'createdAt': FieldValue.serverTimestamp(),
+                                    });
+
+                                // Update average rating of provider
+                                final providerRef = FirebaseFirestore.instance
+                                    .collection('service_providers')
+                                    .doc(booking.serviceProviderId);
+
+                                final providerDoc = await providerRef.get();
+                                final currentRating =
+                                    providerDoc.data()?['averageRating'] ?? 0.0;
+                                final reviewCount =
+                                    providerDoc.data()?['numberOfReviews'] ?? 0;
+
+                                final newTotalRating =
+                                    (currentRating * reviewCount) +
+                                    selectedRating;
+                                final newReviewCount = reviewCount + 1;
+                                final newAvgRating =
+                                    newTotalRating / newReviewCount;
+
+                                await providerRef.update({
+                                  'averageRating': newAvgRating,
+                                  'numberOfReviews': newReviewCount,
+                                  'completedJobs': FieldValue.increment(1),
+                                });
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Rating submitted and job verified!',
+                                    ),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Error: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            },
+                            child: const Text('Submit Rating'),
+                          ),
+                        ],
                       );
-                    }),
+                    },
                   );
                 },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[600],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: const Text('Verify Job Completion'),
               ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (currentRating > 0) {
-                  debugPrint('User rated $providerName $currentRating stars.');
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Thank you for rating $providerName!'),
-                    ),
-                  );
-                }
-                Navigator.of(context).pop();
-              },
-              child: const Text('Submit Rating'),
             ),
           ],
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -813,7 +947,16 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
     );
   }
 
+  // Replace _buildBookingStatusSection with this
   Widget _buildBookingStatusSection(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return const Padding(
+        padding: EdgeInsets.all(16.0),
+        child: Text('Please log in to view your bookings.'),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
       child: Column(
@@ -824,14 +967,58 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
+
+          // Verification Requests Section
           StreamBuilder<QuerySnapshot>(
-            stream:
-                FirebaseFirestore.instance
-                    .collection('bookings')
-                    .where('clientId', isEqualTo: currentUserId)
-                    //.orderBy('createdAt', descending: true)
-                    .limit(3)
-                    .snapshots(),
+            stream: _getCompletableJobs(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final docs = snapshot.data?.docs ?? [];
+              if (docs.isNotEmpty) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Pending Verification',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Column(
+                      children:
+                          docs.map((doc) {
+                            return _buildVerificationCard(
+                              context,
+                              Booking.fromFirestore(doc),
+                            );
+                          }).toList(),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                );
+              }
+              return const SizedBox();
+            },
+          ),
+
+          // Regular Bookings Section
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('bookings')
+                .where('clientId', isEqualTo: user.uid)
+                .where('status', whereIn: ['pending', 'confirmed'])
+                .orderBy('createdAt', descending: true)
+                .limit(3)
+                .snapshots()
+                .handleError((error) {
+                  print('🔥 Firestore error: $error');
+                }),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -839,12 +1026,6 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
 
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                 return const Text('You have no bookings yet.');
-              }
-
-              // ✅ ADD THIS DEBUG PRINT HERE
-              final docs = snapshot.data!.docs;
-              for (var doc in docs) {
-                print('🔥 Booking doc: ${doc.data()}');
               }
 
               final bookings =
@@ -856,7 +1037,6 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                 children:
                     bookings.map((booking) {
                       final statusColor = _getStatusColor(booking.status);
-
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 10),
                         child: Column(
@@ -890,11 +1070,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                                                             .isNotEmpty
                                                         ? booking.categories[0]
                                                         : '',
-
-                                                userLocation: const GeoPoint(
-                                                  0,
-                                                  0,
-                                                ), // Replace with actual location
+                                                userLocation: booking.location,
                                               ),
                                         ),
                                       );
@@ -916,6 +1092,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
               );
             },
           ),
+
           const SizedBox(height: 10),
           Center(
             child: TextButton(

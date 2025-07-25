@@ -22,16 +22,20 @@ class AllBookingsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('All My Bookings')),
       body: StreamBuilder<QuerySnapshot>(
-        stream:
-            FirebaseFirestore.instance
-                .collection('bookings')
-                .where('clientId', isEqualTo: currentUserId)
-                //.orderBy('createdAt', descending: true)
-                .snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('bookings')
+            .where('clientId', isEqualTo: currentUserId)
+            .orderBy('createdAt', descending: true)
+            .snapshots()
+            .handleError((error) {
+              // 👇 This will help you detect missing index errors in debug console
+              print('🔥 Firestore error (AllBookingsScreen): $error');
+            }),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
+
           print("Current user ID: $currentUserId");
 
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {

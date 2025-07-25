@@ -40,13 +40,21 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen> {
               });
             });
           }
+
+          // Fetch averageRating and numberOfReviews directly
+          setState(() {
+            _averageRating = doc.data()?['averageRating']?.toDouble() ?? 0.0;
+            _totalReviews = doc.data()?['numberOfReviews'] ?? 0;
+          });
+
+          debugPrint('Average Rating: $_averageRating');
+          debugPrint('Total Reviews: $_totalReviews');
+
           return doc;
         });
-
-    _loadRatings(user.uid);
   }
 
-  Future<void> _loadRatings(String serviceProviderId) async {
+  Future<void> loadRatings(String serviceProviderId) async {
     final querySnapshot =
         await FirebaseFirestore.instance
             .collection('ratings_reviews')
@@ -79,7 +87,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen> {
         return 'Unknown location';
       }
     } catch (e) {
-      print("Reverse geocoding error: $e");
+      debugPrint("Reverse geocoding error: $e");
       return 'Address not available';
     }
   }
