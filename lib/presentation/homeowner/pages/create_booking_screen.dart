@@ -8,7 +8,7 @@ class CreateBookingScreen extends StatefulWidget {
   final ServiceProviderModel serviceProvider;
   final String serviceCategory;
   final DateTime initialDate;
-  final bool isReschedule; // Optional: For rescheduling flows
+  final bool isReschedule;
 
   const CreateBookingScreen({
     super.key,
@@ -23,11 +23,9 @@ class CreateBookingScreen extends StatefulWidget {
 }
 
 class _CreateBookingScreenState extends State<CreateBookingScreen> {
-  late DateTime _selectedDate;
+  DateTime? _selectedDate;
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
-  bool _isFullDay = false;
-  bool _isLoading = false;
   final TextEditingController _notesController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
@@ -43,11 +41,17 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
     super.dispose();
   }
 
-  // Combined date/time pickers from both screens
+  bool _isEndTimeBeforeStart() {
+    if (_startTime == null || _endTime == null) return false;
+    final start = DateTime(0, 0, 0, _startTime!.hour, _startTime!.minute);
+    final end = DateTime(0, 0, 0, _endTime!.hour, _endTime!.minute);
+    return end.isBefore(start);
+  }
+
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate,
+      initialDate: _selectedDate ?? DateTime.now(),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
@@ -59,7 +63,10 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
   Future<void> _selectTime(BuildContext context, bool isStartTime) async {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
-      initialTime: (isStartTime ? _startTime : _endTime) ?? TimeOfDay.now(),
+      initialTime:
+          isStartTime
+              ? (_startTime ?? TimeOfDay.now())
+              : (_endTime ?? TimeOfDay.now()),
     );
     if (picked != null) {
       setState(() {
@@ -67,10 +74,11 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
           _startTime = picked;
         } else {
           _endTime = picked;
-          // Auto-validate time range
           if (_startTime != null && _isEndTimeBeforeStart()) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('End time must be after start time')),
+              const SnackBar(
+                content: Text('End time must be after start time'),
+              ),
             );
           }
         }
@@ -78,74 +86,46 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
     }
   }
 
-  bool _isEndTimeBeforeStart() {
-    return _endTime!.hour < _startTime!.hour || 
-          (_endTime!.hour == _startTime!.hour && _endTime!.minute <= _startTime!.minute);
-  }
-
-  Future<void> _submitBooking() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    // Time validation for partial-day bookings
-    if (!_isFullDay && (_startTime == null || _endTime == null)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select both start and end times')),
-      );
-      return;
-    }
-
-    if (!_isFullDay && _isEndTimeBeforeStart()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('End time must be after start time')),
-      );
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw Exception('User not authenticated');
-
-      final bookingData = {
-        'userId': user.uid,
-        'serviceProviderId': widget.serviceProvider.id,
-        'serviceCategory': widget.serviceCategory,
-        'date': Timestamp.fromDate(_selectedDate),
-        'isFullDay': _isFullDay,
-        'notes': _notesController.text.trim(),
-        'status': 'confirmed',
-        'createdAt': Timestamp.now(),
-        if (!_isFullDay) ...{
-          'startTime': _startTime!.format(context),
-          'endTime': _endTime!.format(context),
-          'startTimeMinutes': _startTime!.hour * 60 + _startTime!.minute,
-          'endTimeMinutes': _endTime!.hour * 60 + _endTime!.minute,
-        },
-        'providerName': widget.serviceProvider.name,
-        'providerPhoto': widget.serviceProvider.profilePhoto,
-      };
-
-      await FirebaseFirestore.instance.collection('bookings').add(bookingData);
-
-      if (mounted) {
-        Navigator.pop(context, true); // Return success
+  void _confirmBooking() {
+    if (_formKey.currentState!.validate()) {
+      if (_selectedDate == null || _startTime == null || _endTime == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(widget.isReschedule 
-              ? 'Booking rescheduled successfully' 
-              : 'Booking created successfully')),
+          const SnackBar(
+            content: Text('Please select date, start time, and end time'),
+          ),
         );
+        return;
       }
-    } on FirebaseException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Firebase error: ${e.message}')),
+
+      final scheduledDate = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
       );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
+
+      final startDateTime = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        _startTime!.hour,
+        _startTime!.minute,
       );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+
+      final endDateTime = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        _endTime!.hour,
+        _endTime!.minute,
+      );
+
+      Navigator.pop(context, {
+        'scheduledDate': scheduledDate,
+        'scheduledTime': _startTime!.format(context),
+        'startDateTime': startDateTime,
+        'endDateTime': endDateTime,
+        'notes': _notesController.text,
+      });
     }
   }
 
@@ -164,181 +144,187 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Service Provider Header (from first screen)
-              _buildProviderHeader(),
+              Text(
+                'Booking for: ${widget.serviceCategory}',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 25,
+                    backgroundColor: Colors.grey[200],
+                    child:
+                        widget.serviceProvider.profilePhoto != null
+                            ? ClipOval(
+                              child: Image.network(
+                                widget.serviceProvider.profilePhoto!,
+                                width: 50,
+                                height: 50,
+                                fit: BoxFit.cover,
+                                errorBuilder:
+                                    (_, __, ___) =>
+                                        const Icon(Icons.person, size: 25),
+                              ),
+                            )
+                            : const Icon(Icons.person, size: 25),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Provider: ${widget.serviceProvider.name}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
               const Divider(height: 30),
-              
-              // Date Picker
-              _buildDatePicker(),
+              const Text(
+                'Schedule Details',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.purple,
+                ),
+              ),
+              const SizedBox(height: 15),
+              GestureDetector(
+                onTap: () => _selectDate(context),
+                child: AbsorbPointer(
+                  child: TextFormField(
+                    controller: TextEditingController(
+                      text:
+                          _selectedDate == null
+                              ? ''
+                              : DateFormat('dd-MM-yyyy').format(_selectedDate!),
+                    ),
+                    decoration: InputDecoration(
+                      labelText: 'Date *',
+                      hintText: 'Select date',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      suffixIcon: const Icon(
+                        Icons.calendar_today,
+                        color: Colors.purple,
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                    ),
+                    validator:
+                        (_) =>
+                            _selectedDate == null
+                                ? 'Please select a date'
+                                : null,
+                  ),
+                ),
+              ),
               const SizedBox(height: 20),
-              
-              // Full Day Toggle (from second screen)
-              _buildFullDayToggle(),
+              GestureDetector(
+                onTap: () => _selectTime(context, true),
+                child: AbsorbPointer(
+                  child: TextFormField(
+                    controller: TextEditingController(
+                      text:
+                          _startTime == null ? '' : _startTime!.format(context),
+                    ),
+                    decoration: InputDecoration(
+                      labelText: 'Start Time *',
+                      hintText: 'Select start time',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      suffixIcon: const Icon(
+                        Icons.access_time,
+                        color: Colors.purple,
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                    ),
+                    validator:
+                        (_) =>
+                            _startTime == null
+                                ? 'Please select a start time'
+                                : null,
+                  ),
+                ),
+              ),
               const SizedBox(height: 20),
-              
-              // Time Pickers (conditionally shown)
-              if (!_isFullDay) ...[
-                _buildTimePicker(label: 'Start Time', time: _startTime, isStart: true),
-                const SizedBox(height: 15),
-                _buildTimePicker(label: 'End Time', time: _endTime, isStart: false),
-                const SizedBox(height: 20),
-              ],
-              
-              // Notes Field (from first screen)
-              _buildNotesField(),
+              GestureDetector(
+                onTap: () => _selectTime(context, false),
+                child: AbsorbPointer(
+                  child: TextFormField(
+                    controller: TextEditingController(
+                      text: _endTime == null ? '' : _endTime!.format(context),
+                    ),
+                    decoration: InputDecoration(
+                      labelText: 'End Time *',
+                      hintText: 'Select end time',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      suffixIcon: const Icon(
+                        Icons.access_time,
+                        color: Colors.purple,
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                    ),
+                    validator:
+                        (_) =>
+                            _endTime == null
+                                ? 'Please select an end time'
+                                : null,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Additional Details (optional):',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _notesController,
+                decoration: InputDecoration(
+                  hintText: 'e.g., specific instructions, preferred time',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                ),
+                maxLines: 4,
+              ),
               const SizedBox(height: 30),
-              
-              // Submit Button
-              _buildSubmitButton(),
+              Center(
+                child: ElevatedButton(
+                  onPressed: _confirmBooking,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.purple,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 50,
+                      vertical: 15,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    elevation: 5,
+                  ),
+                  child: const Text(
+                    'Confirm Booking',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  // Reusable Widget Components
-  Widget _buildProviderHeader() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Service: ${widget.serviceCategory}',
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            CircleAvatar(
-              radius: 25,
-              backgroundImage: widget.serviceProvider.profilePhoto != null
-                  ? NetworkImage(widget.serviceProvider.profilePhoto!)
-                  : null,
-              child: widget.serviceProvider.profilePhoto == null
-                  ? const Icon(Icons.person, size: 25)
-                  : null,
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'Provider: ${widget.serviceProvider.name}',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDatePicker() {
-    return GestureDetector(
-      onTap: () => _selectDate(context),
-      child: AbsorbPointer(
-        child: TextFormField(
-          controller: TextEditingController(
-            text: DateFormat('dd-MM-yyyy').format(_selectedDate),
-          ),
-          decoration: InputDecoration(
-            labelText: 'Date *',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-            suffixIcon: const Icon(Icons.calendar_today, color: Colors.purple),
-            filled: true,
-            fillColor: Colors.grey[50],
-          ),
-          validator: (value) => _selectedDate.isBefore(DateTime.now())
-              ? 'Cannot select past dates'
-              : null,
-          readOnly: true,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFullDayToggle() {
-    return Row(
-      children: [
-        Checkbox(
-          value: _isFullDay,
-          onChanged: (val) => setState(() {
-            _isFullDay = val!;
-            if (_isFullDay) {
-              _startTime = null;
-              _endTime = null;
-            }
-          }),
-        ),
-        const Text('Full Day Booking', style: TextStyle(fontSize: 16)),
-      ],
-    );
-  }
-
-  Widget _buildTimePicker({required String label, required TimeOfDay? time, required bool isStart}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('$label *', style: const TextStyle(fontSize: 16)),
-        const SizedBox(height: 8),
-        GestureDetector(
-          onTap: () => _selectTime(context, isStart),
-          child: AbsorbPointer(
-            child: TextFormField(
-              controller: TextEditingController(
-                text: time?.format(context) ?? '--:--',
-              ),
-              decoration: InputDecoration(
-                hintText: 'Select $label',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                suffixIcon: const Icon(Icons.access_time, color: Colors.purple),
-                filled: true,
-                fillColor: Colors.grey[50],
-              ),
-              validator: (value) => !_isFullDay && time == null
-                  ? 'Please select $label'
-                  : null,
-              readOnly: true,
-            ),
-          ),
-        ),
-
-      ],
-    );
-  }
-
-  Widget _buildNotesField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Additional Notes (optional):',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _notesController,
-          maxLines: 4,
-          decoration: InputDecoration(
-            hintText: 'Special instructions...',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSubmitButton() {
-    return Center(
-      child: ElevatedButton(
-        onPressed: _isLoading ? null : _submitBooking,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.purple,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10)),
-        ),
-        child: _isLoading
-            ? const CircularProgressIndicator(color: Colors.white)
-            : Text(
-                widget.isReschedule ? 'Reschedule Booking' : 'Confirm Booking',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
       ),
     );
   }

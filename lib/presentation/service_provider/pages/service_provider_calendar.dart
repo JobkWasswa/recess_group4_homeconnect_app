@@ -21,40 +21,57 @@ class ServiceProviderCalendarScreen extends StatefulWidget {
 
 class _ServiceProviderCalendarScreenState
     extends State<ServiceProviderCalendarScreen> {
+  Set<DateTime> bookedDates = {};
+  Set<DateTime> partiallyBookedDates = {};
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   bool _isLoading = true;
-
-  final Map<DateTime, int> _bookingCounts = {};
-  final int maxDailyBookings = 4;
+  final int maxDailyBookings = 3;
+  Map<DateTime, int> _bookingCounts = {};
 
   @override
   void initState() {
     super.initState();
-    fetchBookingCounts();
+    fetchBookingDates();
   }
 
-  Future<void> fetchBookingCounts() async {
+  Future<void> fetchBookingDates() async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-        .collection('bookings')
-        .where('serviceProviderId', isEqualTo: widget.provider.id)
-        .where('status', isEqualTo: 'accepted') // ✅ Only count accepted ones
-        .get();
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('bookings')
+              .where('serviceProviderId', isEqualTo: widget.provider.id)
+              .get();
 
+      final Map<DateTime, int> dateBookingCount = {};
+      final Set<DateTime> confirmed = {};
+      final Set<DateTime> partial = {};
 
-      final counts = <DateTime, int>{};
+      for (final doc in snapshot.docs) {
+        final status = doc['status'] ?? 'pending';
+        if (status == 'cancelled' || status == 'rejected_by_provider') continue;
 
-      for (var doc in snapshot.docs) {
-        if (!doc.data().containsKey('scheduledDate')) continue;
-        final date = (doc['scheduledDate'] as Timestamp).toDate();
-        final normalized = DateTime(date.year, date.month, date.day);
-        counts[normalized] = (counts[normalized] ?? 0) + 1;
+        final Timestamp? startTimestamp = doc['scheduledDate'];
+        if (startTimestamp == null) continue;
+
+        final DateTime start = startTimestamp.toDate();
+        final normalized = DateTime(start.year, start.month, start.day);
+
+        dateBookingCount[normalized] = (dateBookingCount[normalized] ?? 0) + 1;
       }
 
+      dateBookingCount.forEach((date, count) {
+        if (count >= maxDailyBookings) {
+          confirmed.add(date);
+        } else if (count > 0) {
+          partial.add(date);
+        }
+      });
+
       setState(() {
-        _bookingCounts.clear();
-        _bookingCounts.addAll(counts);
+        bookedDates = confirmed;
+        partiallyBookedDates = partial;
+        _bookingCounts = dateBookingCount;
         _isLoading = false;
       });
     } catch (e) {
@@ -63,14 +80,35 @@ class _ServiceProviderCalendarScreenState
     }
   }
 
+  bool _isBooked(DateTime day) {
+    final normalized = DateTime(day.year, day.month, day.day);
+    return bookedDates.contains(normalized);
+  }
+
+  bool _isPartiallyBooked(DateTime day) {
+    final normalized = DateTime(day.year, day.month, day.day);
+    return partiallyBookedDates.contains(normalized);
+  }
+
   void _onDaySelected(DateTime selectedDay, DateTime focusedDay) async {
+    final normalizedDay = DateTime(
+      selectedDay.year,
+      selectedDay.month,
+      selectedDay.day,
+    );
+
+    if (_isBooked(normalizedDay)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This date is fully booked')),
+      );
+      return;
+    }
+
     setState(() {
-      _selectedDay = selectedDay;
+      _selectedDay = normalizedDay;
       _focusedDay = focusedDay;
     });
 
-    final normalizedDay =
-        DateTime(selectedDay.year, selectedDay.month, selectedDay.day);
     final isFullyBooked =
         (_bookingCounts[normalizedDay] ?? 0) >= maxDailyBookings;
 
@@ -81,38 +119,32 @@ class _ServiceProviderCalendarScreenState
       return;
     }
 
-    final result = await Navigator.push(
+    final bookingDetails = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => CreateBookingScreen(
-          serviceProvider: widget.provider,
-          serviceCategory: widget.category,
-          initialDate: normalizedDay,
-        ),
+        builder:
+            (_) => CreateBookingScreen(
+              serviceProvider: widget.provider,
+              serviceCategory: widget.category,
+              initialDate: normalizedDay,
+            ),
       ),
     );
 
-    if (result != null) {
-      fetchBookingCounts(); // refresh after booking
+    if (bookingDetails != null) {
+      Navigator.pop(context, bookingDetails);
     }
-  }
-
-  Color _getDayColor(DateTime day) {
-    final count = _bookingCounts[DateTime(day.year, day.month, day.day)] ?? 0;
-    final isSunday = day.weekday == DateTime.sunday;
-
-    if (isSunday) return Colors.blue[200]!; // 🟦 Non-working
-    if (count >= maxDailyBookings) return Colors.red[300]!; // 🔴 Fully booked
-    if (count > 0) return Colors.orange[300]!; // 🟧 Partially booked
-    return Colors.green[300]!; // 🟩 Available
   }
 
   Widget _buildLegendItem(Color color, String label) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
-        Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-        const SizedBox(width: 6),
+        Container(
+          width: 12,
+          height: 12,
+          margin: const EdgeInsets.only(right: 6),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
         Text(label, style: const TextStyle(fontSize: 12)),
       ],
     );
@@ -120,19 +152,22 @@ class _ServiceProviderCalendarScreenState
 
   Widget _buildLegend() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Wrap(
-        spacing: 16,
-        runSpacing: 8,
-        alignment: WrapAlignment.center,
-        children: [
-          _buildLegendItem(Colors.green[300]!, 'Available'),
-          _buildLegendItem(Colors.orange[300]!, 'Partially Booked'),
-          _buildLegendItem(Colors.red[300]!, 'Fully Booked'),
-          _buildLegendItem(Colors.blue[200]!, 'Non-working Day'),
-          _buildLegendItem(Colors.purple, 'Selected'),
-          _buildLegendItem(Colors.blue[400]!, 'Today'),
-        ],
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildLegendItem(Colors.green[300]!, 'Available'),
+            const SizedBox(width: 16),
+            _buildLegendItem(Colors.orange[300]!, 'Partially Booked'),
+            const SizedBox(width: 16),
+            _buildLegendItem(Colors.red[300]!, 'Booked'),
+            const SizedBox(width: 16),
+            _buildLegendItem(Colors.blue[300]!, 'Today'),
+            const SizedBox(width: 16),
+            _buildLegendItem(Colors.purple, 'Selected'),
+          ],
+        ),
       ),
     );
   }
@@ -151,43 +186,47 @@ class _ServiceProviderCalendarScreenState
               ),
             _buildLegend(),
             Expanded(
-              child: SingleChildScrollView(
-                child: TableCalendar(
-                  firstDay: DateTime.now(),
-                  lastDay: DateTime.now().add(const Duration(days: 60)),
-                  focusedDay: _focusedDay,
-                  selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                  onDaySelected: _onDaySelected,
-                  calendarStyle: CalendarStyle(
-                    isTodayHighlighted: true,
-                    selectedDecoration: BoxDecoration(
-                      color: Colors.purple,
-                      shape: BoxShape.circle,
-                    ),
-                    todayDecoration: BoxDecoration(
-                      color: Colors.blue[400],
-                      shape: BoxShape.circle,
-                    ),
-                    defaultDecoration: const BoxDecoration(shape: BoxShape.circle),
-                    weekendDecoration: const BoxDecoration(shape: BoxShape.circle),
-                    outsideDecoration: const BoxDecoration(shape: BoxShape.circle),
+              child: TableCalendar(
+                firstDay: DateTime.now(),
+                lastDay: DateTime.now().add(const Duration(days: 60)),
+                focusedDay: _focusedDay,
+                selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                onDaySelected: _onDaySelected,
+                calendarStyle: CalendarStyle(
+                  isTodayHighlighted: true,
+                  selectedDecoration: const BoxDecoration(
+                    color: Colors.purple,
+                    shape: BoxShape.circle,
                   ),
-                  calendarBuilders: CalendarBuilders(
-                    defaultBuilder: (context, day, focusedDay) {
-                      return Container(
-                        margin: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: _getDayColor(day),
-                          shape: BoxShape.circle,
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          '${day.day}',
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                      );
-                    },
+                  todayDecoration: BoxDecoration(
+                    color: Colors.blue[300],
+                    shape: BoxShape.circle,
                   ),
+                ),
+                calendarBuilders: CalendarBuilders(
+                  defaultBuilder: (context, day, focusedDay) {
+                    final normalized = DateTime(day.year, day.month, day.day);
+                    Color bgColor = Colors.green[300]!;
+
+                    if (bookedDates.contains(normalized)) {
+                      bgColor = Colors.red[300]!;
+                    } else if (partiallyBookedDates.contains(normalized)) {
+                      bgColor = Colors.orange[300]!;
+                    }
+
+                    return Container(
+                      margin: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: bgColor,
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        '${day.day}',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    );
+                  },
                 ),
               ),
             ),

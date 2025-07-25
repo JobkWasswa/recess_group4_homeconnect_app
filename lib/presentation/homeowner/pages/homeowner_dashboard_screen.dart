@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/data/models/users.dart'; // CHANGE: Import UserProfile model
 import 'package:geolocator/geolocator.dart';
 import 'package:homeconnect/presentation/homeowner/pages/list_of _serviceproviders.dart';
-
+import 'package:homeconnect/presentation/service_provider/widgets/chat_screen.dart';
 import 'package:homeconnect/data/models/booking.dart';
 import 'package:homeconnect/presentation/homeowner/pages/view_all_bookings.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
@@ -1241,6 +1241,18 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
             icon: const Icon(Icons.message),
             color: Colors.grey,
             onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (context) => const ChatScreen(
+                        otherUserId:
+                            'replace_with_user_id', // 👈 replace with actual user ID
+                        otherUserName:
+                            'replace_with_user_name', // 👈 replace with actual name
+                      ),
+                ),
+              );
               print('Messages bottom nav pressed!');
             },
           ),

@@ -10,8 +10,8 @@ class Booking {
   final String selectedCategory;
   final DateTime bookingDate; // Original booking creation date
   final DateTime? scheduledDate; // Scheduled date for the service
+  final DateTime? endDateTime; // Add this line
   final String? scheduledTime; // Scheduled time for the service
-  final String? duration; // Duration of the service
   final String status; // Updated with new status flow
   final String? notes;
   final dynamic createdAt;
@@ -30,7 +30,7 @@ class Booking {
     required this.bookingDate,
     this.scheduledDate,
     this.scheduledTime,
-    this.duration,
+    this.endDateTime, // Add this in the constructor list
     required this.status,
     this.notes,
     required this.createdAt,
@@ -72,8 +72,11 @@ class Booking {
           (data['scheduledDate'] is Timestamp)
               ? (data['scheduledDate'] as Timestamp).toDate()
               : null,
+      endDateTime:
+          (data['endDateTime'] is Timestamp)
+              ? (data['endDateTime'] as Timestamp).toDate()
+              : null,
       scheduledTime: data['scheduledTime'],
-      duration: data['duration'],
       status: data['status'] ?? Booking.pending,
       notes: data['notes'],
       createdAt:
@@ -106,8 +109,9 @@ class Booking {
       'bookingDate': Timestamp.fromDate(bookingDate),
       'scheduledDate':
           scheduledDate != null ? Timestamp.fromDate(scheduledDate!) : null,
+      'endDateTime':
+          endDateTime != null ? Timestamp.fromDate(endDateTime!) : null,
       'scheduledTime': scheduledTime,
-      'duration': duration,
       'status': status,
       'notes': notes,
       'createdAt': FieldValue.serverTimestamp(),
@@ -128,8 +132,8 @@ class Booking {
     String? selectedCategory,
     DateTime? bookingDate,
     DateTime? scheduledDate,
+    DateTime? endDateTime,
     String? scheduledTime,
-    String? duration,
     String? status,
     String? notes,
     DateTime? createdAt,
@@ -147,8 +151,8 @@ class Booking {
       selectedCategory: selectedCategory ?? this.selectedCategory,
       bookingDate: bookingDate ?? this.bookingDate,
       scheduledDate: scheduledDate ?? this.scheduledDate,
+      endDateTime: endDateTime ?? this.endDateTime, // <--- set it
       scheduledTime: scheduledTime ?? this.scheduledTime,
-      duration: duration ?? this.duration,
       status: status ?? this.status,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
