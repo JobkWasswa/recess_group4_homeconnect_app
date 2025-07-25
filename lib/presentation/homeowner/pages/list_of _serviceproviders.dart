@@ -8,7 +8,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:homeconnect/presentation/service_provider/pages/service_provider_calendar.dart';
 import 'package:intl/intl.dart';
 
-
 class ServiceProvidersList extends StatefulWidget {
   final String category;
   final GeoPoint userLocation;
@@ -352,36 +351,11 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
       return;
     }
 
-    final currentUserId = user.uid;
     final currentUserName =
-        user.displayName ??
-        (user.email != null ? user.email!.split('@')[0] : 'Homeowner');
-
+        user.displayName ?? (user.email?.split('@')[0] ?? 'Homeowner');
     final providerCategory =
         provider.categories.isNotEmpty ? provider.categories[0] : '';
 
-    // Check for existing active booking
-    final existingBookingQuery =
-        await FirebaseFirestore.instance
-            .collection('bookings')
-            .where('serviceProviderId', isEqualTo: provider.id)
-            .where('selectedCategory', isEqualTo: providerCategory)
-            .where('status', whereIn: ServiceProvidersList.activeStatuses)
-            .limit(1)
-            .get();
-
-    if (existingBookingQuery.docs.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'This provider already has an active booking in this category',
-          ),
-        ),
-      );
-      return;
-    }
-
-    // NEW: Navigate to CreateBookingScreen to get scheduling details
     final bookingDetails = await Navigator.push<Map<String, dynamic>?>(
       context,
       MaterialPageRoute(
@@ -392,20 +366,55 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
             ),
       ),
     );
-    // If booking details are returned (user confirmed on CreateBookingScreen)
-    if (bookingDetails != null) {
-      final DateTime? scheduledDate = bookingDetails['scheduledDate'];
-      final DateTime? endDateTime = bookingDetails['endDateTime'];
-      final String? notes = bookingDetails['notes'];
-      if (scheduledDate == null || endDateTime == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please select a valid date and time range'),
-          ),
-        );
-        return;
-      }
 
+    if (bookingDetails == null) return;
+
+    final DateTime? startDateTime = bookingDetails['startDateTime'];
+    final DateTime? endDateTime = bookingDetails['endDateTime'];
+    final String? notes = bookingDetails['notes'];
+
+    if (startDateTime == null || endDateTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a valid date and time')),
+      );
+      return;
+    }
+
+    final startOfDay = DateTime(
+      startDateTime.year,
+      startDateTime.month,
+      startDateTime.day,
+    );
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    final existingBookingsSnapshot =
+        await FirebaseFirestore.instance
+            .collection('bookings')
+            .where('serviceProviderId', isEqualTo: provider.id)
+            .where('selectedCategory', isEqualTo: providerCategory)
+            .where('status', whereIn: ServiceProvidersList.activeStatuses)
+            .where('scheduledDate', isGreaterThanOrEqualTo: startOfDay)
+            .where('scheduledDate', isLessThan: endOfDay)
+            .get();
+
+    final hasOverlap = existingBookingsSnapshot.docs.any((doc) {
+      final data = doc.data();
+      final existingStart = (data['scheduledDate'] as Timestamp).toDate();
+      final existingEnd = (data['endDateTime'] as Timestamp).toDate();
+      return existingStart.isBefore(endDateTime) &&
+          existingEnd.isAfter(startDateTime);
+    });
+
+    if (hasOverlap) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This time slot is already booked for this provider'),
+        ),
+      );
+      return;
+    }
+
+    try {
       final booking = Booking(
         clientId: user.uid,
         clientName: currentUserName,
@@ -413,10 +422,10 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
         serviceProviderName: provider.name,
         categories: provider.categories,
         selectedCategory: widget.category,
-        bookingDate: scheduledDate ?? DateTime.now(),
-        scheduledDate: scheduledDate,
+        bookingDate: DateTime.now(),
+        scheduledDate: startDateTime,
         endDateTime: endDateTime,
-        scheduledTime: DateFormat.jm().format(scheduledDate!), // e.g. "4:30 PM"
+        scheduledTime: DateFormat.jm().format(startDateTime),
         status: 'pending',
         notes: notes,
         createdAt: FieldValue.serverTimestamp(),
@@ -424,23 +433,23 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
         location: widget.userLocation,
       );
 
-      try {
-        await FirebaseFirestore.instance
-            .collection('bookings')
-            .add(booking.toFirestore());
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Booking sent! Waiting for confirmation'),
-          ),
-        );
-      } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to book: $e')));
-      }
+      final bookingData = booking.toFirestore();
+      print('📝 Booking to Firestore: $bookingData');
+
+      await FirebaseFirestore.instance.collection('bookings').add(bookingData);
+
+      print('✅ Booking saved successfully!');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Booking sent! Waiting for confirmation')),
+      );
+    } catch (e, stackTrace) {
+      print('❌ Error saving booking: $e');
+      print('🪵 Stack trace: $stackTrace');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to book: $e')));
     }
   }
-
 
   Widget _buildActiveBookingButton(String providerId) {
     return FutureBuilder<QuerySnapshot>(

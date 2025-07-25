@@ -3,12 +3,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:homeconnect/data/models/service_provider_modal.dart';
+import 'package:homeconnect/data/models/booking_time_range.dart';
 
 class CreateBookingScreen extends StatefulWidget {
   final ServiceProviderModel serviceProvider;
   final String serviceCategory;
   final DateTime initialDate;
   final bool isReschedule;
+  final List<BookingTimeRange> bookedTimeRanges;
 
   const CreateBookingScreen({
     super.key,
@@ -16,6 +18,7 @@ class CreateBookingScreen extends StatefulWidget {
     required this.serviceCategory,
     required this.initialDate,
     this.isReschedule = false,
+    required this.bookedTimeRanges, // ✅ Add this
   });
 
   @override
@@ -28,11 +31,16 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
   TimeOfDay? _endTime;
   final TextEditingController _notesController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  late List<BookingTimeRange> _bookedTimeRanges; // << Put it here
 
   @override
   void initState() {
     super.initState();
+    _bookedTimeRanges = widget.bookedTimeRanges;
     _selectedDate = widget.initialDate;
+    _fetchBookedTimeRanges(
+      _selectedDate!,
+    ); // ✅ fetch existing bookings for that date
   }
 
   @override
@@ -55,9 +63,44 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
+
     if (picked != null && picked != _selectedDate) {
-      setState(() => _selectedDate = picked);
+      setState(() {
+        _selectedDate = picked;
+        _startTime = null;
+        _endTime = null;
+      });
+      await _fetchBookedTimeRanges(picked);
     }
+  }
+
+  Future<void> _fetchBookedTimeRanges(DateTime date) async {
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    final snapshot =
+        await FirebaseFirestore.instance
+            .collection('bookings')
+            .where('serviceProviderId', isEqualTo: widget.serviceProvider.id)
+            .where(
+              'startDateTime',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay),
+            )
+            .where('startDateTime', isLessThan: Timestamp.fromDate(endOfDay))
+            .get();
+
+    final ranges =
+        snapshot.docs.map((doc) {
+          final data = doc.data();
+          return BookingTimeRange(
+            start: (data['startDateTime'] as Timestamp).toDate(),
+            end: (data['endDateTime'] as Timestamp).toDate(),
+          );
+        }).toList();
+
+    setState(() {
+      _bookedTimeRanges = ranges; // Correct type now: List<BookingTimeRange>
+    });
   }
 
   Future<void> _selectTime(BuildContext context, bool isStartTime) async {
@@ -97,12 +140,6 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
         return;
       }
 
-      final scheduledDate = DateTime(
-        _selectedDate!.year,
-        _selectedDate!.month,
-        _selectedDate!.day,
-      );
-
       final startDateTime = DateTime(
         _selectedDate!.year,
         _selectedDate!.month,
@@ -117,6 +154,28 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
         _selectedDate!.day,
         _endTime!.hour,
         _endTime!.minute,
+      );
+
+      // Check for conflicts with existing bookings
+      bool hasConflict = _bookedTimeRanges.any((range) {
+        return startDateTime.isBefore(range.end) &&
+            endDateTime.isAfter(range.start);
+      });
+
+      if (hasConflict) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Selected time overlaps with an existing booking.'),
+          ),
+        );
+        return;
+      }
+
+      // If all good, return booking info
+      final scheduledDate = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
       );
 
       Navigator.pop(context, {
@@ -223,7 +282,34 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 15),
+              if (_bookedTimeRanges.isNotEmpty)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Already Booked Time Slots:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    ..._bookedTimeRanges.map((range) {
+                      final timeFormat = DateFormat('hh:mm a');
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text(
+                          '${timeFormat.format(range.start)} - ${timeFormat.format(range.end)}',
+                          style: const TextStyle(color: Colors.redAccent),
+                        ),
+                      );
+                    }).toList(),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+
               GestureDetector(
                 onTap: () => _selectTime(context, true),
                 child: AbsorbPointer(
