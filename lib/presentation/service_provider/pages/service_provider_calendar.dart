@@ -37,9 +37,11 @@ class _ServiceProviderCalendarScreenState
   Future<void> fetchBookingCounts() async {
     try {
       final snapshot = await FirebaseFirestore.instance
-          .collection('bookings')
-          .where('serviceProviderId', isEqualTo: widget.provider.id)
-          .get();
+        .collection('bookings')
+        .where('serviceProviderId', isEqualTo: widget.provider.id)
+        .where('status', isEqualTo: 'accepted') // ✅ Only count accepted ones
+        .get();
+
 
       final counts = <DateTime, int>{};
 
