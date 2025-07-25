@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:homeconnect/data/models/service_provider_modal.dart';
 import 'package:homeconnect/presentation/homeowner/pages/create_booking_screen.dart';
+import 'package:homeconnect/data/models/booking_time_range.dart';
 
 class ServiceProviderCalendarScreen extends StatefulWidget {
   final ServiceProviderModel provider;
@@ -33,6 +34,28 @@ class _ServiceProviderCalendarScreenState
   void initState() {
     super.initState();
     fetchBookingDates();
+  }
+
+  Future<List<BookingTimeRange>> fetchBookingsForDay(DateTime day) async {
+    final startOfDay = DateTime(day.year, day.month, day.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    final snapshot =
+        await FirebaseFirestore.instance
+            .collection('bookings')
+            .where('serviceProviderId', isEqualTo: widget.provider.id)
+            .where('status', whereIn: ['pending', 'confirmed'])
+            .where('scheduledDate', isGreaterThanOrEqualTo: startOfDay)
+            .where('scheduledDate', isLessThan: endOfDay)
+            .get();
+
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      return BookingTimeRange(
+        start: (data['scheduledDate'] as Timestamp).toDate(),
+        end: (data['endDateTime'] as Timestamp).toDate(),
+      );
+    }).toList(); // returns an empty list if no bookings
   }
 
   Future<void> fetchBookingDates() async {
@@ -109,17 +132,9 @@ class _ServiceProviderCalendarScreenState
       _focusedDay = focusedDay;
     });
 
-    final isFullyBooked =
-        (_bookingCounts[normalizedDay] ?? 0) >= maxDailyBookings;
+    final bookedTimeRanges = await fetchBookingsForDay(normalizedDay);
 
-    if (isFullyBooked) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This date is fully booked')),
-      );
-      return;
-    }
-
-    final bookingDetails = await Navigator.push(
+    final result = await Navigator.push<Map<String, dynamic>?>(
       context,
       MaterialPageRoute(
         builder:
@@ -127,12 +142,17 @@ class _ServiceProviderCalendarScreenState
               serviceProvider: widget.provider,
               serviceCategory: widget.category,
               initialDate: normalizedDay,
+              bookedTimeRanges: bookedTimeRanges,
             ),
       ),
     );
 
-    if (bookingDetails != null) {
-      Navigator.pop(context, bookingDetails);
+    if (result != null) {
+      // ✅ Send booking result back to the provider list screen
+      Navigator.pop(context, result);
+    } else {
+      // If user cancelled, just refresh bookings
+      await fetchBookingDates();
     }
   }
 
