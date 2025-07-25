@@ -7,7 +7,12 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:homeconnect/presentation/service_provider/pages/view_job_request.dart';
 import 'package:intl/intl.dart';
 import 'package:homeconnect/presentation/service_provider/pages/provider_maps_screen.dart';
-import 'package:homeconnect/utils/location_utils.dart'; // Import your location utility file
+
+// Import your location utility file or implement this function
+Future<String> getAddressFromLatLng(double? latitude, double? longitude) async {
+  // Implement your reverse geocoding logic here
+  return 'Sample Address'; // Replace with actual implementation
+}
 
 class ServiceProviderDashboardScreen extends StatefulWidget {
   const ServiceProviderDashboardScreen({super.key});
@@ -20,11 +25,8 @@ class ServiceProviderDashboardScreen extends StatefulWidget {
 class _ServiceProviderDashboardScreenState
     extends State<ServiceProviderDashboardScreen> {
   String providerName = '';
-  String _userProfession = ''; // To store the service provider's profession
-  double _starRating = 1.0; // Default: one star rating
-  int _jobsCompleted = 0; // Default: zero jobs completed
-  String _availabilityStatus = 'Active'; // Default: active
-
+  final String _userProfession =
+      ''; // To store the service provider's profession
   bool isLoading = true;
   int _completedJobsCount = 0;
   double _avgRating = 0.0;
@@ -49,7 +51,7 @@ class _ServiceProviderDashboardScreenState
         .orderBy('createdAt', descending: true)
         .snapshots()
         .handleError((error) {
-          print('🔥 Firestore error in _getAcceptedJobs: $error');
+          debugPrint('🔥 Firestore error in _getAcceptedJobs: $error');
         });
   }
 
@@ -109,7 +111,7 @@ class _ServiceProviderDashboardScreenState
         });
       }
     } catch (e) {
-      print('Error fetching provider name: $e');
+      debugPrint('Error fetching provider name: $e');
       setState(() {
         providerName = 'Provider';
         isLoading = false;
@@ -129,23 +131,7 @@ class _ServiceProviderDashboardScreenState
             .set({'fcmToken': token}, SetOptions(merge: true));
       }
     } catch (e) {
-      print('Error updating FCM token: $e');
-    }
-  }
-
-  Future<void> _updateProviderFCMToken() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-    try {
-      final token = await FirebaseMessaging.instance.getToken();
-      if (token != null) {
-        await FirebaseFirestore.instance
-            .collection('service_providers')
-            .doc(user.uid)
-            .set({'fcmToken': token}, SetOptions(merge: true));
-      }
-    } catch (e) {
-      print('Error updating FCM token: $e');
+      debugPrint('Error updating FCM token: $e');
     }
   }
 
@@ -168,7 +154,7 @@ class _ServiceProviderDashboardScreenState
           _avgRating = providerData?['averageRating']?.toDouble() ?? 0.0;
         });
       } else {
-        print('Provider stats not found.');
+        debugPrint('Provider stats not found.');
       }
 
       // Fetch upcoming jobs from the 'bookings' collection
@@ -183,7 +169,7 @@ class _ServiceProviderDashboardScreenState
         _upcomingJobsCount = upcomingJobsSnapshot.docs.length;
       });
     } catch (e) {
-      print('Error fetching provider stats: $e');
+      debugPrint('Error fetching provider stats: $e');
     }
   }
 
@@ -256,268 +242,13 @@ class _ServiceProviderDashboardScreenState
             ).format(bookingDate.toDate().toLocal())
             : 'Unknown date';
 
-    // Retrieve latitude and longitude for reverse geocoding
-    // IMPORTANT: Adjust these lines based on how your Firestore stores location data.
-    // If you have separate 'latitude' and 'longitude' fields:
     final double? latitude =
         (data['latitude'] is num) ? data['latitude'].toDouble() : null;
     final double? longitude =
         (data['longitude'] is num) ? data['longitude'].toDouble() : null;
-    // If you have a GeoPoint field, e.g., 'location':
-    // final GeoPoint? geoPoint = data['location'] as GeoPoint?;
-    // final double? latitude = geoPoint?.latitude;
-    // final double? longitude = geoPoint?.longitude;
 
     Future<String> getDisplayAddress() async {
-      // Prioritize an existing 'address' string if you have one and it's formatted well,
-      // otherwise, use reverse geocoding.
-      // return data['address'] ?? await getAddressFromLatLng(latitude, longitude);
-      return await getAddressFromLatLng(
-        latitude,
-        longitude,
-      ); // Always use reverse geocoding
-    }
-
-    return Card(
-      elevation: 8,
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              jobType,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF6B7280),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.person, size: 18, color: Colors.grey),
-                const SizedBox(width: 8),
-                Text(
-                  data['clientName'] ?? 'Unknown',
-                  style: TextStyle(color: Colors.grey[700]),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
-                const SizedBox(width: 8),
-                Text(formattedDate, style: TextStyle(color: Colors.grey[700])),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.location_on, size: 18, color: Colors.grey),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: FutureBuilder<String>(
-                    future: getDisplayAddress(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Text(
-                          'Loading location...',
-                          style: TextStyle(color: Colors.grey),
-                        );
-                      } else if (snapshot.hasError) {
-                        return Text(
-                          'Error loading location: ${snapshot.error}',
-                          style: const TextStyle(color: Colors.red),
-                        );
-                      } else {
-                        return Text(
-                          snapshot.data ?? 'Location not specified',
-                          style: TextStyle(color: Colors.grey[700]),
-                          overflow: TextOverflow.ellipsis,
-                        );
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  try {
-                    await FirebaseFirestore.instance
-                        .collection('bookings')
-                        .doc(bookingId)
-                        .update({
-                          'status': 'completed_by_provider',
-                          'updatedAt': FieldValue.serverTimestamp(),
-                        });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Job marked as complete!'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                },
-                icon: const Icon(Icons.check_circle_outline),
-                label: const Text('Mark as Complete'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green[600],
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _fetchProviderStats() async {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) return;
-
-    try {
-      // Fetch provider stats from the 'service_providers' collection
-      final providerDoc =
-          await FirebaseFirestore.instance
-              .collection('service_providers')
-              .doc(userId)
-              .get();
-
-      if (providerDoc.exists) {
-        final providerData = providerDoc.data();
-        setState(() {
-          _completedJobsCount = providerData?['completedJobs'] ?? 0;
-          _avgRating = providerData?['averageRating']?.toDouble() ?? 0.0;
-        });
-      } else {
-        print('Provider stats not found.');
-      }
-
-      // Fetch upcoming jobs from the 'bookings' collection
-      final upcomingJobsSnapshot =
-          await FirebaseFirestore.instance
-              .collection('bookings')
-              .where('serviceProviderId', isEqualTo: userId)
-              .where('status', isEqualTo: 'confirmed')
-              .get();
-
-      setState(() {
-        _upcomingJobsCount = upcomingJobsSnapshot.docs.length;
-      });
-    } catch (e) {
-      print('Error fetching provider stats: $e');
-    }
-  }
-
-  Widget _buildActiveJobsSection(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Active Jobs',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          StreamBuilder<QuerySnapshot>(
-            stream: _getAcceptedJobs(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (snapshot.hasError) {
-                return Center(child: Text('Error: ${snapshot.error}'));
-              }
-
-              final docs = snapshot.data?.docs ?? [];
-
-              if (docs.isEmpty) {
-                return Center(
-                  child: Text(
-                    'No active jobs at the moment.',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                );
-              }
-
-              return Column(
-                children:
-                    docs.map((doc) {
-                      final data = doc.data() as Map<String, dynamic>;
-                      return _buildActiveJobCard(context, doc.id, data);
-                    }).toList(),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActiveJobCard(
-    BuildContext context,
-    String bookingId,
-    Map<String, dynamic> data,
-  ) {
-    final categories = data['categories'];
-    final jobType =
-        (categories is List && categories.isNotEmpty)
-            ? categories[0].toString()
-            : (categories?.toString() ?? 'Unknown');
-
-    final bookingDate = data['bookingDate'];
-    final formattedDate =
-        bookingDate is Timestamp
-            ? DateFormat(
-              'MMM d, yyyy h:mm a',
-            ).format(bookingDate.toDate().toLocal())
-            : 'Unknown date';
-
-    // Retrieve latitude and longitude for reverse geocoding
-    // IMPORTANT: Adjust these lines based on how your Firestore stores location data.
-    // If you have separate 'latitude' and 'longitude' fields:
-    final double? latitude =
-        (data['latitude'] is num) ? data['latitude'].toDouble() : null;
-    final double? longitude =
-        (data['longitude'] is num) ? data['longitude'].toDouble() : null;
-    // If you have a GeoPoint field, e.g., 'location':
-    // final GeoPoint? geoPoint = data['location'] as GeoPoint?;
-    // final double? latitude = geoPoint?.latitude;
-    // final double? longitude = geoPoint?.longitude;
-
-    Future<String> getDisplayAddress() async {
-      // Prioritize an existing 'address' string if you have one and it's formatted well,
-      // otherwise, use reverse geocoding.
-      // return data['address'] ?? await getAddressFromLatLng(latitude, longitude);
-      return await getAddressFromLatLng(
-        latitude,
-        longitude,
-      ); // Always use reverse geocoding
+      return await getAddressFromLatLng(latitude, longitude);
     }
 
     return Card(
@@ -665,7 +396,7 @@ class _ServiceProviderDashboardScreenState
                   ),
         ),
       ),
-      bottomNavigationBar: _buildBottomNavigationBar(),
+      bottomNavigationBar: _buildBottomNavigationBar(context),
     );
   }
 
@@ -713,7 +444,7 @@ class _ServiceProviderDashboardScreenState
                         children: [
                           IconButton(
                             onPressed: () {
-                              print('Provider Notifications pressed');
+                              debugPrint('Provider Notifications pressed');
                             },
                             icon: const Icon(
                               Icons.notifications,
@@ -743,7 +474,7 @@ class _ServiceProviderDashboardScreenState
                       ),
                       child: IconButton(
                         onPressed: () {
-                          print('Provider Profile pressed');
+                          debugPrint('Provider Profile pressed');
                         },
                         icon: const Icon(Icons.settings, color: Colors.white),
                       ),
@@ -960,7 +691,9 @@ class _ServiceProviderDashboardScreenState
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const AllJobRequestsScreen(),
+                      builder:
+                          (_) =>
+                              AllJobRequestsScreen(), // Changed from AllJobRequestsScreen
                     ),
                   );
                 },
@@ -1022,9 +755,6 @@ class _ServiceProviderDashboardScreenState
                               : 'Unknown date';
                       final note = data['notes'] ?? '';
 
-                      // Retrieve latitude and longitude for reverse geocoding
-                      // IMPORTANT: Adjust these lines based on how your Firestore stores location data.
-                      // If you have separate 'latitude' and 'longitude' fields:
                       final double? latitude =
                           (data['latitude'] is num)
                               ? data['latitude'].toDouble()
@@ -1033,10 +763,6 @@ class _ServiceProviderDashboardScreenState
                           (data['longitude'] is num)
                               ? data['longitude'].toDouble()
                               : null;
-                      // If you have a GeoPoint field, e.g., 'location':
-                      // final GeoPoint? geoPoint = data['location'] as GeoPoint?;
-                      // final double? latitude = geoPoint?.latitude;
-                      // final double? longitude = geoPoint?.longitude;
 
                       return _buildJobRequestCard(
                         context: context,
@@ -1281,7 +1007,7 @@ class _ServiceProviderDashboardScreenState
             title: 'Set Availability',
             subtitle: 'Manage your working hours and days off.',
             onTap: () {
-              print('Set Availability pressed');
+              debugPrint('Set Availability pressed');
             },
             colors: const [Color(0xFF22C55E), Color(0xFF16A34A)],
           ),
@@ -1294,7 +1020,7 @@ class _ServiceProviderDashboardScreenState
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const AllJobRequestsScreen()),
+                MaterialPageRoute(builder: (_) => AllJobRequestsScreen()),
               );
             },
             colors: const [Color(0xFFA855F7), Color(0xFF9333EA)],
@@ -1366,7 +1092,7 @@ class _ServiceProviderDashboardScreenState
     );
   }
 
-  Widget _buildBottomNavigationBar() {
+  Widget _buildBottomNavigationBar(BuildContext context) {
     return BottomAppBar(
       shape: const CircularNotchedRectangle(),
       notchMargin: 8.0,
@@ -1382,7 +1108,7 @@ class _ServiceProviderDashboardScreenState
             icon: const Icon(Icons.calendar_today),
             color: Colors.grey,
             onPressed: () {
-              print('My Bookings bottom nav pressed!');
+              debugPrint('My Bookings bottom nav pressed!');
             },
           ),
           const SizedBox(width: 48),
@@ -1390,7 +1116,7 @@ class _ServiceProviderDashboardScreenState
             icon: const Icon(Icons.map),
             color: Colors.grey,
             onPressed: () {
-              print('Map bottom nav pressed!');
+              debugPrint('Map bottom nav pressed!');
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -1403,7 +1129,7 @@ class _ServiceProviderDashboardScreenState
             icon: const Icon(Icons.message),
             color: Colors.grey,
             onPressed: () {
-              print('Messages bottom nav pressed!');
+              debugPrint('Messages bottom nav pressed!');
             },
           ),
         ],

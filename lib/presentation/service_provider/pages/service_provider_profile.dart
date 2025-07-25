@@ -139,7 +139,7 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
   }
 
   Future<void> _saveProfile() async {
-    print("Save profile button pressed");
+    debugPrint("Save profile button pressed");
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {

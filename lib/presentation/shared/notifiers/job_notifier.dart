@@ -3,19 +3,19 @@ import 'package:homeconnect/data/models/booking.dart'; // Assuming JobRequest is
 
 // IMPORTANT: These abstract classes must ONLY be defined in this file.
 abstract class CreateJobRequestUseCase {
-  Future<void> execute(JobRequest request);
+  Future<void> execute(Booking request);
 }
 
 abstract class GetHomeownerJobRequestsUseCase {
-  Stream<List<JobRequest>> execute(String homeownerId);
+  Stream<List<Booking>> execute(String homeownerId);
 }
 
 abstract class GetServiceProviderJobRequestsUseCase {
-  Stream<List<JobRequest>> execute(String serviceProviderId);
+  Stream<List<Booking>> execute(String serviceProviderId);
 }
 
 abstract class GetPendingJobRequestsUseCase {
-  Stream<List<JobRequest>> execute();
+  Stream<List<Booking>> execute();
 }
 
 abstract class AcceptJobRequestUseCase {
@@ -54,24 +54,24 @@ class JobNotifier extends ChangeNotifier {
     required this.completeJobRequestUseCase,
   });
 
-  Future<void> createJobRequest(JobRequest request) async {
+  Future<void> createJobRequest(Booking request) async {
     try {
       await createJobRequestUseCase.execute(request);
       notifyListeners();
     } catch (e) {
-      print('Error creating job request: $e');
+      debugPrint('Error creating job request: $e');
     }
   }
 
-  Stream<List<JobRequest>> getPendingJobs() {
+  Stream<List<Booking>> getPendingJobs() {
     return getPendingJobRequestsUseCase.execute();
   }
 
-  Stream<List<JobRequest>> getHomeownerJobs(String homeownerId) {
+  Stream<List<Booking>> getHomeownerJobs(String homeownerId) {
     return getHomeownerJobRequestsUseCase.execute(homeownerId);
   }
 
-  Stream<List<JobRequest>> getServiceProviderJobs(String serviceProviderId) {
+  Stream<List<Booking>> getServiceProviderJobs(String serviceProviderId) {
     return getServiceProviderJobRequestsUseCase.execute(serviceProviderId);
   }
 
@@ -88,7 +88,7 @@ class JobNotifier extends ChangeNotifier {
       );
       notifyListeners();
     } catch (e) {
-      print('Error accepting job request: $e');
+      debugPrint('Error accepting job request: $e');
     }
   }
 
@@ -97,7 +97,7 @@ class JobNotifier extends ChangeNotifier {
       await rejectJobRequestUseCase.execute(jobId, rejectionReason);
       notifyListeners();
     } catch (e) {
-      print('Error rejecting job request: $e');
+      debugPrint('Error rejecting job request: $e');
     }
   }
 
@@ -106,7 +106,7 @@ class JobNotifier extends ChangeNotifier {
       await completeJobRequestUseCase.execute(jobId, finalPrice);
       notifyListeners();
     } catch (e) {
-      print('Error completing job request: $e');
+      debugPrint('Error completing job request: $e');
     }
   }
 }
