@@ -6,6 +6,7 @@ import 'package:homeconnect/data/providers/homeowner_firestore_provider.dart';
 import 'package:homeconnect/data/models/booking.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:homeconnect/presentation/service_provider/pages/service_provider_calendar.dart';
+import 'package:intl/intl.dart';
 
 
 class ServiceProvidersList extends StatefulWidget {
@@ -394,10 +395,16 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
     // If booking details are returned (user confirmed on CreateBookingScreen)
     if (bookingDetails != null) {
       final DateTime? scheduledDate = bookingDetails['scheduledDate'];
-      final String? scheduledTimeDisplay =
-          bookingDetails['scheduledTimeDisplay'];
-      final String? duration = bookingDetails['duration'];
+      final DateTime? endDateTime = bookingDetails['endDateTime'];
       final String? notes = bookingDetails['notes'];
+      if (scheduledDate == null || endDateTime == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select a valid date and time range'),
+          ),
+        );
+        return;
+      }
 
       final booking = Booking(
         clientId: user.uid,
@@ -406,13 +413,12 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
         serviceProviderName: provider.name,
         categories: provider.categories,
         selectedCategory: widget.category,
-        bookingDate: scheduledDate ?? DateTime.now(), // ✅ Use proper DateTime
-        scheduledDate: scheduledDate, // Scheduled date from CreateBookingScreen
-        scheduledTime:
-            scheduledTimeDisplay, // Scheduled time from CreateBookingScreen
-        duration: duration, // Duration from CreateBookingScreen
+        bookingDate: scheduledDate ?? DateTime.now(),
+        scheduledDate: scheduledDate,
+        endDateTime: endDateTime,
+        scheduledTime: DateFormat.jm().format(scheduledDate!), // e.g. "4:30 PM"
         status: 'pending',
-        notes: notes, // Notes from CreateBookingScreen
+        notes: notes,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         location: widget.userLocation,
