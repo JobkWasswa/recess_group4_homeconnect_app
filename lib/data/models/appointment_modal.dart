@@ -18,6 +18,8 @@ class Appointment {
   final dynamic createdAt;
   final dynamic updatedAt;
   final DateTime? completedAt;
+  final DateTime startDateTime;
+  final DateTime endDateTime;
 
   Appointment({
     this.appointmentId,
@@ -36,6 +38,8 @@ class Appointment {
     required this.createdAt,
     required this.updatedAt,
     this.completedAt,
+    required this.startDateTime,
+    required this.endDateTime,
   });
 
   // Status constants for Appointment
@@ -80,6 +84,8 @@ class Appointment {
           (data['completedAt'] is Timestamp)
               ? (data['completedAt'] as Timestamp).toDate()
               : null,
+      startDateTime: (data['startDateTime'] as Timestamp).toDate(),
+      endDateTime: (data['endDateTime'] as Timestamp).toDate(),
     );
   }
 
@@ -101,6 +107,8 @@ class Appointment {
       'updatedAt': FieldValue.serverTimestamp(),
       'completedAt':
           completedAt != null ? Timestamp.fromDate(completedAt!) : null,
+      'startDateTime': Timestamp.fromDate(startDateTime),
+      'endDateTime': Timestamp.fromDate(endDateTime),
     };
   }
 
@@ -121,6 +129,8 @@ class Appointment {
     dynamic createdAt,
     dynamic updatedAt,
     DateTime? completedAt,
+    DateTime? startDateTime,
+    DateTime? endDateTime,
   }) {
     return Appointment(
       appointmentId: appointmentId ?? this.appointmentId,
@@ -139,6 +149,8 @@ class Appointment {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       completedAt: completedAt ?? this.completedAt,
+      startDateTime: startDateTime ?? this.startDateTime,
+      endDateTime: endDateTime ?? this.endDateTime,
     );
   }
 }

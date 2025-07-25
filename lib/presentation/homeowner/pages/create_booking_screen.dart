@@ -21,7 +21,7 @@ class CreateBookingScreen extends StatefulWidget {
 class _CreateBookingScreenState extends State<CreateBookingScreen> {
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
-  String? _selectedDuration;
+  TimeOfDay? _selectedEndTime;
   final TextEditingController _notesController = TextEditingController();
   final _formKey = GlobalKey<FormState>(); // Key for form validation
 
@@ -35,6 +35,18 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
   void dispose() {
     _notesController.dispose();
     super.dispose();
+  }
+
+  Future<void> _selectEndTime(BuildContext context) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedEndTime ?? TimeOfDay.now(),
+    );
+    if (picked != null && picked != _selectedEndTime) {
+      setState(() {
+        _selectedEndTime = picked;
+      });
+    }
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -67,27 +79,39 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
     if (_formKey.currentState!.validate()) {
       if (_selectedDate == null ||
           _selectedTime == null ||
-          _selectedDuration == null) {
+          _selectedEndTime == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Please select a date, time, and duration.'),
+            content: Text('Please select a date, time, and end time.'),
           ),
         );
         return;
       }
 
-      final DateTime? scheduledDateTime = DateTime(
+      // scheduledDate: Date only (time ignored, set to midnight)
+      final scheduledDate = DateTime(
         _selectedDate!.year,
         _selectedDate!.month,
         _selectedDate!.day,
-        _selectedTime!.hour,
-        _selectedTime!.minute,
       );
 
+      // scheduledTimeDisplay: string version of start time (for UI and storing in Booking)
+      final scheduledTimeDisplay = _selectedTime!.format(context);
+
+      // endDateTime: full DateTime including selected date + end time
+      final endDateTime = DateTime(
+        _selectedDate!.year,
+        _selectedDate!.month,
+        _selectedDate!.day,
+        _selectedEndTime!.hour,
+        _selectedEndTime!.minute,
+      );
+
+      // Return booking details map
       Navigator.pop(context, {
-        'scheduledDate': scheduledDateTime,
-        'scheduledTimeDisplay': _selectedTime?.format(context),
-        'duration': _selectedDuration,
+        'scheduledDate': scheduledDate, // date only
+        'scheduledTime': scheduledTimeDisplay, // formatted string start time
+        'endDateTime': endDateTime, // full datetime for end
         'notes': _notesController.text,
       });
     }
@@ -229,43 +253,39 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Duration Dropdown
-              DropdownButtonFormField<String>(
-                value: _selectedDuration,
-                hint: const Text('Select duration'),
-                decoration: InputDecoration(
-                  labelText: 'Duration *',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
+              // End Time Picker
+              GestureDetector(
+                onTap: () => _selectEndTime(context),
+                child: AbsorbPointer(
+                  child: TextFormField(
+                    controller: TextEditingController(
+                      text:
+                          _selectedEndTime == null
+                              ? ''
+                              : _selectedEndTime!.format(context),
+                    ),
+                    decoration: InputDecoration(
+                      labelText: 'End Time *',
+                      hintText: 'Select end time',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      suffixIcon: const Icon(
+                        Icons.access_time,
+                        color: Colors.purple,
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                    ),
+                    readOnly: true,
+                    validator: (value) {
+                      if (_selectedEndTime == null) {
+                        return 'Please select an end time';
+                      }
+                      return null;
+                    },
                   ),
-                  filled: true,
-                  fillColor: Colors.grey[50],
                 ),
-                items:
-                    <String>[
-                      '1 hour',
-                      '2 hours',
-                      '3 hours',
-                      'Half day (4 hours)',
-                      'Full day (8 hours)',
-                      'Custom',
-                    ].map<DropdownMenuItem<String>>((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
-                onChanged: (String? newValue) {
-                  setState(() {
-                    _selectedDuration = newValue;
-                  });
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please select a duration';
-                  }
-                  return null;
-                },
               ),
               const SizedBox(height: 20),
 
