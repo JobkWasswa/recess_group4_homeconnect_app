@@ -23,15 +23,56 @@ class _ChatScreenState extends State<ChatScreen> {
 
   late final String conversationId;
 
+  String _displayName = ''; // Will hold the fetched display name
+
   @override
   void initState() {
     super.initState();
     conversationId = _generateConversationId(currentUserId, widget.otherUserId);
+    _loadDisplayName(); // Load display name on init
   }
 
   String _generateConversationId(String uid1, String uid2) {
     final sorted = [uid1, uid2]..sort();
     return sorted.join("_");
+  }
+
+  // Helper to convert email to name
+  String _nameFromEmail(String email) {
+    final localPart = email.split('@').first;
+    final words = localPart.split(RegExp(r'[._]'));
+    return words
+        .where((w) => w.isNotEmpty)
+        .map((w) => '${w[0].toUpperCase()}${w.substring(1)}')
+        .join(' ');
+  }
+
+  // Fetch display name from Firestore users collection by userId
+  Future<void> _loadDisplayName() async {
+    try {
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(widget.otherUserId)
+              .get();
+
+      if (doc.exists) {
+        final email = doc['email'] ?? '';
+        setState(() {
+          _displayName =
+              email.isNotEmpty ? _nameFromEmail(email) : widget.otherUserName;
+        });
+      } else {
+        setState(() {
+          _displayName = widget.otherUserName;
+        });
+      }
+    } catch (e) {
+      // In case of error, fallback to original passed name
+      setState(() {
+        _displayName = widget.otherUserName;
+      });
+    }
   }
 
   void sendMessage(String text) async {
@@ -104,7 +145,7 @@ class _ChatScreenState extends State<ChatScreen> {
           title: Column(
             children: [
               Text(
-                widget.otherUserName,
+                _displayName.isNotEmpty ? _displayName : widget.otherUserName,
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 22,
@@ -134,7 +175,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   if (messages.isEmpty) {
                     return Center(
                       child: Text(
-                        'Start chatting with ${widget.otherUserName}!',
+                        'Start chatting with ${_displayName.isNotEmpty ? _displayName : widget.otherUserName}!',
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontStyle: FontStyle.italic,
