@@ -58,14 +58,13 @@ class CompletedJobsScreen extends StatelessWidget {
                       const SizedBox(height: 8),
                       Text('Completed: ${_formatDate(booking.completedAt!)}'),
                       const SizedBox(height: 8),
-                      if (booking.rating != null)
-                        Row(
-                          children: [
-                            const Text('Your rating: '),
-                            Icon(Icons.star, color: Colors.amber, size: 16),
-                            Text(booking.rating.toString()),
-                          ],
-                        ),
+                      Row(
+                        children: [
+                          const Text('Your rating: '),
+                          Icon(Icons.star, color: Colors.amber, size: 16),
+                          Text(booking.rating.toString()),
+                        ],
+                      ),
                     ],
                   ),
                 ),
