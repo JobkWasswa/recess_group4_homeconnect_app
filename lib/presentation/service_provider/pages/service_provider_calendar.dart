@@ -80,7 +80,15 @@ class _ServiceProviderCalendarScreenState
         final DateTime start = startTimestamp.toDate();
         final normalized = DateTime(start.year, start.month, start.day);
 
-        dateBookingCount[normalized] = (dateBookingCount[normalized] ?? 0) + 1;
+        final bool isFullDay = doc['isFullDay'] ?? false;
+
+        if (isFullDay) {
+          // Full day booking blocks the whole day
+          dateBookingCount[normalized] = maxDailyBookings;
+        } else {
+          dateBookingCount[normalized] =
+              (dateBookingCount[normalized] ?? 0) + 1;
+        }
       }
 
       dateBookingCount.forEach((date, count) {

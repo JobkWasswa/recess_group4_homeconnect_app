@@ -17,6 +17,7 @@ class CreateBookingUseCase {
     required String selectedCategory,
     required DateTime bookingDate,
     required GeoPoint location,
+    required bool isFullDay, // ✅ ADD THIS LINE
     String? notes,
   }) async {
     return await _repository.createBooking(
@@ -29,6 +30,7 @@ class CreateBookingUseCase {
       bookingDate: bookingDate,
       location: location,
       notes: notes,
+      isFullDay: isFullDay, // ✅ include this field
     );
   }
 }

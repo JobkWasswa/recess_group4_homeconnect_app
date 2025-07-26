@@ -372,6 +372,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
     final DateTime? startDateTime = bookingDetails['startDateTime'];
     final DateTime? endDateTime = bookingDetails['endDateTime'];
     final String? notes = bookingDetails['notes'];
+    final bool isFullDay = bookingDetails['isFullDay'] ?? false;
 
     if (startDateTime == null || endDateTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -431,6 +432,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         location: widget.userLocation,
+        isFullDay: isFullDay, // 👈 Add this line
       );
 
       final bookingData = booking.toFirestore();
