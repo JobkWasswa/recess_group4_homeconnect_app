@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Only if you're passing Timestamp
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ServiceProviderSingleBookingDetailScreen extends StatelessWidget {
   final Map<String, dynamic> bookingData;
@@ -10,133 +10,88 @@ class ServiceProviderSingleBookingDetailScreen extends StatelessWidget {
     required this.bookingData,
   });
 
+  DateTime? tryParseDate(dynamic value) {
+    try {
+      if (value == null) return null;
+      if (value is Timestamp) return value.toDate();
+      if (value is String) {
+        try {
+          return DateTime.parse(value);
+        } catch (_) {
+          try {
+            return DateFormat("MMM dd, yyyy h:mm a").parse(value);
+          } catch (_) {
+            return null;
+          }
+        }
+      }
+    } catch (_) {
+      return null;
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
-    DateTime? scheduledDate;
-    final rawDate = bookingData['scheduledDate'];
+    final dateFormat = DateFormat('dd-MM-yyyy');
+    final timeFormat = DateFormat('hh:mm a');
 
-    if (rawDate is Timestamp) {
-      scheduledDate = rawDate.toDate();
-    } else if (rawDate is DateTime) {
-      scheduledDate = rawDate;
-    } else if (rawDate is String) {
-      try {
-        scheduledDate = DateTime.parse(rawDate);
-      } catch (_) {
-        scheduledDate = null;
-      }
-    }
+    final scheduledDate = tryParseDate(bookingData['scheduledDate']);
+    final endDateTime = tryParseDate(bookingData['endDateTime']);
 
-    final service = bookingData['serviceCategory'] ?? 'Unknown Service';
-    final rawDuration = bookingData['duration'];
-    final duration =
-        (rawDuration != null && rawDuration.toString().trim().isNotEmpty)
-            ? rawDuration.toString()
-            : 'Unknown Duration';
-
-    print('✅ Duration is: $duration');
-    final notes = bookingData['notes'] ?? '';
-    final clientName = bookingData['clientName'] ?? 'Unknown Client';
+    final selectedCategory = bookingData['selectedCategory']?.toString().trim();
+    final clientName = bookingData['clientName'] ?? 'N/A';
+    final notes = bookingData['notes'] ?? 'N/A';
+    final isFullDay = bookingData['isFullDay'] ?? false;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Booking Details'),
-        backgroundColor: Colors.purple,
-        foregroundColor: Colors.white,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Card(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          elevation: 4,
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Service title
-                Text(
-                  service,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.purple,
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                _buildDetailRow(Icons.person, 'Client', clientName),
-                if (scheduledDate != null) ...[
-                  _buildDetailRow(
-                    Icons.calendar_today,
-                    'Date',
-                    DateFormat('dd MMM yyyy').format(scheduledDate),
-                  ),
-                  _buildDetailRow(
-                    Icons.access_time,
-                    'Time',
-                    DateFormat('hh:mm a').format(scheduledDate),
-                  ),
-                ],
-                _buildDetailRow(Icons.timer, 'Duration', duration),
-                if (notes.isNotEmpty)
-                  _buildDetailRow(Icons.note, 'Notes', notes),
-
-                const SizedBox(height: 24),
-                Center(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    icon: const Icon(Icons.arrow_back),
-                    label: const Text('Back'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.purple,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+      appBar: AppBar(title: const Text('Booking Details')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: ListView(
+          children: [
+            detailRow("Client Name", clientName),
+            detailRow(
+              "Category",
+              (selectedCategory != null && selectedCategory.isNotEmpty)
+                  ? selectedCategory
+                  : 'N/A',
             ),
-          ),
+            detailRow(
+              "Full Day?",
+              isFullDay ? "Yes (Full Day Booking)" : "No (Time Range)",
+            ),
+            const SizedBox(height: 12),
+
+            detailRow(
+              "Booked Date",
+              scheduledDate != null ? dateFormat.format(scheduledDate) : 'N/A',
+            ),
+            detailRow(
+              "Start Time",
+              scheduledDate != null ? timeFormat.format(scheduledDate) : 'N/A',
+            ),
+            detailRow(
+              "End Time",
+              endDateTime != null ? timeFormat.format(endDateTime) : 'N/A',
+            ),
+            const SizedBox(height: 12),
+
+            detailRow("Notes", notes),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildDetailRow(IconData icon, String label, String value) {
+  Widget detailRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: Colors.purple),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$label:',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(value, style: TextStyle(color: Colors.grey[700])),
-              ],
-            ),
-          ),
+          Text("$label: ", style: const TextStyle(fontWeight: FontWeight.bold)),
+          Expanded(child: Text(value)),
         ],
       ),
     );

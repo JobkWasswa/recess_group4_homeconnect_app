@@ -984,10 +984,7 @@ class _ServiceProviderDashboardScreenState
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder:
-                        (context) => ServiceProviderViewCalendarScreen(
-                          provider: provider!,
-                        ),
+                    builder: (context) => ServiceProviderCalendarViewScreen(),
                   ),
                 );
               } else {
@@ -1105,10 +1102,7 @@ class _ServiceProviderDashboardScreenState
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder:
-                        (context) => ServiceProviderViewCalendarScreen(
-                          provider: provider!,
-                        ),
+                    builder: (context) => ServiceProviderCalendarViewScreen(),
                   ),
                 );
               } else {
