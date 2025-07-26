@@ -9,6 +9,8 @@ import 'package:homeconnect/presentation/service_provider/widgets/chat_screen.da
 import 'package:homeconnect/data/models/booking.dart';
 import 'package:homeconnect/presentation/homeowner/pages/view_all_bookings.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:homeconnect/data/providers/homeowner_firestore_provider.dart';
+import 'package:homeconnect/data/models/service_provider_modal.dart';
 
 // Helper – convert something like “john_doe99@example.com” → “John Doe99”
 String nameFromEmail(String email) {
@@ -31,6 +33,28 @@ class HomeownerDashboardScreen extends StatefulWidget {
 
 class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
   final TextEditingController _searchController = TextEditingController();
+  ServiceProviderModel? _chartTargetProvider;
+  @override
+  void initState() {
+    super.initState();
+    _loadTargetProvider();
+    // Initialize any necessary data here
+  }
+
+  void _loadTargetProvider() async {
+    final snapshot =
+        await FirebaseFirestore.instance
+            .collection('serviceProviders')
+            .limit(1) // 👉 or use a .where(...) if you want a specific provider
+            .get();
+    if (snapshot.docs.isNotEmpty) {
+      final doc = snapshot.docs.first;
+      setState(() {
+        _chartTargetProvider = ServiceProviderModel.fromDocumentSnapshot(doc);
+      });
+    }
+  }
+
   // Add to _HomeownerDashboardScreenState
   Stream<QuerySnapshot> _getCompletableJobs() {
     final userId = FirebaseAuth.instance.currentUser?.uid;
@@ -1241,19 +1265,28 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
             icon: const Icon(Icons.message),
             color: Colors.grey,
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder:
-                      (context) => const ChatScreen(
-                        otherUserId:
-                            'replace_with_user_id', // 👈 replace with actual user ID
-                        otherUserName:
-                            'replace_with_user_name', // 👈 replace with actual name
-                      ),
-                ),
-              );
-              print('Messages bottom nav pressed!');
+              if (_chartTargetProvider != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => ChatScreen(
+                          otherUserId:
+                              _chartTargetProvider!
+                                  .id, // 👈 replace with actual user ID
+                          otherUserName:
+                              _chartTargetProvider!
+                                  .name, // 👈 replace with actual name
+                        ),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Chat feature not implemented yet'),
+                  ),
+                );
+              }
             },
           ),
         ],

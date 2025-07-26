@@ -28,7 +28,6 @@ class _ChatScreenState extends State<ChatScreen> {
     conversationId = generateConversationId(currentUserId, widget.otherUserId);
   }
 
-  // ✅ Fixed: Clean and reachable code
   String generateConversationId(String uid1, String uid2) {
     final sorted = [uid1, uid2]..sort();
     return sorted.join("_");
@@ -37,28 +36,33 @@ class _ChatScreenState extends State<ChatScreen> {
   void sendMessage(String text) async {
     if (text.trim().isEmpty) return;
 
+    // Get sender's display name or fallback
+    final user = FirebaseAuth.instance.currentUser!;
+    final senderName = user.displayName ?? user.email ?? 'Unknown';
+
     final messageData = {
       'senderId': currentUserId,
+      'senderName': senderName,
       'text': text.trim(),
       'timestamp': FieldValue.serverTimestamp(),
     };
 
+    // Add message document
     final messageRef =
         FirebaseFirestore.instance
             .collection('conversations')
             .doc(conversationId)
             .collection('messages')
             .doc();
-
     await messageRef.set(messageData);
 
-    // Update parent conversation document with last message
+    // Update conversation overview
     await FirebaseFirestore.instance
         .collection('conversations')
         .doc(conversationId)
         .set({
           'participants': [currentUserId, widget.otherUserId],
-          'lastMessage': text,
+          'lastMessage': text.trim(),
           'lastTimestamp': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
 
@@ -95,6 +99,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   itemBuilder: (context, index) {
                     final data = messages[index].data() as Map<String, dynamic>;
                     final isMe = data['senderId'] == currentUserId;
+                    final senderName = data['senderName'] as String? ?? '';
 
                     return Align(
                       alignment:
@@ -107,11 +112,31 @@ class _ChatScreenState extends State<ChatScreen> {
                               isMe ? Colors.blueAccent : Colors.grey.shade300,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Text(
-                          data['text'],
-                          style: TextStyle(
-                            color: isMe ? Colors.white : Colors.black87,
-                          ),
+                        child: Column(
+                          crossAxisAlignment:
+                              isMe
+                                  ? CrossAxisAlignment.end
+                                  : CrossAxisAlignment.start,
+                          children: [
+                            if (!isMe)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 4.0),
+                                child: Text(
+                                  senderName,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                              ),
+                            Text(
+                              data['text'],
+                              style: TextStyle(
+                                color: isMe ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     );
