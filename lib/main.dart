@@ -8,22 +8,24 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    print('🟡 Initializing Firebase with options:');
-    print('  🔹 App ID: ${DefaultFirebaseOptions.currentPlatform.appId}');
-    print(
+    debugPrint('🟡 Initializing Firebase with options:');
+    debugPrint('  🔹 App ID: ${DefaultFirebaseOptions.currentPlatform.appId}');
+    debugPrint(
       '  🔹 Project ID: ${DefaultFirebaseOptions.currentPlatform.projectId}',
     );
-    print('  🔹 API Key: ${DefaultFirebaseOptions.currentPlatform.apiKey}');
+    debugPrint(
+      '  🔹 API Key: ${DefaultFirebaseOptions.currentPlatform.apiKey}',
+    );
 
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
 
-    print('✅ Firebase initialized successfully!');
+    debugPrint('✅ Firebase initialized successfully!');
   } catch (e, stackTrace) {
-    print('❌ Firebase initialization failed!');
-    print('🔴 Error: $e');
-    print('📄 Stacktrace:\n$stackTrace');
+    debugPrint('❌ Firebase initialization failed!');
+    debugPrint('🔴 Error: $e');
+    debugPrint('📄 Stacktrace:\n$stackTrace');
   }
 
   runApp(const MyApp());
