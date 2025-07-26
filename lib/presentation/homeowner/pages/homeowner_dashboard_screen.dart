@@ -13,6 +13,8 @@ import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:homeconnect/presentation/homeowner/pages/past_booked_providers_screen.dart';
 import 'package:homeconnect/config/routes.dart';
 import 'package:homeconnect/data/models/users.dart';
+import 'package:homeconnect/presentation/homeowner/pages/profile_screen.dart';
+import 'package:homeconnect/presentation/homeowner/pages/completed_jobs_screen.dart';
 
 // Helper – convert something like “john_doe99@example.com” → “John Doe99”
 String nameFromEmail(String email) {
@@ -497,7 +499,14 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                     const SizedBox(width: 8),
                     _buildHeaderIconButton(
                       icon: Icons.person,
-                      onPressed: () => debugPrint('Profile pressed'),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ProfileScreen(),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(width: 8),
                     _buildHeaderIconButton(
@@ -1335,9 +1344,15 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
           ),
           const SizedBox(width: 48),
           IconButton(
-            icon: const Icon(Icons.work),
+            icon: const Icon(Icons.work_history),
             color: Colors.grey,
-            onPressed: () => debugPrint('My Jobs bottom nav pressed!'),
+            onPressed:
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CompletedJobsScreen(),
+                  ),
+                ),
           ),
           IconButton(
             icon: const Icon(Icons.message),
@@ -1350,7 +1365,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                   // 👈 replace with actual name
                 ),
               );
-              print('Messages bottom nav pressed!');
+              debugPrint('Messages bottom nav pressed!');
             },
           ),
         ],

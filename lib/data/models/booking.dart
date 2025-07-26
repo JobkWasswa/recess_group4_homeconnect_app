@@ -17,6 +17,7 @@ class Booking {
   final dynamic createdAt;
   final dynamic updatedAt;
   final GeoPoint location;
+  final String rating;
   final DateTime? completedAt; // Added completion timestamp
   final bool isFullDay;
 
@@ -37,6 +38,7 @@ class Booking {
     required this.createdAt,
     required this.updatedAt,
     required this.location,
+    required this.rating,
     this.completedAt,
     required this.isFullDay, // ✅ ADD THIS LINE
   });
@@ -97,6 +99,7 @@ class Booking {
           (data['completedAt'] is Timestamp)
               ? (data['completedAt'] as Timestamp).toDate()
               : null,
+      rating: data['rating']?.toDouble(),
       isFullDay: data['isFullDay'] ?? false, // ✅ <-- add this line
     );
   }
@@ -164,6 +167,7 @@ class Booking {
       updatedAt: updatedAt ?? this.updatedAt,
       location: location ?? this.location,
       completedAt: completedAt ?? this.completedAt,
+      rating: rating,
       isFullDay: isFullDay ?? this.isFullDay, // ✅ ADD THIS
     );
   }

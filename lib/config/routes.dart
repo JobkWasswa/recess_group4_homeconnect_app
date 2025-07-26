@@ -19,6 +19,8 @@ class AppRoutes {
   static const String serviceProviderDashboard = '/service_provider_dashboard';
   static const String providerMaps = '/provider_maps'; // <--- ADDED THIS ROUTE
   static const String bookingPage = '/booking';
+  static const profile = '/profile';
+  static const completedJobs = '/completed-jobs';
 
   // ✅ New route constants for service provider pages
   static const String serviceProviderListPage = '/providerList';

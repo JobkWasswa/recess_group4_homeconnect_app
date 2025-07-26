@@ -68,6 +68,7 @@ class BookingRepository {
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
       location: location,
+      rating: '0',
       isFullDay: isFullDay, // ✅ include this field
     );
 
