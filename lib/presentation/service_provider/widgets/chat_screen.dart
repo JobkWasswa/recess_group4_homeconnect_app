@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart'; // For formatting timestamps
 
 class ChatScreen extends StatefulWidget {
   final String otherUserId; // e.g. homeownerId or providerId
@@ -25,10 +26,10 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    conversationId = generateConversationId(currentUserId, widget.otherUserId);
+    conversationId = _generateConversationId(currentUserId, widget.otherUserId);
   }
 
-  String generateConversationId(String uid1, String uid2) {
+  String _generateConversationId(String uid1, String uid2) {
     final sorted = [uid1, uid2]..sort();
     return sorted.join("_");
   }
@@ -36,7 +37,6 @@ class _ChatScreenState extends State<ChatScreen> {
   void sendMessage(String text) async {
     if (text.trim().isEmpty) return;
 
-    // Get sender's display name or fallback
     final user = FirebaseAuth.instance.currentUser!;
     final senderName = user.displayName ?? user.email ?? 'Unknown';
 
@@ -47,16 +47,15 @@ class _ChatScreenState extends State<ChatScreen> {
       'timestamp': FieldValue.serverTimestamp(),
     };
 
-    // Add message document
     final messageRef =
         FirebaseFirestore.instance
             .collection('conversations')
             .doc(conversationId)
             .collection('messages')
             .doc();
+
     await messageRef.set(messageData);
 
-    // Update conversation overview
     await FirebaseFirestore.instance
         .collection('conversations')
         .doc(conversationId)
@@ -67,6 +66,18 @@ class _ChatScreenState extends State<ChatScreen> {
         }, SetOptions(merge: true));
 
     _controller.clear();
+  }
+
+  String _formatTimestamp(Timestamp? timestamp) {
+    if (timestamp == null) return '';
+    final date = timestamp.toDate();
+    final now = DateTime.now();
+    if (now.difference(date).inDays == 0) {
+      // Show time only if today
+      return DateFormat.jm().format(date);
+    } else {
+      return DateFormat.yMd().add_jm().format(date);
+    }
   }
 
   @override
@@ -80,93 +91,215 @@ class _ChatScreenState extends State<ChatScreen> {
             .snapshots();
 
     return Scaffold(
-      appBar: AppBar(title: Text('Chat with ${widget.otherUserName}')),
-      body: Column(
-        children: [
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: messageStream,
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final messages = snapshot.data!.docs;
-
-                return ListView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final data = messages[index].data() as Map<String, dynamic>;
-                    final isMe = data['senderId'] == currentUserId;
-                    final senderName = data['senderName'] as String? ?? '';
-
-                    return Align(
-                      alignment:
-                          isMe ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        decoration: BoxDecoration(
-                          color:
-                              isMe ? Colors.blueAccent : Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment:
-                              isMe
-                                  ? CrossAxisAlignment.end
-                                  : CrossAxisAlignment.start,
-                          children: [
-                            if (!isMe)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 4.0),
-                                child: Text(
-                                  senderName,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black54,
-                                  ),
-                                ),
-                              ),
-                            Text(
-                              data['text'],
-                              style: TextStyle(
-                                color: isMe ? Colors.white : Colors.black87,
-                              ),
-                            ),
-                          ],
+      backgroundColor: Colors.grey[100],
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(70),
+        child: AppBar(
+          backgroundColor: const Color.fromARGB(255, 224, 105, 198),
+          elevation: 4,
+          centerTitle: true,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+          ),
+          title: Column(
+            children: [
+              Text(
+                widget.otherUserName,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 22,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Tap a message to see details',
+                style: TextStyle(fontSize: 12, color: Colors.white70),
+              ),
+            ],
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: messageStream,
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final messages = snapshot.data!.docs;
+                  if (messages.isEmpty) {
+                    return Center(
+                      child: Text(
+                        'Start chatting with ${widget.otherUserName}!',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontStyle: FontStyle.italic,
+                          fontSize: 16,
                         ),
                       ),
                     );
-                  },
-                );
-              },
+                  }
+                  return ListView.builder(
+                    reverse: true,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    itemCount: messages.length,
+                    itemBuilder: (context, index) {
+                      final data =
+                          messages[messages.length - 1 - index].data()
+                              as Map<String, dynamic>;
+                      final isMe = data['senderId'] == currentUserId;
+                      final senderName = data['senderName'] as String? ?? '';
+                      final text = data['text'] as String? ?? '';
+                      final timestamp = data['timestamp'] as Timestamp?;
+
+                      return Align(
+                        alignment:
+                            isMe ? Alignment.centerRight : Alignment.centerLeft,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: MediaQuery.of(context).size.width * 0.75,
+                          ),
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              gradient:
+                                  isMe
+                                      ? const LinearGradient(
+                                        colors: [
+                                          Color(0xff6a11cb),
+                                          Color(0xff2575fc),
+                                        ],
+                                      )
+                                      : LinearGradient(
+                                        colors: [
+                                          Colors.grey.shade300,
+                                          Colors.grey.shade200,
+                                        ],
+                                      ),
+                              borderRadius: BorderRadius.only(
+                                topLeft: const Radius.circular(16),
+                                topRight: const Radius.circular(16),
+                                bottomLeft: Radius.circular(isMe ? 16 : 4),
+                                bottomRight: Radius.circular(isMe ? 4 : 16),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  offset: const Offset(0, 2),
+                                  blurRadius: 4,
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment:
+                                  isMe
+                                      ? CrossAxisAlignment.end
+                                      : CrossAxisAlignment.start,
+                              children: [
+                                if (!isMe)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 6.0),
+                                    child: Text(
+                                      senderName,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                        color: Colors.grey[700],
+                                      ),
+                                    ),
+                                  ),
+                                Text(
+                                  text,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: isMe ? Colors.white : Colors.black87,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  _formatTimestamp(timestamp),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color:
+                                        (isMe
+                                            ? Colors.white70
+                                            : Colors.black45),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
             ),
-          ),
-          const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    decoration: const InputDecoration(
-                      hintText: 'Type a message...',
-                      border: OutlineInputBorder(),
+            const Divider(height: 1),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    offset: const Offset(0, -1),
+                    blurRadius: 4,
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      maxLines: null,
+                      decoration: InputDecoration(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        hintText: 'Type a message...',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey[200],
+                      ),
+                      textCapitalization: TextCapitalization.sentences,
                     ),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.send, color: Colors.blueAccent),
-                  onPressed: () => sendMessage(_controller.text),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  Material(
+                    color: Colors.deepPurple,
+                    borderRadius: BorderRadius.circular(30),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(30),
+                      onTap: () => sendMessage(_controller.text),
+                      child: const Padding(
+                        padding: EdgeInsets.all(12.0),
+                        child: Icon(Icons.send, color: Colors.white, size: 24),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
