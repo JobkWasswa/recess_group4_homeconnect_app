@@ -177,4 +177,3 @@ class AllJobRequestsScreen extends StatelessWidget {
     );
   }
 }
-
