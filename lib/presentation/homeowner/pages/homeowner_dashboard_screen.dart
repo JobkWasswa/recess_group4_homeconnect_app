@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:homeconnect/data/models/users.dart'; // CHANGE: Import UserProfile model
 import 'package:geolocator/geolocator.dart';
-import 'package:homeconnect/presentation/homeowner/pages/list_of _serviceproviders.dart';
-import 'package:homeconnect/data/models/booking.dart';
-import 'package:homeconnect/presentation/homeowner/pages/view_all_bookings.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:homeconnect/data/models/users.dart';
+import 'package:homeconnect/data/models/booking.dart';
+import 'package:homeconnect/presentation/homeowner/pages/service_provider_list_page.dart';
+import 'package:homeconnect/presentation/homeowner/pages/view_all_bookings.dart';
+import 'package:homeconnect/config/routes.dart';
 
 // Helper – convert something like “john_doe99@example.com” → “John Doe99”
 String nameFromEmail(String email) {
@@ -109,6 +110,105 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  // Add this method to your _HomeownerDashboardScreenState class
+  void showRatingPopup(String providerId, String providerName) async {
+    double selectedRating = 3.0;
+    final TextEditingController feedbackController = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Rate $providerName'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              RatingBar.builder(
+                initialRating: 3,
+                minRating: 1,
+                direction: Axis.horizontal,
+                allowHalfRating: false,
+                itemCount: 5,
+                itemBuilder:
+                    (context, _) => const Icon(Icons.star, color: Colors.amber),
+                onRatingUpdate: (rating) {
+                  selectedRating = rating;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: feedbackController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  hintText: 'Leave a comment (optional)',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                try {
+                  // Add rating to 'ratings' collection
+                  await FirebaseFirestore.instance.collection('ratings').add({
+                    'providerId': providerId,
+                    'clientId': FirebaseAuth.instance.currentUser?.uid,
+                    'rating': selectedRating,
+                    'review': feedbackController.text.trim(),
+                    'createdAt': FieldValue.serverTimestamp(),
+                  });
+
+                  // Update average rating of provider
+                  final providerRef = FirebaseFirestore.instance
+                      .collection('service_providers')
+                      .doc(providerId);
+
+                  final providerDoc = await providerRef.get();
+                  final currentRating =
+                      providerDoc.data()?['averageRating'] ?? 0.0;
+                  final reviewCount =
+                      providerDoc.data()?['numberOfReviews'] ?? 0;
+
+                  final newTotalRating =
+                      (currentRating * reviewCount) + selectedRating;
+                  final newReviewCount = reviewCount + 1;
+                  final newAvgRating = newTotalRating / newReviewCount;
+
+                  await providerRef.update({
+                    'averageRating': newAvgRating,
+                    'numberOfReviews': newReviewCount,
+                    'completedJobs': FieldValue.increment(1),
+                  });
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Rating submitted!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Submit Rating'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   // Add thi
@@ -319,10 +419,10 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildHeader(context),
-                _buildSearchAndFilter(),
-                _buildCategorySection(context),
-                _buildPopularServicesSection(context),
+                buildHeader(context),
+                buildSearchAndFilter(),
+                buildCategorySection(context),
+                buildPopularServicesSection(context),
                 _buildBookingStatusSection(context),
                 const SizedBox(height: 20),
               ],
@@ -660,9 +760,9 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder:
-                                (_) => ServiceProvidersList(
-                                  category: category['name']!,
-                                  userLocation: GeoPoint(
+                                (_) => ServiceProviderListPage(
+                                  serviceCategory: category['name']!,
+                                  location: GeoPoint(
                                     pos.latitude,
                                     pos.longitude,
                                   ),
@@ -670,7 +770,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                           ),
                         );
                       } catch (e) {
-                        print('❌ Error: $e');
+                        debugPrint('❌ Error: $e');
                         ScaffoldMessenger.of(
                           context,
                         ).showSnackBar(SnackBar(content: Text('Error: $e')));
@@ -1017,7 +1117,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                 .limit(3)
                 .snapshots()
                 .handleError((error) {
-                  print('🔥 Firestore error: $error');
+                  debugPrint('🔥 Firestore error: $error');
                 }),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
@@ -1043,6 +1143,9 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                           children: [
                             _buildBookingStatusCard(
                               context: context,
+                              isCompleted: true,
+                              bookingId: booking.bookingId!,
+                              providerId: booking.serviceProviderId,
                               service:
                                   booking.categories.isNotEmpty
                                       ? booking.categories.first
@@ -1063,14 +1166,14 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                                         context,
                                         MaterialPageRoute(
                                           builder:
-                                              (_) => ServiceProvidersList(
-                                                category:
+                                              (_) => ServiceProviderListPage(
+                                                serviceCategory:
                                                     booking
                                                             .categories
                                                             .isNotEmpty
                                                         ? booking.categories[0]
                                                         : '',
-                                                userLocation: booking.location,
+                                                location: booking.location,
                                               ),
                                         ),
                                       );
@@ -1127,7 +1230,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
       child: InkWell(
         borderRadius: BorderRadius.circular(15),
         onTap: () {
-          print('Booking tapped: \$service with \$provider');
+          debugPrint('Booking tapped: \$service with \$provider');
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Tapped on booking for $service!')),
           );

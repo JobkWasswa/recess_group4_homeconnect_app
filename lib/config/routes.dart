@@ -8,6 +8,7 @@ import 'package:homeconnect/presentation/homeowner/pages/service_provider_list_p
 import 'package:homeconnect/presentation/homeowner/pages/service_provider_detail_page.dart';
 import 'package:homeconnect/presentation/service_provider/pages/service_provider_profile.dart'; // Assuming ProfileCreationScreen is here
 import 'package:homeconnect/presentation/service_provider/pages/provider_maps_screen.dart'; // Import the new screen
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AppRoutes {
   static const String splash = '/';
@@ -17,6 +18,7 @@ class AppRoutes {
   static const String homeownerDashboard = '/homeowner_dashboard';
   static const String serviceProviderDashboard = '/service_provider_dashboard';
   static const String providerMaps = '/provider_maps'; // <--- ADDED THIS ROUTE
+  static const String bookingPage = '/booking';
 
   // ✅ New route constants for service provider pages
   static const String serviceProviderListPage = '/providerList';
@@ -57,11 +59,12 @@ class AppRoutes {
         final category = args['category'] as String;
         // If userLocation is also a required argument, you'll need to retrieve it:
         // final userLocation = args['userLocation'] as GeoPoint; // Make sure to import cloud_firestore for GeoPoint
+        final userLocation = args['location'] as GeoPoint;
         return MaterialPageRoute(
           builder:
-              (_) => ServiceProviderListScreen(
-                serviceCategory: args[category],
-                userLocation: args['location'],
+              (_) => ServiceProviderListPage(
+                serviceCategory: category,
+                location: userLocation,
               ),
         );
 

@@ -29,14 +29,14 @@ class AllBookingsScreen extends StatelessWidget {
             .snapshots()
             .handleError((error) {
               // 👇 This will help you detect missing index errors in debug console
-              print('🔥 Firestore error (AllBookingsScreen): $error');
+              debugPrint('🔥 Firestore error (AllBookingsScreen): $error');
             }),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          print("Current user ID: $currentUserId");
+          debugPrint("Current user ID: $currentUserId");
 
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return const Center(child: Text('You have no bookings.'));

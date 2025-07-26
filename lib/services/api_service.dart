@@ -14,6 +14,7 @@ class ApiService {
         name: 'John Doe',
         specialty: 'Plumbing',
         rating: 4.5,
+        profilePictureUrl: 'https://example.com/john_doe.png',
         completedJobs: 24,
         location: LatLng(37.7749, -122.4194),
         isAvailable: true,
