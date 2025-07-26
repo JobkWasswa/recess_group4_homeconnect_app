@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'package:homeconnect/presentation/service_provider/widgets/chat_screen.dart';
 
@@ -59,7 +60,14 @@ class _ProviderConversationsScreenState
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('Your Conversations'),
+        title: Text(
+          'Your Conversations',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+            fontSize: 22,
+            letterSpacing: 1.2,
+          ),
+        ),
         centerTitle: true,
         elevation: 6,
         flexibleSpace: Container(
@@ -86,7 +94,10 @@ class _ProviderConversationsScreenState
             return Center(
               child: Text(
                 'Error: ${snapshot.error}',
-                style: const TextStyle(color: Colors.redAccent),
+                style: GoogleFonts.poppins(
+                  color: Colors.redAccent,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             );
           }
@@ -104,7 +115,7 @@ class _ProviderConversationsScreenState
                   const SizedBox(height: 12),
                   Text(
                     'No conversations found.',
-                    style: TextStyle(
+                    style: GoogleFonts.poppins(
                       color: Colors.grey[600],
                       fontSize: 18,
                       fontWeight: FontWeight.w500,
@@ -142,8 +153,11 @@ class _ProviderConversationsScreenState
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: ListTile(
-                    title: const Text('Unknown participant'),
-                    subtitle: Text(lastMessage),
+                    title: Text(
+                      'Unknown participant',
+                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: Text(lastMessage, style: GoogleFonts.poppins()),
                   ),
                 );
               }
@@ -171,11 +185,11 @@ class _ProviderConversationsScreenState
                           displayName.isNotEmpty
                               ? displayName[0].toUpperCase()
                               : '?',
-                          style: const TextStyle(
+                          style: GoogleFonts.poppins(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
-                            shadows: [
+                            shadows: const [
                               Shadow(
                                 color: Colors.black26,
                                 offset: Offset(0, 1),
@@ -187,7 +201,7 @@ class _ProviderConversationsScreenState
                       ),
                       title: Text(
                         displayName,
-                        style: const TextStyle(
+                        style: GoogleFonts.poppins(
                           fontWeight: FontWeight.w700,
                           fontSize: 18,
                           letterSpacing: 0.4,
@@ -197,7 +211,7 @@ class _ProviderConversationsScreenState
                         lastMessage,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
+                        style: GoogleFonts.poppins(
                           color: Colors.grey[700],
                           fontWeight: FontWeight.w500,
                         ),
@@ -206,7 +220,7 @@ class _ProviderConversationsScreenState
                           lastTimestamp != null
                               ? Text(
                                 _formatTimestamp(lastTimestamp),
-                                style: TextStyle(
+                                style: GoogleFonts.poppins(
                                   fontSize: 12,
                                   color: Colors.grey[500],
                                   fontWeight: FontWeight.w400,
