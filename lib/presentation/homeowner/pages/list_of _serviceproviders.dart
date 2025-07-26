@@ -5,6 +5,8 @@ import 'package:homeconnect/presentation/homeowner/pages/profile_display_for_cli
 import 'package:homeconnect/data/providers/homeowner_firestore_provider.dart';
 import 'package:homeconnect/data/models/booking.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:homeconnect/presentation/service_provider/pages/service_provider_calendar.dart';
+import 'package:intl/intl.dart';
 
 class ServiceProvidersList extends StatefulWidget {
   final String category;
@@ -25,7 +27,6 @@ class ServiceProvidersList extends StatefulWidget {
 
 class _ServiceProvidersListState extends State<ServiceProvidersList> {
   late Future<List<ServiceProviderModel>> _providersFuture;
-  // Removed _notesControllers as notes field is moved to dialog
 
   @override
   void initState() {
@@ -70,7 +71,6 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
 
   @override
   void dispose() {
-    // No need to dispose notesControllers here anymore
     super.dispose();
   }
 
@@ -182,6 +182,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                     ],
                                   ),
                                 ),
+                                const SizedBox(height: 6),
                               ],
                             ),
                           ),
@@ -198,7 +199,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                                     size: 16,
                                   ),
                                   Text(
-                                    '${provider.rating} (${provider.reviewCount} reviews)',
+                                    '${provider.rating.toStringAsFixed(1)} (${provider.reviewCount} reviews)',
                                     style: const TextStyle(
                                       fontSize: 14,
                                       color: Colors.grey,
@@ -281,10 +282,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
                               SizedBox(
                                 width: 120,
                                 child: OutlinedButton(
-                                  onPressed:
-                                      () => _handleBookNow(
-                                        provider,
-                                      ), // No notes passed here initially
+                                  onPressed: () => _handleBookNow(provider),
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: Colors.purple,
                                     side: const BorderSide(
@@ -353,154 +351,105 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
       return;
     }
 
-    final currentUserId = user.uid;
     final currentUserName =
-        user.displayName ??
-        (user.email != null ? user.email!.split('@')[0] : 'Homeowner');
-
+        user.displayName ?? (user.email?.split('@')[0] ?? 'Homeowner');
     final providerCategory =
         provider.categories.isNotEmpty ? provider.categories[0] : '';
 
-    // Check for existing active booking
-    final existingBookingQuery =
+    final bookingDetails = await Navigator.push<Map<String, dynamic>?>(
+      context,
+      MaterialPageRoute(
+        builder:
+            (_) => ServiceProviderCalendarScreen(
+              provider: provider,
+              category: widget.category,
+            ),
+      ),
+    );
+
+    if (bookingDetails == null) return;
+
+    final DateTime? startDateTime = bookingDetails['startDateTime'];
+    final DateTime? endDateTime = bookingDetails['endDateTime'];
+    final String? notes = bookingDetails['notes'];
+    final bool isFullDay = bookingDetails['isFullDay'] ?? false;
+
+    if (startDateTime == null || endDateTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a valid date and time')),
+      );
+      return;
+    }
+
+    final startOfDay = DateTime(
+      startDateTime.year,
+      startDateTime.month,
+      startDateTime.day,
+    );
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    final existingBookingsSnapshot =
         await FirebaseFirestore.instance
             .collection('bookings')
-            .where('clientId', isEqualTo: currentUserId)
+            .where('serviceProviderId', isEqualTo: provider.id)
             .where('selectedCategory', isEqualTo: providerCategory)
             .where('status', whereIn: ServiceProvidersList.activeStatuses)
-            .limit(1)
+            .where('scheduledDate', isGreaterThanOrEqualTo: startOfDay)
+            .where('scheduledDate', isLessThan: endOfDay)
             .get();
 
-    if (existingBookingQuery.docs.isNotEmpty) {
+    final hasOverlap = existingBookingsSnapshot.docs.any((doc) {
+      final data = doc.data();
+      final existingStart = (data['scheduledDate'] as Timestamp).toDate();
+      final existingEnd = (data['endDateTime'] as Timestamp).toDate();
+      return existingStart.isBefore(endDateTime) &&
+          existingEnd.isAfter(startDateTime);
+    });
+
+    if (hasOverlap) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('You already have an active booking in this category'),
+          content: Text('This time slot is already booked for this provider'),
         ),
       );
       return;
     }
 
-    // Show confirmation dialog
-    final TextEditingController notesController = TextEditingController();
-    final bool? confirmBooking = await showDialog<bool>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Confirm Booking'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Service: ${widget.category}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: Colors.grey[200],
-                        child:
-                            provider.profilePhoto != null
-                                ? ClipOval(
-                                  child: Image.network(
-                                    provider.profilePhoto!,
-                                    width: 40,
-                                    height: 40,
-                                    fit: BoxFit.cover,
-                                    errorBuilder:
-                                        (context, error, stack) =>
-                                            const Icon(Icons.person, size: 20),
-                                  ),
-                                )
-                                : const Icon(Icons.person, size: 20),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Provider: ${provider.name}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('Add a note for the service provider (optional):'),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: notesController,
-                    decoration: InputDecoration(
-                      hintText: 'e.g., specific instructions, preferred time',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                    ),
-                    maxLines: 3,
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  notesController.dispose();
-                  Navigator.pop(context, false); // Cancel
-                },
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context, true); // Confirm
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.purple,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Confirm Booking'),
-              ),
-            ],
-          ),
-    );
-
-    if (confirmBooking == true) {
+    try {
       final booking = Booking(
         clientId: user.uid,
         clientName: currentUserName,
         serviceProviderId: provider.id,
         serviceProviderName: provider.name,
         categories: provider.categories,
+        selectedCategory: widget.category,
         bookingDate: DateTime.now(),
+        scheduledDate: startDateTime,
+        endDateTime: endDateTime,
+        scheduledTime: DateFormat.jm().format(startDateTime),
         status: 'pending',
-        selectedCategory: providerCategory,
-        notes: notesController.text, // Use the note from the dialog
+        notes: notes,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
         location: widget.userLocation,
+        isFullDay: isFullDay, // 👈 Add this line
       );
 
-      try {
-        await FirebaseFirestore.instance
-            .collection('bookings')
-            .add(booking.toFirestore());
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Booking sent! Waiting for confirmation'),
-          ),
-        );
-      } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to book: $e')));
-      } finally {
-        notesController.dispose();
-      }
-    } else {
-      notesController.dispose();
+      final bookingData = booking.toFirestore();
+      print('📝 Booking to Firestore: $bookingData');
+
+      await FirebaseFirestore.instance.collection('bookings').add(bookingData);
+
+      print('✅ Booking saved successfully!');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Booking sent! Waiting for confirmation')),
+      );
+    } catch (e, stackTrace) {
+      print('❌ Error saving booking: $e');
+      print('🪵 Stack trace: $stackTrace');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to book: $e')));
     }
   }
 

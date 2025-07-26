@@ -1,14 +1,15 @@
 import 'dart:io' as io;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:homeconnect/presentation/service_provider/pages/service_provider_dashboard_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:homeconnect/config/routes.dart';
 import 'package:homeconnect/data/models/services.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 class ProfileCreationScreen extends StatefulWidget {
   const ProfileCreationScreen({super.key});
@@ -20,6 +21,7 @@ class ProfileCreationScreen extends StatefulWidget {
 class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
   final _nameController = TextEditingController();
   final _descController = TextEditingController();
+  bool _isSaving = false;
   List<String> _selectedCategories = [];
 
   io.File? _profileImageFile;
@@ -59,7 +61,16 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
     }
   }
 
-  Future<String?> _uploadProfileImage() async {
+  Future<Uint8List?> compressImage(io.File imageFile) async {
+    return await FlutterImageCompress.compressWithFile(
+      imageFile.absolute.path,
+      minWidth: 800,
+      minHeight: 800,
+      quality: 70,
+    );
+  }
+
+  Future<String?> uploadProfileImage() async {
     final ref = FirebaseStorage.instance.ref(
       'profile_pictures/${DateTime.now().millisecondsSinceEpoch}',
     );
@@ -138,84 +149,74 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
     }
   }
 
-  Future<void> _saveProfile() async {
-    debugPrint("Save profile button pressed");
+  Future<bool> _saveProfile() async {
     try {
+      debugPrint("Starting _saveProfile...");
+
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("User not logged in.")));
-        return;
-      }
+      if (user == null) throw Exception("User not logged in");
 
-      if (_selectedCategories.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Please select at least one category.")),
+      final userId = user.uid;
+      String? imageUrl;
+
+      // Upload image if selected
+      if (kIsWeb && _webImageBytes != null) {
+        debugPrint("Uploading web image...");
+        final ref = FirebaseStorage.instance.ref().child(
+          'provider_images/$userId.jpg',
         );
-        return;
+        await ref.putData(_webImageBytes!);
+        imageUrl = await ref.getDownloadURL();
+      } else if (!kIsWeb && _profileImageFile != null) {
+        debugPrint("Compressing image...");
+        final compressedData = await compressImage(_profileImageFile!);
+        if (compressedData == null) {
+          throw Exception("Image compression failed.");
+        }
+
+        debugPrint("Uploading compressed image...");
+        final ref = FirebaseStorage.instance.ref().child(
+          'provider_images/$userId.jpg',
+        );
+        await ref.putData(compressedData);
+        imageUrl = await ref.getDownloadURL();
       }
 
-      final uid = user.uid;
-      final imageUrl = await _uploadProfileImage();
+      debugPrint("Image uploaded: $imageUrl");
 
-      Map<String, dynamic> availabilityData = {};
+      // Save to Firestore
+      // Save to Firestore
+      final doc = FirebaseFirestore.instance
+          .collection('service_providers')
+          .doc(userId);
+
+      // ✅ Fix here
+      final Map<String, dynamic> availabilityData = {};
       _availability.forEach((day, isAvailable) {
-        if (isAvailable) {
-          availabilityData[day] = {
-            'start': _startTimes[day]?.format(context),
-            'end': _endTimes[day]?.format(context),
-          };
-        }
+        availabilityData[day] = {
+          'available': isAvailable,
+          'startTime': _startTimes[day]?.format(context),
+          'endTime': _endTimes[day]?.format(context),
+        };
       });
 
-      await FirebaseFirestore.instance
-          .collection('service_providers')
-          .doc(uid)
-          .set({
-            'name': _nameController.text,
-            'description': _descController.text,
-            'categories': _selectedCategories,
-            'profilePhoto': imageUrl,
-            'location': GeoPoint(_latitude!, _longitude!),
-            'availability': availabilityData,
-            'createdAt': Timestamp.now(),
-            'averageRating': 0.0,
-            'numberOfReviews': 0,
-          });
+      await doc.set({
+        'uid': userId,
+        'name': _nameController.text.trim(),
+        'description': _descController.text.trim(),
+        'imageUrl': imageUrl ?? '',
+        'categories': _selectedCategories,
+        'location': GeoPoint(_latitude ?? 0.0, _longitude ?? 0.0),
+        'availability': availabilityData,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
 
-      for (final category in _selectedCategories) {
-        await FirebaseFirestore.instance
-            .collection('categories')
-            .doc(category)
-            .collection('users')
-            .doc(uid)
-            .set({
-              'name': _nameController.text,
-              'profilePhoto': imageUrl,
-              'location': GeoPoint(_latitude!, _longitude!),
-              'address': locationAddress,
-              'timestamp': Timestamp.now(),
-              'averageRating': 0.0,
-              'numberOfReviews': 0,
-            });
-      }
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Profile saved successfully!")),
-      );
-
-      Navigator.pushReplacementNamed(
-        context,
-        AppRoutes.serviceProviderDashboard,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Failed to save profile: $e")));
+      debugPrint("✅ Profile saved successfully.");
+      return true;
+    } catch (e, stack) {
+      debugPrint("❌ Error saving profile: $e");
+      debugPrint("Stacktrace: $stack");
+      return false;
     }
   }
 
@@ -613,7 +614,28 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _saveProfile,
+                  onPressed: () async {
+                    if (_isSaving) return; // Prevent duplicate tap
+                    setState(() => _isSaving = true);
+
+                    print("Create Profile button tapped");
+                    final success = await _saveProfile();
+                    print("Save result: $success");
+
+                    if (success && mounted) {
+                      print("Navigating to dashboard...");
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) =>
+                                  const ServiceProviderDashboardScreen(),
+                        ),
+                      );
+                    }
+
+                    if (mounted) setState(() => _isSaving = false);
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6B4EEF), // Purple button
                     shape: RoundedRectangleBorder(
@@ -623,19 +645,27 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
                     ),
                     elevation: 5, // Subtle shadow
                   ),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(
-                      vertical: 16.0,
-                    ), // Increased padding for a taller button
-                    child: Text(
-                      "Create Profile",
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ), // Bold and white text
-                    ),
-                  ),
+                  child:
+                      _isSaving
+                          ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                          : const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16.0),
+                            child: Text(
+                              "Create Profile",
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                 ),
               ),
             ),

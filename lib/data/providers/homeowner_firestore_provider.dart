@@ -43,7 +43,7 @@ class HomeownerFirestoreProvider {
       return providersData
           .map(
             (data) =>
-                ServiceProviderModel.fromJson(data as Map<String, dynamic>),
+                ServiceProviderModel.fromJson(Map<String, dynamic>.from(data)),
           )
           .toList();
     } on FirebaseFunctionsException catch (e) {

@@ -2,17 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:homeconnect/config/routes.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:homeconnect/data/models/service_provider_modal.dart';
 import 'package:homeconnect/presentation/service_provider/pages/service_provider_savedprofile.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:homeconnect/presentation/service_provider/pages/service_provider_view_booking.dart';
+import 'package:homeconnect/presentation/service_provider/pages/service_provider_view_calendar.dart';
 import 'package:homeconnect/presentation/service_provider/pages/view_job_request.dart';
 import 'package:intl/intl.dart';
 import 'package:homeconnect/presentation/service_provider/pages/provider_maps_screen.dart';
-
-// Import your location utility file or implement this function
-Future<String> getAddressFromLatLng(double? latitude, double? longitude) async {
-  // Implement your reverse geocoding logic here
-  return 'Sample Address'; // Replace with actual implementation
-}
+import 'package:homeconnect/presentation/service_provider/widgets/chat_screen.dart';
 
 class ServiceProviderDashboardScreen extends StatefulWidget {
   const ServiceProviderDashboardScreen({super.key});
@@ -22,26 +20,35 @@ class ServiceProviderDashboardScreen extends StatefulWidget {
       _ServiceProviderDashboardScreenState();
 }
 
+String _userProfession = ''; // Add this line with your other state variables
+
 class _ServiceProviderDashboardScreenState
     extends State<ServiceProviderDashboardScreen> {
-  String providerName = '';
-  final String _userProfession =
-      ''; // To store the service provider's profession
+  ServiceProviderModel? provider; // This will now be populated
+  String providerName = ''; // Stores the fetched provider name
   bool isLoading = true;
-  int _completedJobsCount = 0;
-  double _avgRating = 0.0;
-  int _upcomingJobsCount = 0;
+  int _completedJobsCount = 0; // Stores completed job count
+  double _avgRating = 0.0; // Stores average rating
+  int _upcomingJobsCount = 0; // Stores upcoming job count
 
   @override
   void initState() {
     super.initState();
-    _fetchProviderName();
-    _updateProviderFCMToken();
-    _fetchProviderStats(); // Fetch stats when the screen initializes
+    _initializeApp(); // A new method to handle all initial fetches
+  }
+
+  Future<void> _initializeApp() async {
+    await _fetchProviderData(); // Fetch provider model and name first
+    await _updateProviderFCMToken();
+    await _fetchProviderStats(); // This can now rely on 'provider' being set for user ID
+    setState(() {
+      isLoading = false; // Set loading to false after all initial fetches
+    });
   }
 
   Stream<QuerySnapshot> _getAcceptedJobs() {
     final userId = FirebaseAuth.instance.currentUser?.uid;
+    print('🔥 Current User ID: $userId');
     if (userId == null) return Stream<QuerySnapshot>.empty();
 
     return FirebaseFirestore.instance
@@ -55,13 +62,12 @@ class _ServiceProviderDashboardScreenState
         });
   }
 
-  Future<void> _fetchProviderName() async {
+  Future<void> _fetchProviderData() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
         setState(() {
           providerName = 'Provider';
-          isLoading = false;
         });
         return;
       }
@@ -86,36 +92,84 @@ class _ServiceProviderDashboardScreenState
               .doc(user.uid)
               .get();
 
-      String? emailFromFirestore = doc.data()?['email']?.toString();
-      String? nameFromFirestore = doc.data()?['fullName']?.toString();
+      if (doc.exists) {
+        // Use fromDocumentSnapshot factory to create the provider model
+        // This handles default values for missing fields
+        provider = ServiceProviderModel.fromDocumentSnapshot(doc);
 
-      if (nameFromFirestore != null && nameFromFirestore.isNotEmpty) {
-        setState(() {
-          providerName = nameFromFirestore;
-          isLoading = false;
-        });
-      } else if (emailFromFirestore != null && emailFromFirestore.isNotEmpty) {
-        setState(() {
-          providerName = formatNameFromEmail(emailFromFirestore);
-          isLoading = false;
-        });
-      } else if (user.email != null) {
-        setState(() {
-          providerName = formatNameFromEmail(user.email!);
-          isLoading = false;
-        });
+        // Use data from the fetched document for providerName
+        String? nameFromModel =
+            provider?.name; // Use the 'name' field from your model
+        String? emailFromModel =
+            provider?.email; // Assuming you add 'email' to your model
+
+        if (nameFromModel != null && nameFromModel.isNotEmpty) {
+          setState(() {
+            providerName = nameFromModel;
+          });
+        } else if (emailFromModel != null && emailFromModel.isNotEmpty) {
+          setState(() {
+            providerName = formatNameFromEmail(emailFromModel);
+          });
+        } else if (user.email != null) {
+          setState(() {
+            providerName = formatNameFromEmail(user.email!);
+          });
+        } else {
+          setState(() {
+            providerName = 'Provider';
+          });
+        }
       } else {
-        setState(() {
-          providerName = 'Provider';
-          isLoading = false;
-        });
+        // If doc doesn't exist, try to use user.email and set a default provider model
+        if (user.email != null) {
+          setState(() {
+            providerName = formatNameFromEmail(user.email!);
+          });
+        } else {
+          setState(() {
+            providerName = 'Provider';
+          });
+        }
+        // Create a default ServiceProviderModel even if document doesn't exist
+        // This ensures 'provider' is not null, preventing the crash.
+        // You might want to adjust default values based on your app's logic.
+        provider = ServiceProviderModel(
+          id: user.uid, // Use user's UID as ID
+          name: providerName, // Use the derived name
+          categories: [],
+          rating: 0.0,
+          reviewCount: 0,
+          score: 0.0,
+          completedJobs: 0,
+        );
+        print(
+          'Provider document not found for user: ${user.uid}. Created default model.',
+        );
+        await FirebaseFirestore.instance
+            .collection('service_providers')
+            .doc(user.uid)
+            .set({
+              'completedJobs': 0,
+              'averageRating': 0.0,
+            }, SetOptions(merge: true));
       }
     } catch (e) {
-      debugPrint('Error fetching provider name: $e');
+      print('Error fetching provider data: $e');
       setState(() {
         providerName = 'Provider';
-        isLoading = false;
       });
+      // Ensure provider is not null even on error, by providing a fallback model
+      final user = FirebaseAuth.instance.currentUser;
+      provider = ServiceProviderModel(
+        id: user?.uid ?? 'unknown_id', // Fallback ID
+        name: providerName,
+        categories: [],
+        rating: 0.0,
+        reviewCount: 0,
+        score: 0.0,
+        completedJobs: 0,
+      );
     }
   }
 
@@ -140,7 +194,6 @@ class _ServiceProviderDashboardScreenState
     if (userId == null) return;
 
     try {
-      // Fetch provider stats from the 'service_providers' collection
       final providerDoc =
           await FirebaseFirestore.instance
               .collection('service_providers')
@@ -150,14 +203,21 @@ class _ServiceProviderDashboardScreenState
       if (providerDoc.exists) {
         final providerData = providerDoc.data();
         setState(() {
-          _completedJobsCount = providerData?['completedJobs'] ?? 0;
-          _avgRating = providerData?['averageRating']?.toDouble() ?? 0.0;
+          _completedJobsCount =
+              (providerData?['completedJobs'] as num?)?.toInt() ?? 0;
+          _avgRating =
+              (providerData?['averageRating'] as num?)?.toDouble() ?? 0.0;
         });
       } else {
-        debugPrint('Provider stats not found.');
+        print(
+          'Provider stats not found for current user ID. Using default 0 values.',
+        );
+        setState(() {
+          _completedJobsCount = 0;
+          _avgRating = 0.0;
+        });
       }
 
-      // Fetch upcoming jobs from the 'bookings' collection
       final upcomingJobsSnapshot =
           await FirebaseFirestore.instance
               .collection('bookings')
@@ -169,7 +229,12 @@ class _ServiceProviderDashboardScreenState
         _upcomingJobsCount = upcomingJobsSnapshot.docs.length;
       });
     } catch (e) {
-      debugPrint('Error fetching provider stats: $e');
+      print('Error fetching provider stats: $e');
+      setState(() {
+        _completedJobsCount = 0;
+        _avgRating = 0.0;
+        _upcomingJobsCount = 0;
+      });
     }
   }
 
@@ -234,22 +299,11 @@ class _ServiceProviderDashboardScreenState
             ? categories[0].toString()
             : (categories?.toString() ?? 'Unknown');
 
-    final bookingDate = data['bookingDate'];
-    final formattedDate =
-        bookingDate is Timestamp
-            ? DateFormat(
-              'MMM d, yyyy h:mm a',
-            ).format(bookingDate.toDate().toLocal())
-            : 'Unknown date';
-
-    final double? latitude =
-        (data['latitude'] is num) ? data['latitude'].toDouble() : null;
-    final double? longitude =
-        (data['longitude'] is num) ? data['longitude'].toDouble() : null;
-
-    Future<String> getDisplayAddress() async {
-      return await getAddressFromLatLng(latitude, longitude);
-    }
+    final Timestamp? scheduledDateTimestamp =
+        data['scheduledDate'] as Timestamp?;
+    final DateTime? scheduledDate = scheduledDateTimestamp?.toDate();
+    final String? scheduledTime = data['scheduledTime'] as String?;
+    final String? duration = data['duration'] as String?;
 
     return Card(
       elevation: 8,
@@ -279,45 +333,36 @@ class _ServiceProviderDashboardScreenState
                 ),
               ],
             ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
-                const SizedBox(width: 8),
-                Text(formattedDate, style: TextStyle(color: Colors.grey[700])),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.location_on, size: 18, color: Colors.grey),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: FutureBuilder<String>(
-                    future: getDisplayAddress(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Text(
-                          'Loading location...',
-                          style: TextStyle(color: Colors.grey),
-                        );
-                      } else if (snapshot.hasError) {
-                        return Text(
-                          'Error loading location: ${snapshot.error}',
-                          style: const TextStyle(color: Colors.red),
-                        );
-                      } else {
-                        return Text(
-                          snapshot.data ?? 'Location not specified',
-                          style: TextStyle(color: Colors.grey[700]),
-                          overflow: TextOverflow.ellipsis,
-                        );
-                      }
-                    },
+            if (scheduledDate != null) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.calendar_today,
+                    size: 18,
+                    color: Colors.grey,
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Scheduled: ${DateFormat('MMM d, yyyy').format(scheduledDate)}',
+                    style: TextStyle(color: Colors.grey[700]),
+                  ),
+                ],
+              ),
+            ],
+            if (scheduledTime != null || duration != null) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(Icons.access_time, size: 18, color: Colors.grey),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Time: ${scheduledTime ?? 'N/A'}, Duration: ${duration ?? 'N/A'}',
+                    style: TextStyle(color: Colors.grey[700]),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
@@ -424,7 +469,7 @@ class _ServiceProviderDashboardScreenState
                       style: TextStyle(color: Colors.purple[100], fontSize: 14),
                     ),
                     Text(
-                      providerName,
+                      providerName, // This displays the fetched providerName
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,
@@ -510,19 +555,21 @@ class _ServiceProviderDashboardScreenState
                 children: [
                   _buildStatusItem(
                     Icons.star,
-                    _avgRating.toStringAsFixed(1),
+                    _avgRating.toStringAsFixed(
+                      1,
+                    ), // This displays the average rating
                     'Avg. Rating',
                     Colors.amber,
                   ),
                   _buildStatusItem(
                     Icons.work,
-                    '$_completedJobsCount+',
+                    '$_completedJobsCount+', // This displays the completed jobs count
                     'Jobs Completed',
                     Colors.lightBlueAccent,
                   ),
                   _buildStatusItem(
                     Icons.calendar_today,
-                    '$_upcomingJobsCount',
+                    '$_upcomingJobsCount', // This displays the upcoming jobs count
                     'Upcoming Jobs',
                     Colors.greenAccent,
                   ),
@@ -535,6 +582,8 @@ class _ServiceProviderDashboardScreenState
     );
   }
 
+  // --- Methods from the second code block ---
+
   Widget _buildStatusItem(
     IconData icon,
     String value,
@@ -543,13 +592,13 @@ class _ServiceProviderDashboardScreenState
   ) {
     return Column(
       children: [
-        Icon(icon, color: color, size: 28),
-        const SizedBox(height: 8),
+        Icon(icon, color: color, size: 24),
+        const SizedBox(height: 4),
         Text(
           value,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 18,
+            fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -740,11 +789,9 @@ class _ServiceProviderDashboardScreenState
                     docs.take(5).map((doc) {
                       final data = doc.data() as Map<String, dynamic>;
 
-                      final categories = data['categories'];
+                      //final categories = data['categories'];
                       final jobType =
-                          (categories is List && categories.isNotEmpty)
-                              ? categories[0].toString()
-                              : (categories?.toString() ?? 'Unknown');
+                          data['selectedCategory']?.toString() ?? 'Unknown';
 
                       final bookingDate = data['bookingDate'];
                       final formattedDate =
@@ -755,22 +802,11 @@ class _ServiceProviderDashboardScreenState
                               : 'Unknown date';
                       final note = data['notes'] ?? '';
 
-                      final double? latitude =
-                          (data['latitude'] is num)
-                              ? data['latitude'].toDouble()
-                              : null;
-                      final double? longitude =
-                          (data['longitude'] is num)
-                              ? data['longitude'].toDouble()
-                              : null;
-
                       return _buildJobRequestCard(
                         context: context,
                         jobType: jobType,
                         homeownerName: data['clientName'] ?? 'Unknown',
                         date: formattedDate,
-                        latitude: latitude,
-                        longitude: longitude,
                         bookingId: doc.id,
                         note: note,
                       );
@@ -788,15 +824,9 @@ class _ServiceProviderDashboardScreenState
     required String jobType,
     required String homeownerName,
     required String date,
-    required double? latitude,
-    required double? longitude,
     required String bookingId,
     String? note,
   }) {
-    Future<String> getDisplayAddress() async {
-      return await getAddressFromLatLng(latitude, longitude);
-    }
-
     return Card(
       elevation: 8,
       margin: const EdgeInsets.only(bottom: 12),
@@ -828,6 +858,31 @@ class _ServiceProviderDashboardScreenState
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (_) => ServiceProviderSingleBookingDetailScreen(
+                                bookingData: {
+                                  'serviceCategory': jobType,
+                                  'clientName': homeownerName,
+                                  'scheduledDate': date,
+                                  'notes': note ?? '',
+                                },
+                              ),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      'Details',
+                      style: TextStyle(
+                        color: Colors.purple,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 4),
@@ -844,38 +899,6 @@ class _ServiceProviderDashboardScreenState
                       date,
                       style: TextStyle(color: Colors.grey[700]),
                       overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(Icons.location_on, size: 18, color: Colors.grey),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: FutureBuilder<String>(
-                      future: getDisplayAddress(),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Text(
-                            'Loading location...',
-                            style: TextStyle(color: Colors.grey),
-                          );
-                        } else if (snapshot.hasError) {
-                          return Text(
-                            'Error: ${snapshot.error}',
-                            style: const TextStyle(color: Colors.red),
-                          );
-                        } else {
-                          return Text(
-                            snapshot.data ?? 'Location not specified',
-                            style: TextStyle(color: Colors.grey[700]),
-                            overflow: TextOverflow.ellipsis,
-                          );
-                        }
-                      },
                     ),
                   ),
                 ],
@@ -912,6 +935,7 @@ class _ServiceProviderDashboardScreenState
                               'status': 'confirmed',
                               'updatedAt': FieldValue.serverTimestamp(),
                             });
+                        _fetchProviderStats();
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
@@ -945,6 +969,7 @@ class _ServiceProviderDashboardScreenState
                               'status': 'rejected_by_provider',
                               'updatedAt': FieldValue.serverTimestamp(),
                             });
+                        _fetchProviderStats();
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
@@ -1004,12 +1029,30 @@ class _ServiceProviderDashboardScreenState
           _buildManagementCard(
             context: context,
             icon: Icons.calendar_month,
-            title: 'Set Availability',
+            title: 'View Calendar',
             subtitle: 'Manage your working hours and days off.',
             onTap: () {
-              debugPrint('Set Availability pressed');
+              if (provider != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => ServiceProviderViewCalendarScreen(
+                          provider: provider!,
+                        ),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Provider data not loaded yet. Please wait.'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                print('Attempted to open calendar but provider is null.');
+              }
             },
-            colors: const [Color(0xFF22C55E), Color(0xFF16A34A)],
+            colors: const [Color(0xFF22C55E), Color(0xFF16A34A)], // Green
           ),
           const SizedBox(height: 12),
           _buildManagementCard(
@@ -1040,6 +1083,7 @@ class _ServiceProviderDashboardScreenState
   }) {
     return Card(
       elevation: 8,
+      margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -1102,13 +1146,34 @@ class _ServiceProviderDashboardScreenState
           IconButton(
             icon: const Icon(Icons.home),
             color: Colors.purple[700],
-            onPressed: () {},
+            onPressed: () {}, // Current screen, no navigation needed
           ),
           IconButton(
-            icon: const Icon(Icons.calendar_today),
+            icon: const Icon(Icons.calendar_month),
             color: Colors.grey,
             onPressed: () {
-              debugPrint('My Bookings bottom nav pressed!');
+              print("Calendar Icon Pressed!");
+              if (provider != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => ServiceProviderViewCalendarScreen(
+                          provider: provider!,
+                        ),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Provider data not loaded yet. Please wait.'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                print(
+                  'Attempted to open calendar from bottom nav but provider is null.',
+                );
+              }
             },
           ),
           const SizedBox(width: 48),
@@ -1129,7 +1194,19 @@ class _ServiceProviderDashboardScreenState
             icon: const Icon(Icons.message),
             color: Colors.grey,
             onPressed: () {
-              debugPrint('Messages bottom nav pressed!');
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (context) => const ChatScreen(
+                        otherUserId:
+                            'replace_with_user_id', // 👈 replace with actual user ID
+                        otherUserName:
+                            'replace_with_user_name', // 👈 replace with actual name
+                      ),
+                ),
+              );
+              print('Messages bottom nav pressed!');
             },
           ),
         ],

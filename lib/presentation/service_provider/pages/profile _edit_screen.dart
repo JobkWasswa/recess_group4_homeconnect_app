@@ -101,7 +101,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       setState(() {
         _locationStatus = 'Error getting location: ${e.toString()}';
       });
-      print('Error getting location: $e'); // For debugging
+      debugPrint('Error getting location: $e'); // For debugging
     }
   }
 
@@ -183,7 +183,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         final ratingReview = RatingReview.fromFirestore(doc);
         sumRatings += ratingReview.rating;
       } catch (e) {
-        print('Error parsing rating review document: $e'); // For debugging
+        debugPrint('Error parsing rating review document: $e'); // For debugging
       }
     }
 

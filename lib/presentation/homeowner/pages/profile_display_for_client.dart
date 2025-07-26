@@ -53,7 +53,7 @@ class _ProfileDisplayScreenForClientState
         sumRatings += ratingReview.rating;
         // fetchedReviews.add(ratingReview); // No longer needed
       } catch (e) {
-        print('Error parsing rating review document: $e');
+        debugPrint('Error parsing rating review document: $e');
       }
     }
 

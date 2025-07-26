@@ -2,12 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:flutter_rating_bar/flutter_rating_bar.dart';
-import 'package:homeconnect/data/models/users.dart';
+//import 'package:homeconnect/presentation/homeowner/pages/list_of _serviceproviders.dart';
+//import 'package:homeconnect/presentation/service_provider/widgets/chat_screen.dart';
 import 'package:homeconnect/data/models/booking.dart';
 import 'package:homeconnect/presentation/homeowner/pages/service_provider_list_page.dart';
 import 'package:homeconnect/presentation/homeowner/pages/view_all_bookings.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+//import 'package:homeconnect/data/providers/homeowner_firestore_provider.dart';
+//import 'package:homeconnect/data/models/service_provider_modal.dart';
+import 'package:homeconnect/presentation/homeowner/pages/past_booked_providers_screen.dart';
 import 'package:homeconnect/config/routes.dart';
+import 'package:homeconnect/data/models/users.dart';
 
 // Helper – convert something like “john_doe99@example.com” → “John Doe99”
 String nameFromEmail(String email) {
@@ -30,6 +35,7 @@ class HomeownerDashboardScreen extends StatefulWidget {
 
 class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
   final TextEditingController _searchController = TextEditingController();
+
   // Add to _HomeownerDashboardScreenState
   Stream<QuerySnapshot> _getCompletableJobs() {
     final userId = FirebaseAuth.instance.currentUser?.uid;
@@ -1147,12 +1153,12 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                               bookingId: booking.bookingId!,
                               providerId: booking.serviceProviderId,
                               service:
-                                  booking.categories.isNotEmpty
-                                      ? booking.categories.first
+                                  booking.selectedCategory.isNotEmpty
+                                      ? booking.selectedCategory
                                       : 'No category',
                               provider: booking.serviceProviderName,
                               status: capitalize(booking.status.toString()),
-                              date: _formatDate(booking.bookingDate),
+                              booking: booking,
                               statusColor: statusColor,
                             ),
                             if (booking.status.toLowerCase() == 'denied')
@@ -1215,10 +1221,10 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
 
   Widget _buildBookingStatusCard({
     required BuildContext context,
-    required String service, // this should now be a single category string
+    required String service,
     required String provider,
     required String status,
-    required String date,
+    required Booking booking,
     required Color statusColor,
     required bool isCompleted,
     required String bookingId,
@@ -1242,7 +1248,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
             children: [
               // Category Title (e.g., "Plumbing")
               Text(
-                service,
+                booking.selectedCategory,
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -1256,14 +1262,21 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                 style: TextStyle(fontSize: 14, color: Colors.grey[700]),
               ),
               const SizedBox(height: 6),
-              // Booking Date and Status Badge
+              // Booking Dates
+              Text(
+                'Booked on: ${_formatDate(booking.bookingDate)}',
+                style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+              ),
+              if (booking.scheduledDate != null)
+                Text(
+                  'Scheduled for: ${_formatDate(booking.scheduledDate!)}',
+                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                ),
+              const SizedBox(height: 6),
+              // Status Badge
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  Text(
-                    date,
-                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                  ),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
@@ -1329,7 +1342,16 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
           IconButton(
             icon: const Icon(Icons.message),
             color: Colors.grey,
-            onPressed: () => debugPrint('Messages bottom nav pressed!'),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PastBookedProvidersListScreen(),
+                  // 👈 replace with actual name
+                ),
+              );
+              print('Messages bottom nav pressed!');
+            },
           ),
         ],
       ),

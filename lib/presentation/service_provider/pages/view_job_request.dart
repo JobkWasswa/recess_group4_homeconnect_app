@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 
 class AllJobRequestsScreen extends StatelessWidget {
   const AllJobRequestsScreen({super.key});
@@ -21,7 +22,7 @@ class AllJobRequestsScreen extends StatelessWidget {
             .orderBy('createdAt', descending: true)
             .snapshots()
             .handleError((error) {
-              print('🔥 Firestore error (Job Requests): $error');
+              debugPrint('🔥 Firestore error (Job Requests): $error');
             }),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -48,41 +49,105 @@ class AllJobRequestsScreen extends StatelessWidget {
             itemCount: docs.length,
             itemBuilder: (context, index) {
               final data = docs[index].data() as Map<String, dynamic>;
-              final categories = data['categories'];
-              final jobType =
-                  (categories is List && categories.isNotEmpty)
-                      ? categories[0].toString()
-                      : 'Unknown';
+              final jobType = data['selectedCategory']?.toString() ?? 'Unknown';
 
               final bookingDate = data['bookingDate'];
-              final formattedDate =
-                  bookingDate is Timestamp
-                      ? bookingDate.toDate().toLocal().toString()
-                      : 'Unknown date';
+              String formattedDate = 'Unknown date';
+
+              if (bookingDate is Timestamp) {
+                final dateTime = bookingDate.toDate().toLocal();
+                formattedDate = DateFormat(
+                  'MMM dd, yyyy – hh:mm a',
+                ).format(dateTime);
+              }
 
               final note = data['notes'] ?? '';
+              final status =
+                  data['status']?.toString().toLowerCase() ?? 'pending';
+
+              // 🎨 Status Color and Label Styling
+              Color statusColor;
+              switch (status) {
+                case 'completed':
+                  statusColor = Colors.green;
+                  break;
+                case 'cancelled':
+                  statusColor = Colors.red;
+                  break;
+                case 'pending':
+                default:
+                  statusColor = Colors.orange;
+              }
 
               return Card(
+                elevation: 3,
                 margin: const EdgeInsets.only(bottom: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 child: Padding(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(14),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        jobType,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blueAccent,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            jobType,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blueAccent,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor.withOpacity(0.1),
+                              border: Border.all(color: statusColor),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              status.toUpperCase(),
+                              style: TextStyle(
+                                color: statusColor,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 8),
-                      Text('Client: ${data['clientName'] ?? 'Unknown'}'),
-                      Text('Date: $formattedDate'),
-                      Text('Status: ${data['status']}'),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.person,
+                            size: 16,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(width: 6),
+                          Text('Client: ${data['clientName'] ?? 'Unknown'}'),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.calendar_today,
+                            size: 16,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(width: 6),
+                          Text('Date: $formattedDate'),
+                        ],
+                      ),
                       if (note.isNotEmpty) ...[
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 8),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
