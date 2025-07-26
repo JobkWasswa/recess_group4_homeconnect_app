@@ -57,7 +57,24 @@ class _ProviderConversationsScreenState
             .snapshots();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Your Conversations')),
+      backgroundColor: Colors.grey[100],
+      appBar: AppBar(
+        title: const Text('Your Conversations'),
+        centerTitle: true,
+        elevation: 6,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF6a11cb), Color(0xFF2575fc)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+        ),
+      ),
       body: StreamBuilder<QuerySnapshot>(
         stream: conversationsStream,
         builder: (context, snapshot) {
@@ -66,17 +83,44 @@ class _ProviderConversationsScreenState
           }
 
           if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+            return Center(
+              child: Text(
+                'Error: ${snapshot.error}',
+                style: const TextStyle(color: Colors.redAccent),
+              ),
+            );
           }
 
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('No conversations found.'));
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.chat_bubble_outline,
+                    size: 80,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No conversations found.',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            );
           }
 
           final docs = snapshot.data!.docs;
 
-          return ListView.builder(
+          return ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
             itemCount: docs.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final doc = docs[index];
               final data = doc.data()! as Map<String, dynamic>;
@@ -92,9 +136,15 @@ class _ProviderConversationsScreenState
               final lastTimestamp = ts?.toDate();
 
               if (otherUserId == null) {
-                return ListTile(
-                  title: const Text('Unknown participant'),
-                  subtitle: Text(lastMessage),
+                return Card(
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: ListTile(
+                    title: const Text('Unknown participant'),
+                    subtitle: Text(lastMessage),
+                  ),
                 );
               }
 
@@ -107,42 +157,81 @@ class _ProviderConversationsScreenState
                     displayName = snapshot.data!;
                   }
 
-                  return ListTile(
-                    leading: CircleAvatar(
-                      child: Text(
-                        displayName.isNotEmpty
-                            ? displayName[0].toUpperCase()
-                            : '?',
-                      ),
+                  return Card(
+                    elevation: 3,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    title: Text(displayName),
-                    subtitle: Text(
-                      lastMessage,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    trailing:
-                        lastTimestamp != null
-                            ? Text(
-                              _formatTimestamp(lastTimestamp),
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
+                    shadowColor: Colors.purple.withOpacity(0.3),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        radius: 26,
+                        backgroundColor: Colors.purple[300],
+                        child: Text(
+                          displayName.isNotEmpty
+                              ? displayName[0].toUpperCase()
+                              : '?',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black26,
+                                offset: Offset(0, 1),
+                                blurRadius: 2,
                               ),
-                            )
-                            : null,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (_) => ChatScreen(
-                                otherUserId: otherUserId,
-                                otherUserName: displayName,
-                              ),
+                            ],
+                          ),
                         ),
-                      );
-                    },
+                      ),
+                      title: Text(
+                        displayName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 18,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                      subtitle: Text(
+                        lastMessage,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.grey[700],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      trailing:
+                          lastTimestamp != null
+                              ? Text(
+                                _formatTimestamp(lastTimestamp),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[500],
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              )
+                              : null,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 8,
+                      ),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (_) => ChatScreen(
+                                  otherUserId: otherUserId,
+                                  otherUserName: displayName,
+                                ),
+                          ),
+                        );
+                      },
+                      hoverColor: Colors.purple.withOpacity(0.1),
+                      splashColor: Colors.purpleAccent.withOpacity(0.2),
+                    ),
                   );
                 },
               );
