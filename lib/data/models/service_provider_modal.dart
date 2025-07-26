@@ -68,4 +68,6 @@ class ServiceProviderModel {
       email: data['email'] as String?,
     );
   }
+
+  get fullName => null;
 }
