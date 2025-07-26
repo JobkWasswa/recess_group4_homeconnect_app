@@ -63,9 +63,9 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
     );
     if (picked != null) {
       setState(() {
-        if (isStart)
+        if (isStart) {
           _startTime = picked;
-        else {
+        } else {
           _endTime = picked;
           if (_startTime != null && _isEndTimeBeforeStart()) {
             ScaffoldMessenger.of(ctx).showSnackBar(
@@ -208,7 +208,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                         '${timeFmt.format(r.start)} – ${timeFmt.format(r.end)}',
                         style: const TextStyle(color: Colors.redAccent),
                       );
-                    }).toList(),
+                    }),
                     const SizedBox(height: 16),
                   ],
                 ),
