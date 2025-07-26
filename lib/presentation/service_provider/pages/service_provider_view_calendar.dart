@@ -15,7 +15,7 @@ class _ServiceProviderCalendarViewScreenState
     extends State<ServiceProviderCalendarViewScreen> {
   Set<DateTime> bookedDates = {};
   Set<DateTime> partiallyBookedDates = {};
-  DateTime _focusedDay = DateTime.now();
+  final DateTime _focusedDay = DateTime.now();
   bool _isLoading = true;
   final int maxDailyBookings = 3;
 
