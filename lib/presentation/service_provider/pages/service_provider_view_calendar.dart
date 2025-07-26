@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 
 class ServiceProviderCalendarViewScreen extends StatefulWidget {
   const ServiceProviderCalendarViewScreen({super.key});
@@ -16,8 +17,8 @@ class _ServiceProviderCalendarViewScreenState
   Set<DateTime> bookedDates = {};
   Set<DateTime> partiallyBookedDates = {};
   DateTime _focusedDay = DateTime.now();
-  bool _isLoading = true;
   final int maxDailyBookings = 3;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -78,6 +79,69 @@ class _ServiceProviderCalendarViewScreenState
     }
   }
 
+  void _showBookingDetailsDialog(DateTime date) async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return;
+
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    final snapshot =
+        await FirebaseFirestore.instance
+            .collection('bookings')
+            .where('serviceProviderId', isEqualTo: userId)
+            .where(
+              'scheduledDate',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay),
+            )
+            .where('scheduledDate', isLessThan: Timestamp.fromDate(endOfDay))
+            .get();
+
+    final bookings =
+        snapshot.docs
+            .where(
+              (doc) =>
+                  doc['status'] != 'cancelled' &&
+                  doc['status'] != 'rejected_by_provider',
+            )
+            .map((doc) {
+              final start = (doc['scheduledDate'] as Timestamp).toDate();
+              final end = (doc['endDateTime'] as Timestamp?)?.toDate();
+              final clientName = doc['clientName'] ?? 'Unknown';
+              final isFullDay = doc['isFullDay'] ?? false;
+
+              final timeRange =
+                  isFullDay
+                      ? 'Full Day'
+                      : end != null
+                      ? '${DateFormat.jm().format(start)} - ${DateFormat.jm().format(end)}'
+                      : '${DateFormat.jm().format(start)}';
+
+              return '$clientName: $timeRange';
+            })
+            .toList();
+
+    if (bookings.isEmpty) return;
+
+    showDialog(
+      context: context,
+      builder:
+          (_) => AlertDialog(
+            title: Text('Bookings on ${DateFormat.yMMMd().format(date)}'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: bookings.map((b) => Text(b)).toList(),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+    );
+  }
+
   Widget _buildLegendItem(Color color, String label) {
     return Row(
       children: [
@@ -130,7 +194,17 @@ class _ServiceProviderCalendarViewScreenState
                 firstDay: DateTime.now(),
                 lastDay: DateTime.now().add(const Duration(days: 60)),
                 focusedDay: _focusedDay,
-                onDaySelected: null, // Read-only
+                onDaySelected: (selectedDay, focusedDay) {
+                  final normalized = DateTime(
+                    selectedDay.year,
+                    selectedDay.month,
+                    selectedDay.day,
+                  );
+                  if (bookedDates.contains(normalized) ||
+                      partiallyBookedDates.contains(normalized)) {
+                    _showBookingDetailsDialog(normalized);
+                  }
+                },
                 calendarStyle: CalendarStyle(
                   isTodayHighlighted: true,
                   todayDecoration: BoxDecoration(

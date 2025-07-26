@@ -5,7 +5,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/data/models/service_provider_modal.dart';
 import 'package:homeconnect/presentation/service_provider/pages/service_provider_savedprofile.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:homeconnect/presentation/service_provider/pages/service_provider_view_booking.dart';
 import 'package:homeconnect/presentation/service_provider/pages/service_provider_view_calendar.dart';
 import 'package:homeconnect/presentation/service_provider/pages/view_job_request.dart';
 import 'package:intl/intl.dart';
@@ -805,31 +804,6 @@ class _ServiceProviderDashboardScreenState
                       homeownerName,
                       style: TextStyle(color: Colors.grey[700]),
                       overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (_) => ServiceProviderSingleBookingDetailScreen(
-                                bookingData: {
-                                  'serviceCategory': jobType,
-                                  'clientName': homeownerName,
-                                  'scheduledDate': date,
-                                  'notes': note ?? '',
-                                },
-                              ),
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      'Details',
-                      style: TextStyle(
-                        color: Colors.purple,
-                        fontWeight: FontWeight.w600,
-                      ),
                     ),
                   ),
                 ],
