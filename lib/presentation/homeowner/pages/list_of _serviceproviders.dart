@@ -416,7 +416,7 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
         bookingDate: scheduledDate ?? DateTime.now(),
         scheduledDate: scheduledDate,
         endDateTime: endDateTime,
-        scheduledTime: DateFormat.jm().format(scheduledDate!), // e.g. "4:30 PM"
+        scheduledTime: DateFormat.jm().format(scheduledDate), // e.g. "4:30 PM"
         status: 'pending',
         notes: notes,
         createdAt: FieldValue.serverTimestamp(),
