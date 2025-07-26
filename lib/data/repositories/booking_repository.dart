@@ -21,6 +21,7 @@ class BookingRepository {
     required DateTime bookingDate,
     required GeoPoint location,
     String? notes,
+    required bool isFullDay, // 👈 add this
   }) async {
     // 1. Basic validation: Ensure booking date is in the future
     if (bookingDate.isBefore(DateTime.now())) {
@@ -67,6 +68,7 @@ class BookingRepository {
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
       location: location,
+      isFullDay: isFullDay, // ✅ include this field
     );
 
     // 4. Add the booking to Firestore

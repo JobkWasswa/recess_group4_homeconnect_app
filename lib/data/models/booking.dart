@@ -18,6 +18,7 @@ class Booking {
   final dynamic updatedAt;
   final GeoPoint location;
   final DateTime? completedAt; // Added completion timestamp
+  final bool isFullDay;
 
   Booking({
     this.bookingId, // Make sure this is part of the constructor
@@ -37,6 +38,7 @@ class Booking {
     required this.updatedAt,
     required this.location,
     this.completedAt,
+    required this.isFullDay, // ✅ ADD THIS LINE
   });
 
   // Status constants
@@ -95,6 +97,7 @@ class Booking {
           (data['completedAt'] is Timestamp)
               ? (data['completedAt'] as Timestamp).toDate()
               : null,
+      isFullDay: data['isFullDay'] ?? false, // ✅ <-- add this line
     );
   }
 
@@ -119,6 +122,7 @@ class Booking {
       'location': location,
       'completedAt':
           completedAt != null ? Timestamp.fromDate(completedAt!) : null,
+      'isFullDay': isFullDay,
     };
   }
 
@@ -140,6 +144,7 @@ class Booking {
     DateTime? updatedAt,
     GeoPoint? location,
     DateTime? completedAt,
+    bool? isFullDay, // ✅ ADD THIS
   }) {
     return Booking(
       bookingId: bookingId ?? this.bookingId,
@@ -159,6 +164,7 @@ class Booking {
       updatedAt: updatedAt ?? this.updatedAt,
       location: location ?? this.location,
       completedAt: completedAt ?? this.completedAt,
+      isFullDay: isFullDay ?? this.isFullDay, // ✅ ADD THIS
     );
   }
 
