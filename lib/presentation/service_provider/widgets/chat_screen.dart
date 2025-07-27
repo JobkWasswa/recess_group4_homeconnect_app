@@ -5,7 +5,7 @@ import 'package:intl/intl.dart'; // For formatting timestamps
 
 class ChatScreen extends StatefulWidget {
   final String otherUserId; // e.g. homeownerId or providerId
-  final String otherUserName;
+  final String otherUserName; // raw email or fallback name
 
   const ChatScreen({
     required this.otherUserId,
@@ -22,7 +22,6 @@ class _ChatScreenState extends State<ChatScreen> {
   final String currentUserId = FirebaseAuth.instance.currentUser!.uid;
 
   late final String conversationId;
-
   String _displayName = ''; // Will hold the fetched display name
 
   @override
@@ -57,7 +56,7 @@ class _ChatScreenState extends State<ChatScreen> {
               .get();
 
       if (doc.exists) {
-        final email = doc['email'] ?? '';
+        final email = doc['email'] as String? ?? '';
         setState(() {
           _displayName =
               email.isNotEmpty ? _nameFromEmail(email) : widget.otherUserName;
@@ -68,7 +67,6 @@ class _ChatScreenState extends State<ChatScreen> {
         });
       }
     } catch (e) {
-      // In case of error, fallback to original passed name
       setState(() {
         _displayName = widget.otherUserName;
       });
@@ -136,11 +134,22 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(70),
         child: AppBar(
-          backgroundColor: const Color.fromARGB(255, 224, 105, 198),
           elevation: 4,
           centerTitle: true,
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+          ),
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color(0xFFFF8A80), // light pink
+                  Color(0xFF6A11CB), // purple
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
           ),
           title: Column(
             children: [
@@ -150,6 +159,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   fontWeight: FontWeight.bold,
                   fontSize: 22,
                   letterSpacing: 1.1,
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(height: 4),
@@ -196,7 +206,12 @@ class _ChatScreenState extends State<ChatScreen> {
                           messages[messages.length - 1 - index].data()
                               as Map<String, dynamic>;
                       final isMe = data['senderId'] == currentUserId;
-                      final senderName = data['senderName'] as String? ?? '';
+
+                      // Key change: parse other user’s email
+                      final senderName =
+                          isMe
+                              ? (data['senderName'] as String? ?? '')
+                              : _nameFromEmail(widget.otherUserName);
                       final text = data['text'] as String? ?? '';
                       final timestamp = data['timestamp'] as Timestamp?;
 
@@ -273,9 +288,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                   style: TextStyle(
                                     fontSize: 10,
                                     color:
-                                        (isMe
-                                            ? Colors.white70
-                                            : Colors.black45),
+                                        isMe ? Colors.white70 : Colors.black45,
                                   ),
                                 ),
                               ],
