@@ -27,18 +27,18 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  // CHANGE: Add function to fetch user profile from Firestore
   Future<UserProfile?> _fetchUserProfile(String uid) async {
     try {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final doc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
       if (doc.exists) {
         return UserProfile.fromFirestore(doc.data()!);
       }
       return null;
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching profile: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error fetching profile: $e')));
       return null;
     }
   }
@@ -53,16 +53,12 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       setState(() => _isLoading = true);
-
-      // Authenticate with Firebase Auth
       final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
       final uid = cred.user!.uid;
-
-      // CHANGE: Fetch user profile
       final profile = await _fetchUserProfile(uid);
       if (profile == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -71,11 +67,10 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      // CHANGE: Navigate with profile
       if (profile.userType == 'homeowner') {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (_) => HomeownerDashboardScreen(profile: profile), // CHANGE: Pass profile
+            builder: (_) => HomeownerDashboardScreen(profile: profile),
           ),
         );
       } else if (profile.userType == 'provider') {
@@ -85,18 +80,18 @@ class _LoginPageState extends State<LoginPage> {
           ),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Account role not set.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Account role not set.')));
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Welcome, ${_emailController.text}!')),
       );
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? 'Login failed.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message ?? 'Login failed.')));
     } catch (_) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('An unexpected error occurred.')),
@@ -109,12 +104,36 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Sign In'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        foregroundColor: Colors.black,
+      // Gradient AppBar
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(70),
+        child: AppBar(
+          elevation: 0,
+          centerTitle: true,
+          backgroundColor: Colors.transparent,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color(0xFFFF8A80), // light pink
+                  Color(0xFF6A11CB), // purple
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          title: const Text(
+            'Sign In',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+            ),
+          ),
+        ),
       ),
+
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: ConstrainedBox(
@@ -166,6 +185,7 @@ class _LoginPageState extends State<LoginPage> {
                       children: [
                         Checkbox(
                           value: _rememberMe,
+                          activeColor: const Color(0xFFFF8A80),
                           onChanged:
                               (v) => setState(() => _rememberMe = v ?? false),
                         ),
@@ -178,12 +198,11 @@ class _LoginPageState extends State<LoginPage> {
                     TextButton(
                       onPressed: () {
                         // TODO: implement password reset
-                        print('Forgot Password pressed');
                       },
                       child: const Text(
                         'Forgot password?',
                         style: TextStyle(
-                          color: Color(0xFF2563EB),
+                          color: Color(0xFF6A11CB),
                           fontSize: 14,
                         ),
                       ),
@@ -191,6 +210,7 @@ class _LoginPageState extends State<LoginPage> {
                   ],
                 ),
                 const SizedBox(height: 32),
+                // Gradient Sign In button
                 _buildGradientButton(
                   _isLoading ? 'Signing In...' : 'Sign In',
                   _isLoading ? null : () => _signIn(context),
@@ -254,7 +274,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF3B82F6)),
+              borderSide: const BorderSide(color: Color(0xFFFF8A80)),
             ),
           ),
         ),
@@ -283,7 +303,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF3B82F6)),
+              borderSide: const BorderSide(color: Color(0xFFFF8A80)),
             ),
             suffixIcon: IconButton(
               onPressed: () => setState(() => _showPassword = !_showPassword),
@@ -311,14 +331,13 @@ class _LoginPageState extends State<LoginPage> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         child: Ink(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF3B82F6), Color(0xFF9333EA)],
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFFF8A80), Color(0xFF6A11CB)],
             ),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.all(Radius.circular(8)),
           ),
-          child: Container(
-            alignment: Alignment.center,
+          child: Center(
             child: Text(
               text,
               style: const TextStyle(
@@ -333,6 +352,3 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
-
-
-
