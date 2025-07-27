@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:geolocator/geolocator.dart'; // For getting current location (optional but good for map)
-import 'package:permission_handler/permission_handler.dart'; // For handling permissions
+import 'package:geolocator/geolocator.dart'; 
+import 'package:permission_handler/permission_handler.dart'; 
 
 class ProviderMapsScreen extends StatefulWidget {
   const ProviderMapsScreen({super.key});

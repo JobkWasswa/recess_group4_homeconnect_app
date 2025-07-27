@@ -128,35 +128,12 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
     final dateFmt = DateFormat('dd-MM-yyyy');
 
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(70),
-        child: AppBar(
-          elevation: 4,
-          centerTitle: true,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
-          ),
-          flexibleSpace: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Color(0xFFFF8A80), // light pink
-                  Color(0xFF6A11CB), // purple
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-          ),
-          title: Text(
-            widget.isReschedule ? 'Reschedule Booking' : 'New Booking',
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-              color: Colors.white,
-            ),
-          ),
+      appBar: AppBar(
+        title: Text(widget.isReschedule ? 'Reschedule Booking' : 'New Booking',
+         style:TextStyle(color: Colors.white),
         ),
+        backgroundColor: Colors.purple,
+
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
@@ -309,24 +286,14 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                     ),
                     borderRadius: BorderRadius.all(Radius.circular(24)),
                   ),
-                  child: ElevatedButton(
-                    onPressed: _confirmBooking,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(24)),
-                      ),
-                    ),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 40,
-                        vertical: 12,
-                      ),
-                      child: Text(
-                        'Confirm Booking',
-                        style: TextStyle(fontSize: 16, color: Colors.white),
-                      ),
+
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+                    child: Text(
+                      'Confirm Booking',
+                      style: TextStyle(fontSize: 16, color: Colors.white),
+                     
+
                     ),
                   ),
                 ),
