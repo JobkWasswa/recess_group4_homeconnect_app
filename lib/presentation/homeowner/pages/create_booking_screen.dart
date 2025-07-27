@@ -58,14 +58,14 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
       context: ctx,
       initialTime:
           isStart
-              ? (_startTime ?? TimeOfDay(hour: 9, minute: 0))
-              : (_endTime ?? TimeOfDay(hour: 17, minute: 0)),
+              ? (_startTime ?? const TimeOfDay(hour: 9, minute: 0))
+              : (_endTime ?? const TimeOfDay(hour: 17, minute: 0)),
     );
     if (picked != null) {
       setState(() {
-        if (isStart)
+        if (isStart) {
           _startTime = picked;
-        else {
+        } else {
           _endTime = picked;
           if (_startTime != null && _isEndTimeBeforeStart()) {
             ScaffoldMessenger.of(ctx).showSnackBar(
@@ -80,13 +80,11 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
   }
 
   void _confirmBooking() {
-    if (!_isFullDay) {
-      if (_startTime == null || _endTime == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Select both start and end times.')),
-        );
-        return;
-      }
+    if (!_isFullDay && (_startTime == null || _endTime == null)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select both start and end times.')),
+      );
+      return;
     }
 
     final scheduledDate = _selectedDate!;
@@ -128,12 +126,37 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
   @override
   Widget build(BuildContext context) {
     final dateFmt = DateFormat('dd-MM-yyyy');
-    final timeFmt = DateFormat('hh:mm a');
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.isReschedule ? 'Reschedule Booking' : 'New Booking'),
-        backgroundColor: Colors.purple,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(70),
+        child: AppBar(
+          elevation: 4,
+          centerTitle: true,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+          ),
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color(0xFFFF8A80), // light pink
+                  Color(0xFF6A11CB), // purple
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          title: Text(
+            widget.isReschedule ? 'Reschedule Booking' : 'New Booking',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+              color: Colors.white,
+            ),
+          ),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
@@ -150,6 +173,8 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                 ),
               ),
               const SizedBox(height: 12),
+
+              // Date picker
               TextFormField(
                 readOnly: true,
                 onTap: () async {
@@ -159,16 +184,12 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                     firstDate: DateTime.now(),
                     lastDate: DateTime.now().add(const Duration(days: 365)),
                   );
-                  if (d != null) {
-                    setState(() {
-                      _selectedDate = d;
-                    });
-                  }
+                  if (d != null) setState(() => _selectedDate = d);
                 },
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Date *',
                   hintText: 'Tap to select',
-                  suffixIcon: const Icon(Icons.calendar_today),
+                  suffixIcon: Icon(Icons.calendar_today),
                   filled: true,
                 ),
                 controller: TextEditingController(
@@ -177,10 +198,12 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                 validator: (_) => _selectedDate == null ? 'Select date' : null,
               ),
               const SizedBox(height: 12),
+
+              // Full day switch
               SwitchListTile(
                 title: const Text('Full Day Booking'),
-                value: _isFullDay,
                 activeColor: Colors.purple,
+                value: _isFullDay,
                 onChanged:
                     (v) => setState(() {
                       _isFullDay = v;
@@ -191,48 +214,41 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                     }),
               ),
               const SizedBox(height: 8),
-              if (_bookedTimeRanges.isNotEmpty)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Booked slots:',
-                      style: TextStyle(
-                        color: Colors.red,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    ..._bookedTimeRanges.map((r) {
-                      return Text(
-                        '${timeFmt.format(r.start)} – ${timeFmt.format(r.end)}',
-                        style: const TextStyle(color: Colors.redAccent),
-                      );
-                    }).toList(),
-                    const SizedBox(height: 16),
-                  ],
+
+              // Conflicts display
+              if (_bookedTimeRanges.isNotEmpty) ...[
+                const Text(
+                  'Booked slots:',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
+                const SizedBox(height: 4),
+                ..._bookedTimeRanges.map(
+                  (r) => Text(
+                    '${DateFormat('hh:mm a').format(r.start)} – ${DateFormat('hh:mm a').format(r.end)}',
+                    style: const TextStyle(color: Colors.redAccent),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // Time pickers
               Row(
                 children: [
                   Expanded(
                     child: GestureDetector(
-                      onTap:
-                          () => _selectTime(
-                            context,
-                            true,
-                          ), // open time picker for start time
+                      onTap: () => _selectTime(context, true),
                       child: AbsorbPointer(
                         child: TextFormField(
-                          decoration: InputDecoration(
+                          decoration: const InputDecoration(
                             labelText: 'Start Time *',
-                            suffixIcon: const Icon(Icons.access_time),
+                            suffixIcon: Icon(Icons.access_time),
                             filled: true,
                           ),
                           controller: TextEditingController(
-                            text:
-                                _startTime == null
-                                    ? ''
-                                    : _startTime!.format(context),
+                            text: _startTime?.format(context) ?? '',
                           ),
                           validator:
                               (_) =>
@@ -246,23 +262,16 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: GestureDetector(
-                      onTap:
-                          () => _selectTime(
-                            context,
-                            false,
-                          ), // open time picker for end time
+                      onTap: () => _selectTime(context, false),
                       child: AbsorbPointer(
                         child: TextFormField(
-                          decoration: InputDecoration(
+                          decoration: const InputDecoration(
                             labelText: 'End Time *',
-                            suffixIcon: const Icon(Icons.access_time),
+                            suffixIcon: Icon(Icons.access_time),
                             filled: true,
                           ),
                           controller: TextEditingController(
-                            text:
-                                _endTime == null
-                                    ? ''
-                                    : _endTime!.format(context),
+                            text: _endTime?.format(context) ?? '',
                           ),
                           validator:
                               (_) =>
@@ -277,32 +286,52 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
               ),
 
               const SizedBox(height: 20),
+
+              // Notes
               TextField(
                 controller: _notesController,
                 decoration: const InputDecoration(
                   labelText: 'Notes (optional)',
-                  filled: true,
                   border: OutlineInputBorder(),
+                  filled: true,
                 ),
                 maxLines: 3,
               ),
-              const SizedBox(height: 30),
-              Center(
-                child: ElevatedButton(
-                  onPressed: _confirmBooking,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.purple,
-                  ),
 
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 40, vertical: 12),
-                    child: Text(
-                      'Confirm Booking',
-                      style: TextStyle(fontSize: 16),
+              const Spacer(),
+
+              // Confirm button with gradient
+              Center(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFFFF8A80), Color(0xFF6A11CB)],
+                    ),
+                    borderRadius: BorderRadius.all(Radius.circular(24)),
+                  ),
+                  child: ElevatedButton(
+                    onPressed: _confirmBooking,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(24)),
+                      ),
+                    ),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 40,
+                        vertical: 12,
+                      ),
+                      child: Text(
+                        'Confirm Booking',
+                        style: TextStyle(fontSize: 16, color: Colors.white),
+                      ),
                     ),
                   ),
                 ),
               ),
+              const SizedBox(height: 30),
             ],
           ),
         ),
