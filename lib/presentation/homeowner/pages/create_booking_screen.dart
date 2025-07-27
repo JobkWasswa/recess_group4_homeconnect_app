@@ -132,7 +132,9 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.isReschedule ? 'Reschedule Booking' : 'New Booking'),
+        title: Text(widget.isReschedule ? 'Reschedule Booking' : 'New Booking',
+         style:TextStyle(color: Colors.white),
+        ),
         backgroundColor: Colors.purple,
       ),
       body: Padding(
@@ -298,7 +300,8 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                     padding: EdgeInsets.symmetric(horizontal: 40, vertical: 12),
                     child: Text(
                       'Confirm Booking',
-                      style: TextStyle(fontSize: 16),
+                      style: TextStyle(fontSize: 16, color: Colors.white),
+                     
                     ),
                   ),
                 ),
