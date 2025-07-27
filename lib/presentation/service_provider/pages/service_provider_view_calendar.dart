@@ -64,7 +64,7 @@ class _ServiceProviderCalendarViewScreen extends State<ServiceProviderCalendarVi
 
         if (isFullDay) {
           dateBookingCount[normalized] =
-              maxDailyBookings; // Mark as fully booked
+              maxDailyBookings; 
         } else {
           dateBookingCount[normalized] =
               (dateBookingCount[normalized] ?? 0) + 1;
