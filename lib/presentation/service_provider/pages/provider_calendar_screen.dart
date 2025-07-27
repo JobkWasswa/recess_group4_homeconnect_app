@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:homeconnect/data/models/appointment_modal.dart';
-import 'package:homeconnect/data/repositories/service_provider_repo.dart'; 
+import 'package:homeconnect/data/repositories/service_provider_repo.dart';
 
 class ProviderCalendarScreen extends StatefulWidget {
   const ProviderCalendarScreen({super.key});
@@ -15,23 +15,20 @@ class ProviderCalendarScreen extends StatefulWidget {
 class _ProviderCalendarScreenState extends State<ProviderCalendarScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final ServiceProviderRepository _serviceProviderRepository =
-      ServiceProviderRepository(); // NEW: Instantiate repository
+      ServiceProviderRepository();
 
   CalendarFormat _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  Map<DateTime, List<Appointment>> _events =
-      {}; // Store events for the calendar (using Appointment model)
+  Map<DateTime, List<Appointment>> _events = {};
 
   @override
   void initState() {
     super.initState();
-    _selectedDay = _focusedDay; // Initialize selected day
+    _selectedDay = _focusedDay;
   }
 
-  // Helper to get events for a given day
   List<Appointment> _getEventsForDay(DateTime day) {
-    // Normalize the day to remove time component for consistent lookup
     final normalizedDay = DateTime(day.year, day.month, day.day);
     return _events[normalizedDay] ?? [];
   }
@@ -43,26 +40,44 @@ class _ProviderCalendarScreenState extends State<ProviderCalendarScreen> {
     if (currentUser == null) {
       return Scaffold(
         appBar: AppBar(
-          title: Text('My Appointments'),
-          backgroundColor: Colors.purple,
+          title: const Text('My Appointments'),
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.pink, Colors.purple],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
           foregroundColor: Colors.white,
+          elevation: 0,
         ),
-        body: Center(child: Text('Please log in to view your appointments.')),
+        body: const Center(
+          child: Text('Please log in to view your appointments.'),
+        ),
       );
     }
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Appointments'),
-        backgroundColor: Colors.purple,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.pink, Colors.purple],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: StreamBuilder<List<Appointment>>(
-        // Changed to List<Appointment>
         stream: _serviceProviderRepository.getProviderAppointments(
           currentUser.uid,
-        ), // Use new repository method
+        ),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -72,43 +87,33 @@ class _ProviderCalendarScreenState extends State<ProviderCalendarScreen> {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
 
-          // Process fetched data into events map for table_calendar
-          _events = {}; // Clear previous events
+          _events = {};
           for (var appointment in snapshot.data!) {
-            // Iterate through Appointment objects
             final normalizedDate = DateTime(
               appointment.scheduledDate.year,
               appointment.scheduledDate.month,
               appointment.scheduledDate.day,
             );
-            if (_events[normalizedDate] == null) {
-              _events[normalizedDate] = [];
-            }
-            _events[normalizedDate]!.add(appointment);
-                    }
+            _events.putIfAbsent(normalizedDate, () => []).add(appointment);
+          }
 
-          // Sort appointments within each day by scheduled time
           _events.forEach((key, value) {
             value.sort((a, b) {
-              // Attempt to parse time strings for sorting, default to start of day if parsing fails
-              DateTime timeA = a.scheduledDate; // Start with scheduled date
-              DateTime timeB = b.scheduledDate; // Start with scheduled date
-
+              DateTime timeA = a.scheduledDate;
+              DateTime timeB = b.scheduledDate;
               try {
                 if (a.scheduledTime.isNotEmpty) {
-                  // Check if scheduledTime is not empty
                   final timeParts = a.scheduledTime.split(RegExp(r'[:\s]'));
                   int hour = int.parse(timeParts[0]);
                   int minute = int.parse(timeParts[1]);
                   if (timeParts.length > 2 &&
                       timeParts[2].toLowerCase() == 'pm' &&
-                      hour < 12) {
+                      hour < 12)
                     hour += 12;
-                  } else if (timeParts.length > 2 &&
+                  if (timeParts.length > 2 &&
                       timeParts[2].toLowerCase() == 'am' &&
-                      hour == 12) {
+                      hour == 12)
                     hour = 0;
-                  }
                   timeA = DateTime(
                     timeA.year,
                     timeA.month,
@@ -117,27 +122,20 @@ class _ProviderCalendarScreenState extends State<ProviderCalendarScreen> {
                     minute,
                   );
                 }
-              } catch (e) {
-                debugPrint(
-                  'Error parsing scheduledTime for sorting (A): ${a.scheduledTime} - $e',
-                );
-              }
-
+              } catch (_) {}
               try {
                 if (b.scheduledTime.isNotEmpty) {
-                  // Check if scheduledTime is not empty
                   final timeParts = b.scheduledTime.split(RegExp(r'[:\s]'));
                   int hour = int.parse(timeParts[0]);
                   int minute = int.parse(timeParts[1]);
                   if (timeParts.length > 2 &&
                       timeParts[2].toLowerCase() == 'pm' &&
-                      hour < 12) {
+                      hour < 12)
                     hour += 12;
-                  } else if (timeParts.length > 2 &&
+                  if (timeParts.length > 2 &&
                       timeParts[2].toLowerCase() == 'am' &&
-                      hour == 12) {
+                      hour == 12)
                     hour = 0;
-                  }
                   timeB = DateTime(
                     timeB.year,
                     timeB.month,
@@ -146,11 +144,7 @@ class _ProviderCalendarScreenState extends State<ProviderCalendarScreen> {
                     minute,
                   );
                 }
-              } catch (e) {
-                debugPrint(
-                  'Error parsing scheduledTime for sorting (B): ${b.scheduledTime} - $e',
-                );
-              }
+              } catch (_) {}
               return timeA.compareTo(timeB);
             });
           });
@@ -158,7 +152,6 @@ class _ProviderCalendarScreenState extends State<ProviderCalendarScreen> {
           return Column(
             children: [
               TableCalendar<Appointment>(
-                // Changed generic type to Appointment
                 firstDay: DateTime.utc(2020, 1, 1),
                 lastDay: DateTime.utc(2030, 12, 31),
                 focusedDay: _focusedDay,
@@ -189,11 +182,11 @@ class _ProviderCalendarScreenState extends State<ProviderCalendarScreen> {
                     fontWeight: FontWeight.bold,
                     color: Colors.purple,
                   ),
-                  leftChevronIcon: Icon(
+                  leftChevronIcon: const Icon(
                     Icons.chevron_left,
                     color: Colors.purple,
                   ),
-                  rightChevronIcon: Icon(
+                  rightChevronIcon: const Icon(
                     Icons.chevron_right,
                     color: Colors.purple,
                   ),
@@ -227,7 +220,7 @@ class _ProviderCalendarScreenState extends State<ProviderCalendarScreen> {
                             _selectedDay == null
                                 ? 'Select a date to view appointments.'
                                 : 'No appointments for ${DateFormat('MMM d, yyyy').format(_selectedDay!)}.',
-                            style: TextStyle(color: Colors.grey),
+                            style: const TextStyle(color: Colors.grey),
                           ),
                         )
                         : ListView.builder(
@@ -247,14 +240,11 @@ class _ProviderCalendarScreenState extends State<ProviderCalendarScreen> {
   }
 
   Widget _buildAppointmentCard(Appointment appointment) {
-    // Changed parameter to Appointment
     final String jobType = appointment.serviceCategory;
     final String clientName = appointment.clientName;
-    final String scheduledTime =
-        appointment.scheduledTime; // No longer nullable
-    final String duration = appointment.duration; // No longer nullable
+    final String scheduledTime = appointment.scheduledTime;
+    final String duration = appointment.duration;
     final String notes = appointment.notes ?? 'No additional notes.';
-    // Location is explicitly excluded from this screen's display
 
     return Card(
       elevation: 4,
@@ -303,7 +293,6 @@ class _ProviderCalendarScreenState extends State<ProviderCalendarScreen> {
               alignment: Alignment.centerRight,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  // TODO: Implement navigation to job details or start job flow
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('View Job Details (Not Implemented Yet)'),
