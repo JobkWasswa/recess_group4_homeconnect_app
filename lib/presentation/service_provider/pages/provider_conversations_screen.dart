@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
 import 'package:homeconnect/presentation/service_provider/widgets/chat_screen.dart';
 
 class ProviderConversationsScreen extends StatefulWidget {
@@ -17,7 +16,6 @@ class _ProviderConversationsScreenState
     extends State<ProviderConversationsScreen> {
   final String currentProviderId = FirebaseAuth.instance.currentUser!.uid;
 
-  // Helper to convert email to display name
   String _nameFromEmail(String email) {
     final localPart = email.split('@').first;
     final words = localPart.split(RegExp(r'[._]'));
@@ -27,7 +25,6 @@ class _ProviderConversationsScreenState
         .join(' ');
   }
 
-  // Fetch user display name by their userId
   Future<String> _fetchUserName(String userId) async {
     try {
       final doc =
@@ -42,9 +39,9 @@ class _ProviderConversationsScreenState
           return _nameFromEmail(email);
         }
       }
-      return userId; // fallback: show UID if no email found
+      return userId;
     } catch (e) {
-      return userId; // fallback on error
+      return userId;
     }
   }
 
@@ -59,28 +56,32 @@ class _ProviderConversationsScreenState
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      appBar: AppBar(
-        title: Text(
-          'Your Conversations',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            fontSize: 22,
-            letterSpacing: 1.2,
-          ),
-        ),
-        centerTitle: true,
-        elevation: 6,
-        flexibleSpace: Container(
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(120),
+        child: Container(
+          padding: const EdgeInsets.only(top: 40, left: 20, right: 20),
           decoration: const BoxDecoration(
             gradient: LinearGradient(
-              colors: [Color(0xFF6a11cb), Color(0xFF2575fc)],
+              colors: [
+                Color.fromARGB(255, 140, 49, 214),
+                Color.fromARGB(255, 221, 30, 148),
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
           ),
-        ),
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Your Conversations',
+              style: GoogleFonts.nunito(
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+          ),
         ),
       ),
       body: StreamBuilder<QuerySnapshot>(
@@ -94,7 +95,7 @@ class _ProviderConversationsScreenState
             return Center(
               child: Text(
                 'Error: ${snapshot.error}',
-                style: GoogleFonts.poppins(
+                style: GoogleFonts.nunito(
                   color: Colors.redAccent,
                   fontWeight: FontWeight.w600,
                 ),
@@ -115,9 +116,9 @@ class _ProviderConversationsScreenState
                   const SizedBox(height: 12),
                   Text(
                     'No conversations found.',
-                    style: GoogleFonts.poppins(
+                    style: GoogleFonts.nunito(
                       color: Colors.grey[600],
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -155,9 +156,9 @@ class _ProviderConversationsScreenState
                   child: ListTile(
                     title: Text(
                       'Unknown participant',
-                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                      style: GoogleFonts.nunito(fontWeight: FontWeight.w600),
                     ),
-                    subtitle: Text(lastMessage, style: GoogleFonts.poppins()),
+                    subtitle: Text(lastMessage, style: GoogleFonts.nunito()),
                   ),
                 );
               }
@@ -176,7 +177,7 @@ class _ProviderConversationsScreenState
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    shadowColor: Colors.purple.withOpacity(0.3),
+                    shadowColor: Colors.purple.withOpacity(0.2),
                     child: ListTile(
                       leading: CircleAvatar(
                         radius: 26,
@@ -185,45 +186,36 @@ class _ProviderConversationsScreenState
                           displayName.isNotEmpty
                               ? displayName[0].toUpperCase()
                               : '?',
-                          style: GoogleFonts.poppins(
-                            fontSize: 20,
+                          style: GoogleFonts.nunito(
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
-                            shadows: const [
-                              Shadow(
-                                color: Colors.black26,
-                                offset: Offset(0, 1),
-                                blurRadius: 2,
-                              ),
-                            ],
                           ),
                         ),
                       ),
                       title: Text(
                         displayName,
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 18,
-                          letterSpacing: 0.4,
+                        style: GoogleFonts.nunito(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
                         ),
                       ),
                       subtitle: Text(
                         lastMessage,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.poppins(
+                        style: GoogleFonts.nunito(
                           color: Colors.grey[700],
-                          fontWeight: FontWeight.w500,
+                          fontSize: 14,
                         ),
                       ),
                       trailing:
                           lastTimestamp != null
                               ? Text(
                                 _formatTimestamp(lastTimestamp),
-                                style: GoogleFonts.poppins(
+                                style: GoogleFonts.nunito(
                                   fontSize: 12,
                                   color: Colors.grey[500],
-                                  fontWeight: FontWeight.w400,
                                 ),
                               )
                               : null,
@@ -243,8 +235,8 @@ class _ProviderConversationsScreenState
                           ),
                         );
                       },
-                      hoverColor: Colors.purple.withOpacity(0.1),
-                      splashColor: Colors.purpleAccent.withOpacity(0.2),
+                      hoverColor: Colors.purple.withOpacity(0.08),
+                      splashColor: Colors.purple.withOpacity(0.15),
                     ),
                   );
                 },
