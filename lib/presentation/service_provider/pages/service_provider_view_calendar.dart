@@ -340,6 +340,7 @@ class _ServiceProviderCalendarViewScreen extends State<ServiceProviderCalendarVi
         title: const Text('My Booking Calendar'),
         backgroundColor: Colors.purple,
         foregroundColor: Colors.white,
+
       ),
       body: SafeArea(
         child: Column(

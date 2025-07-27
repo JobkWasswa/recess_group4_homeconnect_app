@@ -45,7 +45,6 @@ class _PastBookedProvidersListScreenState
 
       for (var doc in bookingsSnapshot.docs) {
         final booking = Booking.fromFirestore(doc);
-
         if (booking.serviceProviderId.isNotEmpty &&
             !providersMap.containsKey(booking.serviceProviderId)) {
           providersMap[booking.serviceProviderId] = ServiceProviderModel(
@@ -71,7 +70,6 @@ class _PastBookedProvidersListScreenState
   }
 
   Widget _buildRatingStars(double rating) {
-    // Simple star rating display, max 5 stars
     final stars = List<Widget>.generate(5, (index) {
       return Icon(
         index < rating.round() ? Icons.star : Icons.star_border,
@@ -85,10 +83,35 @@ class _PastBookedProvidersListScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Select Provider to Chat'),
-        centerTitle: true,
-        backgroundColor: const Color.fromARGB(255, 116, 98, 146),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(70),
+        child: AppBar(
+          elevation: 4,
+          centerTitle: true,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color(0xFFFF8A80), // Light pink
+                  Color(0xFF6A11CB), // Purple
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+          ),
+          title: const Text(
+            'Select Provider to Chat',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+              color: Colors.white,
+            ),
+          ),
+        ),
       ),
       body: FutureBuilder<List<ServiceProviderModel>>(
         future: _bookedProvidersFuture,
@@ -101,11 +124,11 @@ class _PastBookedProvidersListScreenState
               child: Text('Error loading providers: ${snapshot.error}'),
             );
           }
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          final providers = snapshot.data;
+          if (providers == null || providers.isEmpty) {
             return const Center(child: Text('No past booked providers found.'));
           }
 
-          final providers = snapshot.data!;
           return ListView.separated(
             padding: const EdgeInsets.all(12),
             itemCount: providers.length,
@@ -167,7 +190,11 @@ class _PastBookedProvidersListScreenState
                   ),
                   trailing: const Icon(
                     Icons.chat_bubble_outline,
-                    color: Colors.deepPurple,
+                    color: Colors.white70,
+                  ),
+                  tileColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   onTap: () {
                     Navigator.push(

@@ -11,9 +11,26 @@ class AllJobRequestsScreen extends StatelessWidget {
     final userId = FirebaseAuth.instance.currentUser?.uid;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('All Job Requests'),
-        backgroundColor: Colors.blueAccent,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: AppBar(
+          title: const Text('All Job Requests'),
+          centerTitle: true,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color(0xFFE91E63), // Pink
+                  Color(0xFF9C27B0), // Purple
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+        ),
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -65,7 +82,6 @@ class AllJobRequestsScreen extends StatelessWidget {
               final status =
                   data['status']?.toString().toLowerCase() ?? 'pending';
 
-              // 🎨 Status Color and Label Styling
               Color statusColor;
               switch (status) {
                 case 'completed':
