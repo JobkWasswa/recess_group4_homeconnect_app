@@ -11,22 +11,18 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  // UI state
   bool _showPassword = false;
   bool _agreeToTerms = false;
-  String _userType = 'homeowner'; // <-- role selection
+  String _userType = 'homeowner';
 
-  // Controllers
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
   final _locationCtrl = TextEditingController();
 
-  // Validation errors
   String? _passwordError;
   String? _confirmError;
 
-  // Firebase instances
   final _auth = FirebaseAuth.instance;
   final _db = FirebaseFirestore.instance;
 
@@ -39,7 +35,6 @@ class _RegisterPageState extends State<RegisterPage> {
     super.dispose();
   }
 
-  // Navigate based on role
   void _navigateAfterRegistration() {
     if (_userType == 'homeowner') {
       Navigator.pushReplacementNamed(context, AppRoutes.homeownerDashboard);
@@ -51,7 +46,6 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
-  // Write  profile (role, email, and location for homeowners) to Firestore
   Future<void> _saveRoleToFirestore(String uid, String email) async {
     await _db.collection('users').doc(uid).set({
       'userType': _userType,
@@ -61,7 +55,6 @@ class _RegisterPageState extends State<RegisterPage> {
     });
   }
 
-  // EMAIL/PASSWORD SIGN-UP
   Future<void> _registerWithEmail() async {
     try {
       final cred = await _auth.createUserWithEmailAndPassword(
@@ -77,14 +70,10 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
-  // GOOGLE SIGN-UP using Firebase Auth popup
   Future<void> _signUpWithGoogle() async {
     try {
-      // Create the provider
       final googleProvider = GoogleAuthProvider();
-      // Trigger the popup flow
       final userCred = await _auth.signInWithPopup(googleProvider);
-      // Save role & email
       await _saveRoleToFirestore(userCred.user!.uid, userCred.user!.email!);
       _navigateAfterRegistration();
     } on FirebaseAuthException catch (e) {
@@ -98,7 +87,6 @@ class _RegisterPageState extends State<RegisterPage> {
     }
   }
 
-  // FORM VALIDATION
   bool _validateForm() {
     bool ok = true;
     if (_emailCtrl.text.isEmpty) ok = false;
@@ -132,18 +120,41 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Create Account'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        foregroundColor: Colors.black,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(70),
+        child: AppBar(
+          elevation: 4,
+          centerTitle: true,
+          title: const Text(
+            'Create Account',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+              color: Colors.white,
+            ),
+          ),
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color(0xFFFF8A80), // light pink
+                  Color(0xFF6A11CB), // purple
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 1) Role selector
             const Text('Join as:', style: TextStyle(fontSize: 18)),
             const SizedBox(height: 8),
             Row(
@@ -156,16 +167,12 @@ class _RegisterPageState extends State<RegisterPage> {
               ],
             ),
             const SizedBox(height: 24),
-
-            // 2) Email
             TextField(
               controller: _emailCtrl,
               decoration: const InputDecoration(labelText: 'Email'),
               keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 16),
-
-            // 3) Password
             TextField(
               controller: _passwordCtrl,
               obscureText: !_showPassword,
@@ -182,8 +189,6 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
             ),
             const SizedBox(height: 16),
-
-            // 4) Confirm Password
             TextField(
               controller: _confirmCtrl,
               obscureText: true,
@@ -193,7 +198,6 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
             ),
             const SizedBox(height: 16),
-
             if (_userType == 'homeowner') ...[
               TextField(
                 controller: _locationCtrl,
@@ -203,8 +207,6 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               const SizedBox(height: 16),
             ],
-
-            // 5) Terms checkbox
             Row(
               children: [
                 Checkbox(
@@ -217,8 +219,6 @@ class _RegisterPageState extends State<RegisterPage> {
               ],
             ),
             const SizedBox(height: 32),
-
-            // 6) Google sign-up
             ElevatedButton.icon(
               icon: Image.asset('lib/assets/google_logo.png', width: 20),
               label: const Text('Sign up with Google'),
@@ -230,8 +230,6 @@ class _RegisterPageState extends State<RegisterPage> {
               onPressed: _signUpWithGoogle,
             ),
             const SizedBox(height: 16),
-
-            // 7) Email registration
             ElevatedButton(
               onPressed: () {
                 if (_validateForm()) {
@@ -249,7 +247,6 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               child: const Text('Create Account'),
             ),
-
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -271,7 +268,6 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  // Helper to build role button
   Widget _buildRoleButton(String type, String label) {
     final selected = _userType == type;
     return GestureDetector(
