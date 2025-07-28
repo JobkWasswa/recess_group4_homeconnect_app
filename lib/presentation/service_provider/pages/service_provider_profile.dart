@@ -64,9 +64,9 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
   Future<Uint8List?> compressImage(io.File imageFile) async {
     return await FlutterImageCompress.compressWithFile(
       imageFile.absolute.path,
-      minWidth: 800,
-      minHeight: 800,
-      quality: 70,
+      minWidth: 600,
+      minHeight: 600,
+      quality: 50,
     );
   }
 
