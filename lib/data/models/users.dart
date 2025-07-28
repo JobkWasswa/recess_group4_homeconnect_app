@@ -19,7 +19,7 @@ class UserProfile {
       uid: data['uid'] ?? '',
       email: data['email'] ?? '',
       userType: data['userType'] ?? '',
-      location: data['location'], // null-safe: location may not exist
+      location: data['location'],
     );
   }
 }
