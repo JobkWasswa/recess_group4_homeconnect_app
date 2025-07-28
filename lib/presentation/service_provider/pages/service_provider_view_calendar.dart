@@ -179,7 +179,30 @@ class _ServiceProviderCalendarViewScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My Booking Calendar')),
+      appBar: AppBar(
+        automaticallyImplyLeading: true,
+        elevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF4A90E2), Color(0xFF007AFF)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        title: const Text(
+          'My Booking Calendar',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            fontFamily: 'Roboto',
+          ),
+        ),
+        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: Colors.transparent,
+      ),
       body: SafeArea(
         child: Column(
           children: [
