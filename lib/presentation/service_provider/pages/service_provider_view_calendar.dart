@@ -31,11 +31,10 @@ class _ServiceProviderCalendarViewScreenState
     if (userId == null) return;
 
     try {
-      final snapshot =
-          await FirebaseFirestore.instance
-              .collection('bookings')
-              .where('serviceProviderId', isEqualTo: userId)
-              .get();
+      final snapshot = await FirebaseFirestore.instance
+          .collection('bookings')
+          .where('serviceProviderId', isEqualTo: userId)
+          .get();
 
       final Map<DateTime, int> dateBookingCount = {};
       final Set<DateTime> confirmed = {};
@@ -86,59 +85,50 @@ class _ServiceProviderCalendarViewScreenState
     final startOfDay = DateTime(date.year, date.month, date.day);
     final endOfDay = startOfDay.add(const Duration(days: 1));
 
-    final snapshot =
-        await FirebaseFirestore.instance
-            .collection('bookings')
-            .where('serviceProviderId', isEqualTo: userId)
-            .where(
-              'scheduledDate',
-              isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay),
-            )
-            .where('scheduledDate', isLessThan: Timestamp.fromDate(endOfDay))
-            .get();
+    final snapshot = await FirebaseFirestore.instance
+        .collection('bookings')
+        .where('serviceProviderId', isEqualTo: userId)
+        .where('scheduledDate',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+        .where('scheduledDate', isLessThan: Timestamp.fromDate(endOfDay))
+        .get();
 
-    final bookings =
-        snapshot.docs
-            .where(
-              (doc) =>
-                  doc['status'] != 'cancelled' &&
-                  doc['status'] != 'rejected_by_provider',
-            )
-            .map((doc) {
-              final start = (doc['scheduledDate'] as Timestamp).toDate();
-              final end = (doc['endDateTime'] as Timestamp?)?.toDate();
-              final clientName = doc['clientName'] ?? 'Unknown';
-              final isFullDay = doc['isFullDay'] ?? false;
+    final bookings = snapshot.docs
+        .where((doc) =>
+            doc['status'] != 'cancelled' &&
+            doc['status'] != 'rejected_by_provider')
+        .map((doc) {
+      final start = (doc['scheduledDate'] as Timestamp).toDate();
+      final end = (doc['endDateTime'] as Timestamp?)?.toDate();
+      final clientName = doc['clientName'] ?? 'Unknown';
+      final isFullDay = doc['isFullDay'] ?? false;
 
-              final timeRange =
-                  isFullDay
-                      ? 'Full Day'
-                      : end != null
-                      ? '${DateFormat.jm().format(start)} - ${DateFormat.jm().format(end)}'
-                      : '${DateFormat.jm().format(start)}';
+      final timeRange = isFullDay
+          ? 'Full Day'
+          : end != null
+              ? '${DateFormat.jm().format(start)} - ${DateFormat.jm().format(end)}'
+              : '${DateFormat.jm().format(start)}';
 
-              return '$clientName: $timeRange';
-            })
-            .toList();
+      return '$clientName: $timeRange';
+    }).toList();
 
     if (bookings.isEmpty) return;
 
     showDialog(
       context: context,
-      builder:
-          (_) => AlertDialog(
-            title: Text('Bookings on ${DateFormat.yMMMd().format(date)}'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: bookings.map((b) => Text(b)).toList(),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Close'),
-              ),
-            ],
+      builder: (_) => AlertDialog(
+        title: Text('Bookings on ${DateFormat.yMMMd().format(date)}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: bookings.map((b) => Text(b)).toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
           ),
+        ],
+      ),
     );
   }
 
@@ -179,7 +169,6 @@ class _ServiceProviderCalendarViewScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // ✅ CUSTOM STYLED APP BAR
       appBar: AppBar(
         automaticallyImplyLeading: true,
         elevation: 0,
@@ -198,7 +187,7 @@ class _ServiceProviderCalendarViewScreenState
             color: Colors.white,
             fontSize: 20,
             fontWeight: FontWeight.w600,
-            fontFamily: 'Roboto', //
+            fontFamily: 'Roboto',
           ),
         ),
         iconTheme: const IconThemeData(color: Colors.white),

@@ -30,7 +30,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
   bool _isFullDay = false;
   late List<BookingTimeRange> _bookedTimeRanges;
   final TextEditingController _notesController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
+  final _formKey = GlobalKey<FormState>(); // Key for form validation
 
   @override
   void initState() {
@@ -45,6 +45,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
     super.dispose();
   }
 
+  // Checks if the end time is before the start time
   bool _isEndTimeBeforeStart() {
     if (_startTime == null || _endTime == null) return false;
     final a = DateTime(0, 0, 0, _startTime!.hour, _startTime!.minute);
@@ -52,8 +53,9 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
     return b.isBefore(a);
   }
 
+  // Shows the time picker dialog
   Future<void> _selectTime(BuildContext ctx, bool isStart) async {
-    if (_isFullDay) return;
+    if (_isFullDay) return; // Disable time selection if it's a full-day booking
     final picked = await showTimePicker(
       context: ctx,
       initialTime:
@@ -67,6 +69,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
           _startTime = picked;
         } else {
           _endTime = picked;
+          // Show a snackbar if end time is before start time
           if (_startTime != null && _isEndTimeBeforeStart()) {
             ScaffoldMessenger.of(ctx).showSnackBar(
               const SnackBar(
@@ -79,10 +82,19 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
     }
   }
 
+  // Handles the booking confirmation logic
   void _confirmBooking() {
+    // Validate all form fields first
+    if (!_formKey.currentState!.validate()) {
+      return; // Stop if any validation fails
+    }
+
+    // Check if times are selected for non-full-day bookings
     if (!_isFullDay && (_startTime == null || _endTime == null)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select both start and end times.')),
+        const SnackBar(
+          content: Text('Please select both start and end times.'),
+        ),
       );
       return;
     }
@@ -103,17 +115,21 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
       _isFullDay ? 59 : _endTime!.minute,
     );
 
+    // Check for time conflicts with existing bookings
     bool hasConflict = _bookedTimeRanges.any(
       (r) => startDateTime.isBefore(r.end) && endDateTime.isAfter(r.start),
     );
 
     if (hasConflict) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Time overlaps with existing bookings.')),
+        const SnackBar(
+          content: Text('This time overlaps with existing bookings.'),
+        ),
       );
       return;
     }
 
+    // If all checks pass, pop the screen with booking details
     Navigator.pop(context, {
       'scheduledDate': scheduledDate,
       'startDateTime': startDateTime,
@@ -128,40 +144,17 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
     final dateFmt = DateFormat('dd-MM-yyyy');
 
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(70),
-        child: AppBar(
-          elevation: 4,
-          centerTitle: true,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
-          ),
-          flexibleSpace: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Color(0xFFFF8A80), // light pink
-                  Color(0xFF6A11CB), // purple
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-          ),
-          title: Text(
-            widget.isReschedule ? 'Reschedule Booking' : 'New Booking',
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-              color: Colors.white,
-            ),
-          ),
+      appBar: AppBar(
+        title: Text(
+          widget.isReschedule ? 'Reschedule Booking' : 'New Booking',
+          style: const TextStyle(color: Colors.white),
         ),
+        backgroundColor: Colors.purple,
       ),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Form(
-          key: _formKey,
+          key: _formKey, // Assign the GlobalKey to the Form
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -174,7 +167,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Date picker
+              // Date picker TextFormField
               TextFormField(
                 readOnly: true,
                 onTap: () async {
@@ -195,7 +188,10 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                 controller: TextEditingController(
                   text: dateFmt.format(_selectedDate!),
                 ),
-                validator: (_) => _selectedDate == null ? 'Select date' : null,
+                // Validator to ensure a date is selected
+                validator:
+                    (value) =>
+                        _selectedDate == null ? 'Please select a date' : null,
               ),
               const SizedBox(height: 12),
 
@@ -208,14 +204,15 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                     (v) => setState(() {
                       _isFullDay = v;
                       if (v) {
-                        _startTime = null;
+                        _startTime =
+                            null; // Clear times if full day is selected
                         _endTime = null;
                       }
                     }),
               ),
               const SizedBox(height: 8),
 
-              // Conflicts display
+              // Conflicts display for booked slots
               if (_bookedTimeRanges.isNotEmpty) ...[
                 const Text(
                   'Booked slots:',
@@ -234,12 +231,16 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                 const SizedBox(height: 16),
               ],
 
-              // Time pickers
+              // Time pickers for start and end times
               Row(
                 children: [
                   Expanded(
                     child: GestureDetector(
-                      onTap: () => _selectTime(context, true),
+                      onTap:
+                          () => _selectTime(
+                            context,
+                            true,
+                          ), // Tap to select start time
                       child: AbsorbPointer(
                         child: TextFormField(
                           decoration: const InputDecoration(
@@ -250,10 +251,11 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                           controller: TextEditingController(
                             text: _startTime?.format(context) ?? '',
                           ),
+                          // Validator for start time
                           validator:
-                              (_) =>
+                              (value) =>
                                   !_isFullDay && _startTime == null
-                                      ? 'Select start time'
+                                      ? 'Please select a start time'
                                       : null,
                         ),
                       ),
@@ -262,7 +264,11 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: GestureDetector(
-                      onTap: () => _selectTime(context, false),
+                      onTap:
+                          () => _selectTime(
+                            context,
+                            false,
+                          ), // Tap to select end time
                       child: AbsorbPointer(
                         child: TextFormField(
                           decoration: const InputDecoration(
@@ -273,10 +279,11 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
                           controller: TextEditingController(
                             text: _endTime?.format(context) ?? '',
                           ),
+                          // Validator for end time
                           validator:
-                              (_) =>
+                              (value) =>
                                   !_isFullDay && _endTime == null
-                                      ? 'Select end time'
+                                      ? 'Please select an end time'
                                       : null,
                         ),
                       ),
@@ -287,7 +294,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
 
               const SizedBox(height: 20),
 
-              // Notes
+              // Notes TextField
               TextField(
                 controller: _notesController,
                 decoration: const InputDecoration(
@@ -300,23 +307,17 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
 
               const Spacer(),
 
-              // Confirm button with gradient
+              // Confirm button with gradient - now tappable!
               Center(
-                child: Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFFFF8A80), Color(0xFF6A11CB)],
-                    ),
-                    borderRadius: BorderRadius.all(Radius.circular(24)),
-                  ),
-                  child: ElevatedButton(
-                    onPressed: _confirmBooking,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(24)),
+                child: GestureDetector(
+                  // Added GestureDetector
+                  onTap: _confirmBooking, // This is what makes the button work!
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFFFF8A80), Color(0xFF6A11CB)],
                       ),
+                      borderRadius: BorderRadius.all(Radius.circular(24)),
                     ),
                     child: const Padding(
                       padding: EdgeInsets.symmetric(
