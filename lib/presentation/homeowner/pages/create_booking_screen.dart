@@ -55,7 +55,8 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
 
   // Showing the time picker dialog
   Future<void> _selectTime(BuildContext ctx, bool isStart) async {
-    if (_isFullDay) return; // Disable time selection if it's a full-day booking
+    if (_isFullDay)
+      return; // Disables time selection if it's a full-day booking
     final picked = await showTimePicker(
       context: ctx,
       initialTime:
