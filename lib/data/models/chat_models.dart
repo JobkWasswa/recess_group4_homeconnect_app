@@ -73,7 +73,7 @@ class ChatMessage {
     required this.timestamp,
   });
 
-  /// Factory constructor to create a ChatMessage from a Firestore DocumentSnapshot.
+  /// Factory constructor for creating a ChatMessage from a Firestore DocumentSnapshot.
   factory ChatMessage.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return ChatMessage(
