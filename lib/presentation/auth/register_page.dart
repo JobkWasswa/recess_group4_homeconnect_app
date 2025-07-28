@@ -169,7 +169,10 @@ class _RegisterPageState extends State<RegisterPage> {
             const SizedBox(height: 24),
             TextField(
               controller: _emailCtrl,
-              decoration: const InputDecoration(labelText: 'Email'),
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                border: OutlineInputBorder(), // Added border
+              ),
               keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 16),
@@ -179,6 +182,7 @@ class _RegisterPageState extends State<RegisterPage> {
               decoration: InputDecoration(
                 labelText: 'Password',
                 errorText: _passwordError,
+                border: const OutlineInputBorder(), // Added border
                 suffixIcon: IconButton(
                   icon: Icon(
                     _showPassword ? Icons.visibility_off : Icons.visibility,
@@ -195,6 +199,7 @@ class _RegisterPageState extends State<RegisterPage> {
               decoration: InputDecoration(
                 labelText: 'Confirm Password',
                 errorText: _confirmError,
+                border: const OutlineInputBorder(), // Added border
               ),
             ),
             const SizedBox(height: 16),
@@ -203,6 +208,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 controller: _locationCtrl,
                 decoration: const InputDecoration(
                   labelText: 'Location (e.g. Kampala)',
+                  border: OutlineInputBorder(), // Added border
                 ),
               ),
               const SizedBox(height: 16),

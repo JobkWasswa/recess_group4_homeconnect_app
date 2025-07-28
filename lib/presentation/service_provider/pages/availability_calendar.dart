@@ -81,37 +81,48 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Set Availability',
-          style: TextStyle(fontWeight: FontWeight.bold),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: AppBar(
+          automaticallyImplyLeading: true,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.pink, Colors.purple],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          title: const Text(
+            'Set Availability',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          ),
+          centerTitle: true,
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
         ),
-        centerTitle: true,
       ),
       body: ListView(
         children:
             daysOfWeek.map((day) {
               final isAvailable = _availability[day] ?? false;
               return Card(
-                margin: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ), // Adjusted margin
-                elevation: 2, // Subtle shadow
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                elevation: 2,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
-                ), // Rounded corners
+                ),
                 child: Column(
                   children: [
                     SwitchListTile(
                       title: Text(
                         day,
                         style: const TextStyle(fontWeight: FontWeight.w500),
-                      ), // Slightly bolder text
+                      ),
                       value: isAvailable,
-                      activeColor: const Color(
-                        0xFF6B4EEF,
-                      ), // Purple switch color
+                      activeColor: const Color(0xFF6B4EEF),
                       onChanged: (val) {
                         setState(() {
                           _availability[day] = val;
@@ -120,21 +131,14 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                     ),
                     if (isAvailable)
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(
-                          16,
-                          4,
-                          16,
-                          16,
-                        ), // Adjusted padding
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             TextButton(
                               onPressed: () => _pickTime(day, true),
                               style: TextButton.styleFrom(
-                                foregroundColor: const Color(
-                                  0xFF6B4EEF,
-                                ), // Purple text for buttons
+                                foregroundColor: const Color(0xFF6B4EEF),
                               ),
                               child: Text(
                                 'Start: ${formatTime(_startTimes[day])}',
@@ -143,9 +147,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                             TextButton(
                               onPressed: () => _pickTime(day, false),
                               style: TextButton.styleFrom(
-                                foregroundColor: const Color(
-                                  0xFF6B4EEF,
-                                ), // Purple text for buttons
+                                foregroundColor: const Color(0xFF6B4EEF),
                               ),
                               child: Text('End: ${formatTime(_endTimes[day])}'),
                             ),
@@ -158,16 +160,16 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
             }).toList(),
       ),
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(20.0), // Increase padding
+        padding: const EdgeInsets.all(20.0),
         child: ElevatedButton(
           onPressed: _saveAvailability,
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF6B4EEF), // Purple button
+            backgroundColor: const Color(0xFF6B4EEF),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10), // Rounded corners
+              borderRadius: BorderRadius.circular(10),
             ),
             elevation: 5,
-            padding: const EdgeInsets.symmetric(vertical: 16), // Taller button
+            padding: const EdgeInsets.symmetric(vertical: 16),
           ),
           child: const Text(
             'Save Availability',
