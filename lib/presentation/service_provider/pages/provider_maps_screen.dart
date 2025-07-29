@@ -36,14 +36,10 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
       await _getCurrentLocation();
       await _loadActiveJobLocations();
     } catch (e) {
-      setState(() {
-        _errorMessage = "Error loading map data: $e";
-      });
+      setState(() => _errorMessage = "Error loading map data: $e");
       print("❌ Error initializing map data: $e");
     } finally {
-      setState(() {
-        _isLoadingMap = false;
-      });
+      setState(() => _isLoadingMap = false);
     }
   }
 
@@ -69,11 +65,6 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
       );
       _currentLocation = LatLng(pos.latitude, pos.longitude);
       print("📍 CurrentLocation: $_currentLocation");
-      if (mapController != null) {
-        mapController!.animateCamera(
-          CameraUpdate.newLatLngZoom(_currentLocation!, 12),
-        );
-      }
     } catch (e) {
       print("⚠️ Could not get current location: $e");
     }
@@ -100,53 +91,86 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
 
       _markers.clear();
       int markerIdCounter = 0;
-      final homeIcon = BitmapDescriptor.defaultMarkerWithHue(
-        BitmapDescriptor.hueGreen,
-      );
+      LatLngBounds? bounds;
 
       for (var doc in querySnapshot.docs) {
         final data = doc.data();
         print(" • doc ${doc.id} → $data");
 
-        if (data['location'] != null && data['location'] is GeoPoint) {
-          GeoPoint geoPoint = data['location'];
-          double lat = geoPoint.latitude;
-          double lng = geoPoint.longitude;
-          print("   ✅ Location: lat=$lat, lng=$lng");
+        if (data['location'] is GeoPoint && data['endDateTime'] != null) {
+          final GeoPoint geo = data['location'];
+          final DateTime endDateTime =
+              (data['endDateTime'] as Timestamp).toDate();
 
-          final pos = LatLng(lat, lng);
+          if (DateTime.now().isAfter(endDateTime)) continue; // ⛔ Skip past jobs
+
+          final pos = LatLng(geo.latitude, geo.longitude);
           final clientName = data['clientName'] ?? 'Unknown';
-          final jobType =
+          final category =
               (data['categories'] is List && data['categories'].isNotEmpty)
                   ? data['categories'][0].toString()
                   : (data['selectedCategory']?.toString() ?? 'Service');
 
-          _markers.add(
-            Marker(
-              markerId: MarkerId('job_${doc.id}_${markerIdCounter++}'),
-              position: pos,
-              icon: homeIcon,
-              infoWindow: InfoWindow(
-                title: jobType,
-                snippet: 'Client: $clientName',
-              ),
+          final marker = Marker(
+            markerId: MarkerId('job_${doc.id}_${markerIdCounter++}'),
+            position: pos,
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueGreen,
+            ),
+            infoWindow: InfoWindow(
+              title: category,
+              snippet: 'Client: $clientName',
             ),
           );
-        } else {
-          print("⚠️ Skipping: missing or invalid location for ${doc.id}");
+          _markers.add(marker);
+
+          bounds =
+              bounds == null
+                  ? LatLngBounds(southwest: pos, northeast: pos)
+                  : _extendBounds(bounds, pos);
         }
       }
 
       print("🏷️ Added ${_markers.length} marker(s) to the map");
 
-      if (_currentLocation == null && _markers.isNotEmpty) {
-        final first = _markers.first.position;
-        mapController?.animateCamera(CameraUpdate.newLatLngZoom(first, 12));
+      // Auto-fit markers
+      if (_markers.isNotEmpty && mapController != null && bounds != null) {
+        await Future.delayed(
+          Duration(milliseconds: 500),
+        ); // Allow map to render
+        mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 50));
+      } else if (_currentLocation != null) {
+        mapController?.animateCamera(
+          CameraUpdate.newLatLngZoom(_currentLocation!, 12),
+        );
       }
     } catch (e) {
       setState(() => _errorMessage = "Error fetching job locations: $e");
       print("❌ Error fetching job locations: $e");
     }
+  }
+
+  LatLngBounds _extendBounds(LatLngBounds bounds, LatLng pos) {
+    final swLat =
+        bounds.southwest.latitude < pos.latitude
+            ? bounds.southwest.latitude
+            : pos.latitude;
+    final swLng =
+        bounds.southwest.longitude < pos.longitude
+            ? bounds.southwest.longitude
+            : pos.longitude;
+    final neLat =
+        bounds.northeast.latitude > pos.latitude
+            ? bounds.northeast.latitude
+            : pos.latitude;
+    final neLng =
+        bounds.northeast.longitude > pos.longitude
+            ? bounds.northeast.longitude
+            : pos.longitude;
+    return LatLngBounds(
+      southwest: LatLng(swLat, swLng),
+      northeast: LatLng(neLat, neLng),
+    );
   }
 
   void _onMapCreated(GoogleMapController controller) {
@@ -165,43 +189,7 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
           _isLoadingMap
               ? const Center(child: CircularProgressIndicator())
               : _errorMessage != null
-              ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.error_outline,
-                        color: Colors.red,
-                        size: 50,
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        _errorMessage!,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.red),
-                      ),
-                      if (_errorMessage!.contains("permissions"))
-                        ElevatedButton(
-                          onPressed: openAppSettings,
-                          child: const Text('Open App Settings'),
-                        ),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: () {
-                          setState(() {
-                            _isLoadingMap = true;
-                            _errorMessage = null;
-                          });
-                          _initializeMapData();
-                        },
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                ),
-              )
+              ? _buildErrorUI()
               : Column(
                 children: [
                   Expanded(
@@ -227,9 +215,11 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
                                 Icons.place,
                                 color: Colors.green,
                               ),
-                              title: Text(m.markerId.value),
+                              title: Text(
+                                m.infoWindow.snippet ?? m.markerId.value,
+                              ),
                               subtitle: Text(
-                                '${m.position.latitude}, ${m.position.longitude}',
+                                '${m.position.latitude.toStringAsFixed(6)}, ${m.position.longitude.toStringAsFixed(6)}',
                               ),
                             );
                           }).toList(),
@@ -237,6 +227,42 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
                   ),
                 ],
               ),
+    );
+  }
+
+  Widget _buildErrorUI() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red, size: 50),
+            const SizedBox(height: 10),
+            Text(
+              _errorMessage!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.red),
+            ),
+            if (_errorMessage!.contains("permissions"))
+              ElevatedButton(
+                onPressed: openAppSettings,
+                child: const Text('Open App Settings'),
+              ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _isLoadingMap = true;
+                  _errorMessage = null;
+                });
+                _initializeMapData();
+              },
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
