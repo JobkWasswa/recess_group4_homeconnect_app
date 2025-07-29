@@ -26,7 +26,7 @@ class _ProfileDisplayScreenForClientState
   @override
   void initState() {
     super.initState();
-    _loadRatingsAndReviews(); // Reinstated to fetch data for average rating
+    _loadRatingsAndReviews(); // Reinstated fetch data for average rating
   }
 
   // Reinstated to calculate average rating and total reviews
