@@ -74,7 +74,7 @@ class _ServiceProviderCalendarViewScreenState
         _isLoading = false;
       });
     } catch (e) {
-      print('Error fetching bookings: $e');
+      debugPrint('Error fetching bookings: $e');
       setState(() => _isLoading = false);
     }
   }
