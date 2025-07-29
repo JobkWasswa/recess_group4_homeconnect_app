@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/data/models/rating_review.dart'; // Needed for RatingReview model to calculate average
 
-// Removed firebase_auth as no review submission is happening here
+// Removed firebase_auth as no review submission
 
 class ProfileDisplayScreenForClient extends StatefulWidget {
   final String serviceProviderId;
