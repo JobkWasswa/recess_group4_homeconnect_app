@@ -54,7 +54,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen> {
         });
   }
 
-  Future<void> _loadRatings(String serviceProviderId) async {
+  Future<void> loadRatings(String serviceProviderId) async {
     final querySnapshot =
         await FirebaseFirestore.instance
             .collection('ratings_reviews')
