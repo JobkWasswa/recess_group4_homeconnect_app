@@ -618,12 +618,12 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
                     if (_isSaving) return; // Prevent duplicate tap
                     setState(() => _isSaving = true);
 
-                    print("Create Profile button tapped");
+                    debugPrint("Create Profile button tapped");
                     final success = await _saveProfile();
-                    print("Save result: $success");
+                    debugPrint("Save result: $success");
 
                     if (success && mounted) {
-                      print("Navigating to dashboard...");
+                      debugPrint("Navigating to dashboard...");
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
