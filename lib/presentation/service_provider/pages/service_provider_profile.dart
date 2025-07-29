@@ -174,7 +174,7 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
           throw Exception("Image compression failed.");
         }
 
-        print("Uploading compressed image...");
+        debugPrint("Uploading compressed image...");
         final ref = FirebaseStorage.instance.ref().child(
           'provider_images/$userId.jpg',
         );
@@ -182,7 +182,7 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
         imageUrl = await ref.getDownloadURL();
       }
 
-      print("Image uploaded: $imageUrl");
+      debugPrint("Image uploaded: $imageUrl");
 
       // Save to Firestore
       // Save to Firestore
@@ -211,11 +211,11 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      print("✅ Profile saved successfully.");
+      debugPrint("✅ Profile saved successfully.");
       return true;
     } catch (e, stack) {
-      print("❌ Error saving profile: $e");
-      print("Stacktrace: $stack");
+      debugPrint("❌ Error saving profile: $e");
+      debugPrint("Stacktrace: $stack");
       return false;
     }
   }
