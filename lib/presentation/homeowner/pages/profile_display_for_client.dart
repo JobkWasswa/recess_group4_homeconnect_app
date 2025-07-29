@@ -21,7 +21,7 @@ class _ProfileDisplayScreenForClientState
     extends State<ProfileDisplayScreenForClient> {
   double _averageRating = 0.0;
   int _totalReviews = 0;
-  // Removed List<RatingReview> _reviews; as individual reviews are not displayed
+  // Removed List<RatingReview> _reviews; as individual reviews not displayed
 
   @override
   void initState() {
