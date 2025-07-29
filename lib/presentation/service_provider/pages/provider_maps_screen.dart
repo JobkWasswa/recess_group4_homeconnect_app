@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:geolocator/geolocator.dart'; 
-import 'package:permission_handler/permission_handler.dart'; 
+import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class ProviderMapsScreen extends StatefulWidget {
   const ProviderMapsScreen({super.key});
@@ -23,7 +23,7 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
   static const LatLng _kDefaultInitialPosition = LatLng(
     0.3150,
     32.5828,
-  ); // Kampala, Uganda
+  ); // Kampala
 
   @override
   void initState() {
@@ -34,14 +34,13 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
   Future<void> _initializeMapData() async {
     try {
       await _checkLocationPermission();
-      await _getCurrentLocation(); // Try to get current location first
-      await _loadActiveJobLocations();
+      await _getCurrentLocation(); // get provider’s GPS
+      await _loadActiveJobLocations(); // load homeowner markers
     } catch (e) {
       setState(() {
         _errorMessage = "Error loading map data: $e";
-        _isLoadingMap = false;
       });
-      print("Error initializing map data: $e");
+      print("❌ Error initializing map data: $e");
     } finally {
       setState(() {
         _isLoadingMap = false;
@@ -66,29 +65,25 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
 
   Future<void> _getCurrentLocation() async {
     try {
-      Position position = await Geolocator.getCurrentPosition(
+      Position pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
-      setState(() {
-        _currentLocation = LatLng(position.latitude, position.longitude);
-      });
+      _currentLocation = LatLng(pos.latitude, pos.longitude);
+      print("📍 CurrentLocation: $_currentLocation");
       if (mapController != null) {
         mapController!.animateCamera(
           CameraUpdate.newLatLngZoom(_currentLocation!, 12),
         );
       }
     } catch (e) {
-      print("Could not get current location: $e");
-      // Fallback to default or just proceed without current location
+      print("⚠️ Could not get current location: $e");
     }
   }
 
   Future<void> _loadActiveJobLocations() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) {
-      setState(() {
-        _errorMessage = "User not logged in.";
-      });
+      setState(() => _errorMessage = "User not logged in.");
       return;
     }
 
@@ -100,72 +95,61 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
               .where('status', whereIn: ['confirmed', 'in_progress'])
               .get();
 
-      if (mounted) {
-        setState(() {
-          _markers.clear(); // Clear existing markers
-          int markerIdCounter = 0; // To ensure unique marker IDs
+      print(
+        "🔍 Found ${querySnapshot.docs.length} booking(s) for provider $userId",
+      );
+      _markers.clear();
+      int markerIdCounter = 0;
+      final homeIcon = BitmapDescriptor.defaultMarkerWithHue(
+        BitmapDescriptor.hueGreen,
+      );
 
-          for (var doc in querySnapshot.docs) {
-            final data = doc.data();
-            final latitude =
-                data['latitude']; // Assuming separate lat/lng fields
-            final longitude = data['longitude'];
+      for (var doc in querySnapshot.docs) {
+        final data = doc.data();
+        print(" • doc ${doc.id} → $data");
 
-            if (latitude != null && longitude != null) {
-              final LatLng position = LatLng(latitude, longitude);
-              final String clientName = data['clientName'] ?? 'Unknown Client';
-              final String jobType =
-                  (data['categories'] is List && data['categories'].isNotEmpty)
-                      ? data['categories'][0].toString()
-                      : (data['categories']?.toString() ?? 'Service');
+        final lat = data['latitude'];
+        final lng = data['longitude'];
+        print("   coords: lat=$lat, lng=$lng");
 
-              _markers.add(
-                Marker(
-                  markerId: MarkerId(
-                    'job_${doc.id}_${markerIdCounter++}',
-                  ), // Unique ID
-                  position: position,
-                  infoWindow: InfoWindow(
-                    title: jobType,
-                    snippet: 'Client: $clientName',
-                  ),
-                ),
-              );
-            }
-          }
+        if (lat != null && lng != null) {
+          final pos = LatLng(lat, lng);
+          final clientName = data['clientName'] ?? 'Unknown';
+          final jobType =
+              (data['categories'] is List && data['categories'].isNotEmpty)
+                  ? data['categories'][0].toString()
+                  : (data['categories']?.toString() ?? 'Service');
 
-          // If no current location, and there are active jobs,
-          // center the map on the first job location (if available)
-          if (_currentLocation == null && _markers.isNotEmpty) {
-            final firstMarkerPosition = _markers.first.position;
-            mapController?.animateCamera(
-              CameraUpdate.newLatLngZoom(firstMarkerPosition, 12),
-            );
-          }
-        });
+          _markers.add(
+            Marker(
+              markerId: MarkerId('job_${doc.id}_${markerIdCounter++}'),
+              position: pos,
+              icon: homeIcon, // green pin for homeowner
+              infoWindow: InfoWindow(
+                title: jobType,
+                snippet: 'Client: $clientName',
+              ),
+            ),
+          );
+        }
+      }
+
+      print("🏷️ Added ${_markers.length} marker(s) to the map");
+
+      // Center on first homeowner if provider location is missing
+      if (_currentLocation == null && _markers.isNotEmpty) {
+        final first = _markers.first.position;
+        mapController?.animateCamera(CameraUpdate.newLatLngZoom(first, 12));
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = "Error fetching job locations: $e";
-        });
-      }
-      print("Error fetching job locations: $e");
+      setState(() => _errorMessage = "Error fetching job locations: $e");
+      print("❌ Error fetching job locations: $e");
     }
   }
 
   void _onMapCreated(GoogleMapController controller) {
     mapController = controller;
-    // If _currentLocation or markers are already loaded, center map
-    if (_currentLocation != null) {
-      mapController!.animateCamera(
-        CameraUpdate.newLatLngZoom(_currentLocation!, 12),
-      );
-    } else if (_markers.isNotEmpty) {
-      mapController!.animateCamera(
-        CameraUpdate.newLatLngZoom(_markers.first.position, 12),
-      );
-    }
+    // Delay centering if you want to focus on homeowner pins instead of provider
   }
 
   @override
@@ -182,7 +166,7 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
               : _errorMessage != null
               ? Center(
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.all(16),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -195,13 +179,11 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
                       Text(
                         _errorMessage!,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.red, fontSize: 16),
+                        style: const TextStyle(color: Colors.red),
                       ),
                       if (_errorMessage!.contains("permissions"))
                         ElevatedButton(
-                          onPressed: () {
-                            openAppSettings(); // From permission_handler package
-                          },
+                          onPressed: openAppSettings,
                           child: const Text('Open App Settings'),
                         ),
                       const SizedBox(height: 20),
@@ -211,7 +193,7 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
                             _isLoadingMap = true;
                             _errorMessage = null;
                           });
-                          _initializeMapData(); // Retry loading
+                          _initializeMapData();
                         },
                         child: const Text('Retry'),
                       ),
@@ -219,17 +201,41 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
                   ),
                 ),
               )
-              : GoogleMap(
-                onMapCreated: _onMapCreated,
-                initialCameraPosition: CameraPosition(
-                  target: _currentLocation ?? _kDefaultInitialPosition,
-                  zoom: 10.0,
-                ),
-                markers: _markers,
-                myLocationEnabled:
-                    _currentLocation !=
-                    null, // Show blue dot if location is available
-                myLocationButtonEnabled: _currentLocation != null,
+              : Column(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: GoogleMap(
+                      onMapCreated: _onMapCreated,
+                      initialCameraPosition: CameraPosition(
+                        target: _currentLocation ?? _kDefaultInitialPosition,
+                        zoom: 10,
+                      ),
+                      markers: _markers,
+                      myLocationEnabled: _currentLocation != null,
+                      myLocationButtonEnabled: _currentLocation != null,
+                    ),
+                  ),
+                  // Debug list of marker positions
+                  Expanded(
+                    flex: 1,
+                    child: ListView(
+                      children:
+                          _markers.map((m) {
+                            return ListTile(
+                              leading: const Icon(
+                                Icons.place,
+                                color: Colors.green,
+                              ),
+                              title: Text(m.markerId.value),
+                              subtitle: Text(
+                                '${m.position.latitude}, ${m.position.longitude}',
+                              ),
+                            );
+                          }).toList(),
+                    ),
+                  ),
+                ],
               ),
     );
   }
