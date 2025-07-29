@@ -47,8 +47,8 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen> {
             _totalReviews = doc.data()?['numberOfReviews'] ?? 0;
           });
 
-          print('Average Rating: $_averageRating');
-          print('Total Reviews: $_totalReviews');
+          debugPrint('Average Rating: $_averageRating');
+          debugPrint('Total Reviews: $_totalReviews');
 
           return doc;
         });
