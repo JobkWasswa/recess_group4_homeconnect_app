@@ -1,5 +1,4 @@
 // File: homeconnect/data/models/chat_models.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Represents a chat room between a homeowner and a service provider for a specific booking.

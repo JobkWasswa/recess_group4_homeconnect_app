@@ -47,14 +47,14 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen> {
             _totalReviews = doc.data()?['numberOfReviews'] ?? 0;
           });
 
-          print('Average Rating: $_averageRating');
-          print('Total Reviews: $_totalReviews');
+          debugPrint('Average Rating: $_averageRating');
+          debugPrint('Total Reviews: $_totalReviews');
 
           return doc;
         });
   }
 
-  Future<void> _loadRatings(String serviceProviderId) async {
+  Future<void> loadRatings(String serviceProviderId) async {
     final querySnapshot =
         await FirebaseFirestore.instance
             .collection('ratings_reviews')
@@ -87,7 +87,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen> {
         return 'Unknown location';
       }
     } catch (e) {
-      print("Reverse geocoding error: $e");
+      debugPrint("Reverse geocoding error: $e");
       return 'Address not available';
     }
   }

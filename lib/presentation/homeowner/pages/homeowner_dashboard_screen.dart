@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:homeconnect/config/routes.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:homeconnect/data/models/users.dart'; // CHANGE: Import UserProfile model
+import 'package:homeconnect/data/models/users.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:homeconnect/presentation/homeowner/pages/list_of _serviceproviders.dart';
 import 'package:homeconnect/data/models/booking.dart';
@@ -10,7 +10,7 @@ import 'package:homeconnect/presentation/homeowner/pages/view_all_bookings.dart'
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:homeconnect/presentation/homeowner/pages/past_booked_providers_screen.dart';
 
-// Helper – convert something like “john_doe99@example.com” → “John Doe99”
+// Helper – convert something like “john_doe99@example.com” → “John”
 String nameFromEmail(String email) {
   final localPart = email.split('@').first;
   final words = localPart.split(RegExp(r'[._]'));
@@ -410,7 +410,9 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                         children: [
                           IconButton(
                             onPressed:
-                                () => print('Homeowner Notifications pressed'),
+                                () => debugPrint(
+                                  'Homeowner Notifications pressed',
+                                ),
                             icon: const Icon(
                               Icons.notifications,
                               color: Colors.white,
@@ -438,7 +440,8 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                         borderRadius: BorderRadius.circular(25),
                       ),
                       child: IconButton(
-                        onPressed: () => print('Homeowner Profile pressed'),
+                        onPressed:
+                            () => debugPrint('Homeowner Profile pressed'),
                         icon: const Icon(Icons.person, color: Colors.white),
                       ),
                     ),
@@ -691,7 +694,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                           ),
                         );
                       } catch (e) {
-                        print('❌ Error: $e');
+                        debugPrint('❌ Error: $e');
                         ScaffoldMessenger.of(
                           context,
                         ).showSnackBar(SnackBar(content: Text('Error: $e')));
@@ -1036,7 +1039,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                 .limit(3)
                 .snapshots()
                 .handleError((error) {
-                  print('🔥 Firestore error: $error');
+                  debugPrint('🔥 Firestore error: $error');
                 }),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
@@ -1227,7 +1230,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
             icon: const Icon(Icons.calendar_today),
             color: Colors.grey,
             onPressed: () {
-              print('My Bookings bottom nav pressed!');
+              debugPrint('My Bookings bottom nav pressed!');
             },
           ),
           const SizedBox(width: 48),
@@ -1235,7 +1238,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
             icon: const Icon(Icons.work),
             color: Colors.grey,
             onPressed: () {
-              print('My Jobs bottom nav pressed!');
+              debugPrint('My Jobs bottom nav pressed!');
             },
           ),
           IconButton(
@@ -1249,7 +1252,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
                   // 👈 replace with actual name
                 ),
               );
-              print('Messages bottom nav pressed!');
+              debugPrint('Messages bottom nav pressed!');
             },
           ),
         ],

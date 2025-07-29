@@ -70,7 +70,7 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
     );
   }
 
-  Future<String?> _uploadProfileImage() async {
+  Future<String?> uploadProfileImage() async {
     final ref = FirebaseStorage.instance.ref(
       'profile_pictures/${DateTime.now().millisecondsSinceEpoch}',
     );
@@ -151,7 +151,7 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
 
   Future<bool> _saveProfile() async {
     try {
-      print("Starting _saveProfile...");
+      debugPrint("Starting _saveProfile...");
 
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception("User not logged in");
@@ -161,20 +161,20 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
 
       // Upload image if selected
       if (kIsWeb && _webImageBytes != null) {
-        print("Uploading web image...");
+        debugPrint("Uploading web image...");
         final ref = FirebaseStorage.instance.ref().child(
           'provider_images/$userId.jpg',
         );
         await ref.putData(_webImageBytes!);
         imageUrl = await ref.getDownloadURL();
       } else if (!kIsWeb && _profileImageFile != null) {
-        print("Compressing image...");
+        debugPrint("Compressing image...");
         final compressedData = await compressImage(_profileImageFile!);
         if (compressedData == null) {
           throw Exception("Image compression failed.");
         }
 
-        print("Uploading compressed image...");
+        debugPrint("Uploading compressed image...");
         final ref = FirebaseStorage.instance.ref().child(
           'provider_images/$userId.jpg',
         );
@@ -182,7 +182,7 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
         imageUrl = await ref.getDownloadURL();
       }
 
-      print("Image uploaded: $imageUrl");
+      debugPrint("Image uploaded: $imageUrl");
 
       // Save to Firestore
       // Save to Firestore
@@ -211,11 +211,11 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      print("✅ Profile saved successfully.");
+      debugPrint("✅ Profile saved successfully.");
       return true;
     } catch (e, stack) {
-      print("❌ Error saving profile: $e");
-      print("Stacktrace: $stack");
+      debugPrint("❌ Error saving profile: $e");
+      debugPrint("Stacktrace: $stack");
       return false;
     }
   }
@@ -618,12 +618,12 @@ class _ProfileCreationScreenState extends State<ProfileCreationScreen> {
                     if (_isSaving) return; // Prevent duplicate tap
                     setState(() => _isSaving = true);
 
-                    print("Create Profile button tapped");
+                    debugPrint("Create Profile button tapped");
                     final success = await _saveProfile();
-                    print("Save result: $success");
+                    debugPrint("Save result: $success");
 
                     if (success && mounted) {
-                      print("Navigating to dashboard...");
+                      debugPrint("Navigating to dashboard...");
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
