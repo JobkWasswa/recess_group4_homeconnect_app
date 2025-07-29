@@ -436,17 +436,17 @@ class _ServiceProvidersListState extends State<ServiceProvidersList> {
       );
 
       final bookingData = booking.toFirestore();
-      print('📝 Booking to Firestore: $bookingData');
+      debugPrint('📝 Booking to Firestore: $bookingData');
 
       await FirebaseFirestore.instance.collection('bookings').add(bookingData);
 
-      print('✅ Booking saved successfully!');
+      debugPrint('✅ Booking saved successfully!');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Booking sent! Waiting for confirmation')),
       );
     } catch (e, stackTrace) {
-      print('❌ Error saving booking: $e');
-      print('🪵 Stack trace: $stackTrace');
+      debugPrint('❌ Error saving booking: $e');
+      debugPrint('🪵 Stack trace: $stackTrace');
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Failed to book: $e')));
