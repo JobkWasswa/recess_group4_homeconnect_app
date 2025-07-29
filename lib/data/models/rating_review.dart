@@ -8,7 +8,7 @@ class RatingReview {
   final double rating;
   final String reviewText;
   final Timestamp? timestamp;
-  String? clientName; // Make it mutable or add it to constructor
+  String? clientName; // Makes it mutable or add it to constructor
 
   RatingReview({
     required this.id,
