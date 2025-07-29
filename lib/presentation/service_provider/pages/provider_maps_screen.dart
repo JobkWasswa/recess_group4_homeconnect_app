@@ -19,7 +19,6 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
   bool _isLoadingMap = true;
   String? _errorMessage;
 
-  // Default camera position if current location isn't available
   static const LatLng _kDefaultInitialPosition = LatLng(
     0.3150,
     32.5828,
@@ -34,8 +33,8 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
   Future<void> _initializeMapData() async {
     try {
       await _checkLocationPermission();
-      await _getCurrentLocation(); // get provider’s GPS
-      await _loadActiveJobLocations(); // load homeowner markers
+      await _getCurrentLocation();
+      await _loadActiveJobLocations();
     } catch (e) {
       setState(() {
         _errorMessage = "Error loading map data: $e";
@@ -98,6 +97,7 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
       print(
         "🔍 Found ${querySnapshot.docs.length} booking(s) for provider $userId",
       );
+
       _markers.clear();
       int markerIdCounter = 0;
       final homeIcon = BitmapDescriptor.defaultMarkerWithHue(
@@ -108,35 +108,37 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
         final data = doc.data();
         print(" • doc ${doc.id} → $data");
 
-        final lat = data['latitude'];
-        final lng = data['longitude'];
-        print("   coords: lat=$lat, lng=$lng");
+        if (data['location'] != null && data['location'] is GeoPoint) {
+          GeoPoint geoPoint = data['location'];
+          double lat = geoPoint.latitude;
+          double lng = geoPoint.longitude;
+          print("   ✅ Location: lat=$lat, lng=$lng");
 
-        if (lat != null && lng != null) {
           final pos = LatLng(lat, lng);
           final clientName = data['clientName'] ?? 'Unknown';
           final jobType =
               (data['categories'] is List && data['categories'].isNotEmpty)
                   ? data['categories'][0].toString()
-                  : (data['categories']?.toString() ?? 'Service');
+                  : (data['selectedCategory']?.toString() ?? 'Service');
 
           _markers.add(
             Marker(
               markerId: MarkerId('job_${doc.id}_${markerIdCounter++}'),
               position: pos,
-              icon: homeIcon, // green pin for homeowner
+              icon: homeIcon,
               infoWindow: InfoWindow(
                 title: jobType,
                 snippet: 'Client: $clientName',
               ),
             ),
           );
+        } else {
+          print("⚠️ Skipping: missing or invalid location for ${doc.id}");
         }
       }
 
       print("🏷️ Added ${_markers.length} marker(s) to the map");
 
-      // Center on first homeowner if provider location is missing
       if (_currentLocation == null && _markers.isNotEmpty) {
         final first = _markers.first.position;
         mapController?.animateCamera(CameraUpdate.newLatLngZoom(first, 12));
@@ -149,7 +151,6 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
 
   void _onMapCreated(GoogleMapController controller) {
     mapController = controller;
-    // Delay centering if you want to focus on homeowner pins instead of provider
   }
 
   @override
@@ -216,7 +217,6 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
                       myLocationButtonEnabled: _currentLocation != null,
                     ),
                   ),
-                  // Debug list of marker positions
                   Expanded(
                     flex: 1,
                     child: ListView(
