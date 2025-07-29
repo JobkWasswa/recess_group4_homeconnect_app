@@ -37,7 +37,7 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
       await _loadActiveJobLocations();
     } catch (e) {
       setState(() => _errorMessage = "Error loading map data: $e");
-      print("❌ Error initializing map data: $e");
+      debugPrint("❌ Error initializing map data: $e");
     } finally {
       setState(() => _isLoadingMap = false);
     }
@@ -64,9 +64,9 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
         desiredAccuracy: LocationAccuracy.high,
       );
       _currentLocation = LatLng(pos.latitude, pos.longitude);
-      print("📍 CurrentLocation: $_currentLocation");
+      debugPrint("📍 CurrentLocation: $_currentLocation");
     } catch (e) {
-      print("⚠️ Could not get current location: $e");
+      debugPrint("⚠️ Could not get current location: $e");
     }
   }
 
@@ -85,7 +85,7 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
               .where('status', whereIn: ['confirmed', 'in_progress'])
               .get();
 
-      print(
+      debugPrint(
         "🔍 Found ${querySnapshot.docs.length} booking(s) for provider $userId",
       );
 
@@ -95,7 +95,7 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
 
       for (var doc in querySnapshot.docs) {
         final data = doc.data();
-        print(" • doc ${doc.id} → $data");
+        debugPrint(" • doc ${doc.id} → $data");
 
         if (data['location'] is GeoPoint && data['endDateTime'] != null) {
           final GeoPoint geo = data['location'];
@@ -131,7 +131,7 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
         }
       }
 
-      print("🏷️ Added ${_markers.length} marker(s) to the map");
+      debugPrint("🏷️ Added ${_markers.length} marker(s) to the map");
 
       // Auto-fit markers
       if (_markers.isNotEmpty && mapController != null && bounds != null) {
@@ -146,7 +146,7 @@ class _ProviderMapsScreenState extends State<ProviderMapsScreen> {
       }
     } catch (e) {
       setState(() => _errorMessage = "Error fetching job locations: $e");
-      print("❌ Error fetching job locations: $e");
+      debugPrint("❌ Error fetching job locations: $e");
     }
   }
 
