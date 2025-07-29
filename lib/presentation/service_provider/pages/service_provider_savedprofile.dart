@@ -87,7 +87,7 @@ class _ProfileDisplayScreenState extends State<ProfileDisplayScreen> {
         return 'Unknown location';
       }
     } catch (e) {
-      print("Reverse geocoding error: $e");
+      debugPrint("Reverse geocoding error: $e");
       return 'Address not available';
     }
   }
