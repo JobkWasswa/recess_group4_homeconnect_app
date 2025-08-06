@@ -302,6 +302,9 @@ class _ServiceProviderDashboardScreenState
     final DateTime? scheduledDate = scheduledDateTimestamp?.toDate();
     final String? scheduledTime = data['scheduledTime'] as String?;
     final String? duration = data['duration'] as String?;
+    final Timestamp? jobStartedAtTimestamp = data['jobStartedAt'] as Timestamp?;
+    final DateTime? jobStartedAt = jobStartedAtTimestamp?.toDate();
+    final String status = data['status'] ?? '';
 
     return Card(
       elevation: 8,
@@ -362,48 +365,138 @@ class _ServiceProviderDashboardScreenState
               ),
             ],
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  try {
-                    await FirebaseFirestore.instance
-                        .collection('bookings')
-                        .doc(bookingId)
-                        .update({
-                          'status': 'completed_by_provider',
-                          'updatedAt': FieldValue.serverTimestamp(),
-                        });
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Job marked as complete!'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                },
-                icon: const Icon(Icons.check_circle_outline),
-                label: const Text('Mark as Complete'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green[600],
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
+            _buildJobActionButton(
+              context,
+              bookingId,
+              status,
+              scheduledDate,
+              jobStartedAt,
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildJobActionButton(
+    BuildContext context,
+    String bookingId,
+    String status,
+    DateTime? scheduledDate,
+    DateTime? jobStartedAt,
+  ) {
+    final now = DateTime.now();
+
+    if (status == 'in_progress') {
+      if (jobStartedAt != null && now.difference(jobStartedAt).inHours >= 2) {
+        // ✅ Show "Mark as Complete"
+        return SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: () async {
+              try {
+                await FirebaseFirestore.instance
+                    .collection('bookings')
+                    .doc(bookingId)
+                    .update({
+                      'status': 'completed_by_provider',
+                      'updatedAt': FieldValue.serverTimestamp(),
+                      'completedAt': FieldValue.serverTimestamp(),
+                    });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Job marked as complete!'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.check_circle_outline),
+            label: const Text('Mark as Complete'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green[600],
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        );
+      } else {
+        if (jobStartedAt == null) {
+          return const Text(
+            'Job starting... please wait for confirmation.',
+            style: TextStyle(color: Colors.grey),
+          );
+        }
+
+        final remaining = Duration(hours: 2) - now.difference(jobStartedAt);
+
+        final minutesLeft = remaining.inMinutes.clamp(0, 120);
+
+        return Text(
+          'You can mark this job complete in $minutesLeft minute(s).',
+          style: const TextStyle(color: Colors.grey),
+        );
+      }
+    }
+
+    // ✅ Show "Start Job" button (only if scheduled time has arrived)
+    if (scheduledDate != null && now.isAfter(scheduledDate)) {
+      return SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          onPressed: () async {
+            try {
+              await FirebaseFirestore.instance
+                  .collection('bookings')
+                  .doc(bookingId)
+                  .update({
+                    'status': 'in_progress',
+                    'jobStartedAt': FieldValue.serverTimestamp(),
+                    'updatedAt': FieldValue.serverTimestamp(),
+                  });
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Job started. Timer is now running.'),
+                  backgroundColor: Colors.blue,
+                ),
+              );
+            } catch (e) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error: $e'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          },
+          icon: const Icon(Icons.play_arrow),
+          label: const Text('Start Job'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.orange[600],
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // ⏱ Not time to start yet
+    return Text(
+      'You can start this job at the scheduled time.',
+      style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
     );
   }
 

@@ -19,6 +19,7 @@ class Booking {
   final GeoPoint location;
   final DateTime? completedAt; // Added completion timestamp
   final bool isFullDay;
+  final DateTime? jobStartedAt; // ⬅️ Add this
 
   Booking({
     this.bookingId, // Make sure this is part of the constructor
@@ -39,6 +40,7 @@ class Booking {
     required this.location,
     this.completedAt,
     required this.isFullDay, // ✅ ADD THIS LINE
+    this.jobStartedAt,
   });
 
   // Status constants
@@ -98,6 +100,10 @@ class Booking {
               ? (data['completedAt'] as Timestamp).toDate()
               : null,
       isFullDay: data['isFullDay'] ?? false, // ✅ <-- add this line
+      jobStartedAt:
+          (data['jobStartedAt'] is Timestamp)
+              ? (data['jobStartedAt'] as Timestamp).toDate()
+              : null,
     );
   }
 
@@ -123,6 +129,8 @@ class Booking {
       'completedAt':
           completedAt != null ? Timestamp.fromDate(completedAt!) : null,
       'isFullDay': isFullDay,
+      'jobStartedAt':
+          jobStartedAt != null ? Timestamp.fromDate(jobStartedAt!) : null,
     };
   }
 
@@ -145,6 +153,7 @@ class Booking {
     GeoPoint? location,
     DateTime? completedAt,
     bool? isFullDay, // ✅ ADD THIS
+    DateTime? jobStartedAt,
   }) {
     return Booking(
       bookingId: bookingId ?? this.bookingId,
@@ -165,6 +174,7 @@ class Booking {
       location: location ?? this.location,
       completedAt: completedAt ?? this.completedAt,
       isFullDay: isFullDay ?? this.isFullDay, // ✅ ADD THIS
+      jobStartedAt: jobStartedAt ?? this.jobStartedAt,
     );
   }
 

@@ -5,10 +5,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/data/models/users.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:homeconnect/presentation/homeowner/pages/list_of _serviceproviders.dart';
+
 import 'package:homeconnect/data/models/booking.dart';
 import 'package:homeconnect/presentation/homeowner/pages/view_all_bookings.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
-import 'package:homeconnect/presentation/homeowner/pages/past_booked_providers_screen.dart';
 
 // Helper – convert something like “john_doe99@example.com” → “John”
 String nameFromEmail(String email) {
@@ -31,7 +31,6 @@ class HomeownerDashboardScreen extends StatefulWidget {
 
 class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
   final TextEditingController _searchController = TextEditingController();
-
   // Add to _HomeownerDashboardScreenState
   Stream<QuerySnapshot> _getCompletableJobs() {
     final userId = FirebaseAuth.instance.currentUser?.uid;
@@ -1158,7 +1157,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
             children: [
               // Category Title (e.g., "Plumbing")
               Text(
-                booking.selectedCategory,
+                service,
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -1245,14 +1244,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
             icon: const Icon(Icons.message),
             color: Colors.grey,
             onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const PastBookedProvidersListScreen(),
-                  // 👈 replace with actual name
-                ),
-              );
-              debugPrint('Messages bottom nav pressed!');
+              print('Messages BOTTOM nav pressed!');
             },
           ),
         ],
