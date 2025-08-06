@@ -28,7 +28,7 @@ class _ServiceProviderCalendarScreenState
   DateTime? _selectedDay;
   bool _isLoading = true;
   final int maxDailyBookings = 3;
-  Map<DateTime, int> _bookingCounts = {};
+  Map<DateTime, int> bookingCounts = {};
 
   @override
   void initState() {
@@ -102,11 +102,11 @@ class _ServiceProviderCalendarScreenState
       setState(() {
         bookedDates = confirmed;
         partiallyBookedDates = partial;
-        _bookingCounts = dateBookingCount;
+        bookingCounts = dateBookingCount;
         _isLoading = false;
       });
     } catch (e) {
-      print('Error fetching bookings: $e');
+      debugPrint('Error fetching bookings: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -116,7 +116,7 @@ class _ServiceProviderCalendarScreenState
     return bookedDates.contains(normalized);
   }
 
-  bool _isPartiallyBooked(DateTime day) {
+  bool isPartiallyBooked(DateTime day) {
     final normalized = DateTime(day.year, day.month, day.day);
     return partiallyBookedDates.contains(normalized);
   }

@@ -39,7 +39,7 @@ class AllJobRequestsScreen extends StatelessWidget {
             .orderBy('createdAt', descending: true)
             .snapshots()
             .handleError((error) {
-              print('🔥 Firestore error (Job Requests): $error');
+              debugPrint('🔥 Firestore error (Job Requests): $error');
             }),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {

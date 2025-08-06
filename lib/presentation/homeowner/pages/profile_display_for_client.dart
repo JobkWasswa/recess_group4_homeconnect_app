@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:homeconnect/data/models/rating_review.dart'; // Needed for RatingReview model to calculate average
 
-// Removed firebase_auth as no review submission is happening here
-
+// Removed firebase_auth as no review submission
 class ProfileDisplayScreenForClient extends StatefulWidget {
   final String serviceProviderId;
 
@@ -21,12 +20,12 @@ class _ProfileDisplayScreenForClientState
     extends State<ProfileDisplayScreenForClient> {
   double _averageRating = 0.0;
   int _totalReviews = 0;
-  // Removed List<RatingReview> _reviews; as individual reviews are not displayed
+  // Removed List<RatingReview> _reviews; as individual reviews not the displayed
 
   @override
   void initState() {
     super.initState();
-    _loadRatingsAndReviews(); // Reinstated to fetch data for average rating
+    _loadRatingsAndReviews(); // Reinstated fetch data for average rating
   }
 
   // Reinstated to calculate average rating and total reviews
@@ -40,8 +39,7 @@ class _ProfileDisplayScreenForClientState
         await FirebaseFirestore.instance
             .collection('ratings_reviews')
             .where('serviceProviderId', isEqualTo: widget.serviceProviderId)
-            .get(); // No need to order by timestamp if only calculating average/total
-
+            .get(); // No need to order by timestamp if only calculating average/total reviews
     if (!mounted) return; // Check again after await
 
     double sumRatings = 0;
@@ -53,7 +51,7 @@ class _ProfileDisplayScreenForClientState
         sumRatings += ratingReview.rating;
         // fetchedReviews.add(ratingReview); // No longer needed
       } catch (e) {
-        print('Error parsing rating review document: $e');
+        debugPrint('Error parsing rating review document: $e');
       }
     }
 

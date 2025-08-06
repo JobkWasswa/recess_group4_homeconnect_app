@@ -46,7 +46,7 @@ class _ServiceProviderDashboardScreenState
 
   Stream<QuerySnapshot> _getAcceptedJobs() {
     final userId = FirebaseAuth.instance.currentUser?.uid;
-    print('🔥 Current User ID: $userId');
+    debugPrint('🔥 Current User ID: $userId');
     if (userId == null) return Stream<QuerySnapshot>.empty();
 
     return FirebaseFirestore.instance
@@ -56,7 +56,7 @@ class _ServiceProviderDashboardScreenState
         .orderBy('createdAt', descending: true)
         .snapshots()
         .handleError((error) {
-          print('🔥 Firestore error in _getAcceptedJobs: $error');
+          debugPrint('🔥 Firestore error in _getAcceptedJobs: $error');
         });
   }
 
@@ -141,7 +141,7 @@ class _ServiceProviderDashboardScreenState
           score: 0.0,
           completedJobs: 0,
         );
-        print(
+        debugPrint(
           'Provider document not found for user: ${user.uid}. Created default model.',
         );
         await FirebaseFirestore.instance
@@ -153,7 +153,7 @@ class _ServiceProviderDashboardScreenState
             }, SetOptions(merge: true));
       }
     } catch (e) {
-      print('Error fetching provider data: $e');
+      debugPrint('Error fetching provider data: $e');
       setState(() {
         providerName = 'Provider';
       });
@@ -183,7 +183,7 @@ class _ServiceProviderDashboardScreenState
             .set({'fcmToken': token}, SetOptions(merge: true));
       }
     } catch (e) {
-      print('Error updating FCM token: $e');
+      debugPrint('Error updating FCM token: $e');
     }
   }
 
@@ -207,7 +207,7 @@ class _ServiceProviderDashboardScreenState
               (providerData?['averageRating'] as num?)?.toDouble() ?? 0.0;
         });
       } else {
-        print(
+        debugPrint(
           'Provider stats not found for current user ID. Using default 0 values.',
         );
         setState(() {
@@ -227,7 +227,7 @@ class _ServiceProviderDashboardScreenState
         _upcomingJobsCount = upcomingJobsSnapshot.docs.length;
       });
     } catch (e) {
-      print('Error fetching provider stats: $e');
+      debugPrint('Error fetching provider stats: $e');
       setState(() {
         _completedJobsCount = 0;
         _avgRating = 0.0;
@@ -580,7 +580,7 @@ class _ServiceProviderDashboardScreenState
                         children: [
                           IconButton(
                             onPressed: () {
-                              print('Provider Notifications pressed');
+                              debugPrint('Provider Notifications pressed');
                             },
                             icon: const Icon(
                               Icons.notifications,
@@ -610,7 +610,7 @@ class _ServiceProviderDashboardScreenState
                       ),
                       child: IconButton(
                         onPressed: () {
-                          print('Provider Profile pressed');
+                          debugPrint('Provider Profile pressed');
                         },
                         icon: const Icon(Icons.settings, color: Colors.white),
                       ),
@@ -1180,7 +1180,7 @@ class _ServiceProviderDashboardScreenState
                     backgroundColor: Colors.orange,
                   ),
                 );
-                print(
+                debugPrint(
                   'Attempted to open calendar from bottom nav but provider is null.',
                 );
               }
@@ -1191,7 +1191,7 @@ class _ServiceProviderDashboardScreenState
             icon: const Icon(Icons.map),
             color: Colors.grey,
             onPressed: () {
-              print('Map bottom nav pressed!');
+              debugPrint('Map bottom nav pressed!');
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -1210,7 +1210,7 @@ class _ServiceProviderDashboardScreenState
                   builder: (context) => const ProviderConversationsScreen(),
                 ),
               );
-              print('Messages bottom nav pressed!');
+              debugPrint('Messages bottom nav pressed!');
             },
           ),
         ],
