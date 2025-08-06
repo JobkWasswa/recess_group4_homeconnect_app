@@ -1244,7 +1244,7 @@ class _HomeownerDashboardScreenState extends State<HomeownerDashboardScreen> {
             icon: const Icon(Icons.message),
             color: Colors.grey,
             onPressed: () {
-              print('Messages bottom nav pressed!');
+              print('Messages BOTTOM nav pressed!');
             },
           ),
         ],
